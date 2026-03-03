@@ -165,26 +165,23 @@ describe('buildApiContent — files', () => {
 // --- audio attachments ---
 
 describe('buildApiContent — audio', () => {
-  it('skips audio binary, keeps text content (transcript from Whisper)', () => {
+  it('returns plain string for audio-only message (transcript from Whisper)', () => {
     const result = buildApiContent(msg({
       content: 'Hello this is my transcribed message',
       media: [audioAttachment()],
     }))
-    const parts = result as Array<{ type: string; text?: string }>
-    // Should only have the text part, no audio binary
-    expect(parts).toHaveLength(1)
-    expect(parts[0]).toEqual({ type: 'text', text: 'Hello this is my transcribed message' })
+    // Audio is skipped and no other non-text parts exist, so return plain string
+    // to avoid wrapping in ContentPart[] which the gateway may not handle
+    expect(result).toBe('Hello this is my transcribed message')
   })
 
-  it('returns text content string when audio is the only attachment and content exists', () => {
+  it('returns plain string when audio is the only attachment', () => {
     const result = buildApiContent(msg({
       content: 'transcribed words',
       media: [audioAttachment()],
     }))
-    // With audio-only + text content, should return a parts array with just text
-    const parts = result as Array<{ type: string }>
-    expect(parts).toHaveLength(1)
-    expect(parts[0].type).toBe('text')
+    expect(typeof result).toBe('string')
+    expect(result).toBe('transcribed words')
   })
 })
 

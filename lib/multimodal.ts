@@ -14,6 +14,7 @@ export function buildApiContent(msg: Message): MessageContent {
   if (!media || media.length === 0) return msg.content
 
   const parts: ContentPart[] = []
+  let attachmentAdded = false
 
   if (msg.content) {
     parts.push({ type: 'text', text: msg.content })
@@ -22,6 +23,7 @@ export function buildApiContent(msg: Message): MessageContent {
   for (const attachment of media) {
     if (attachment.type === 'image') {
       parts.push({ type: 'image_url', image_url: { url: attachment.url } })
+      attachmentAdded = true
     } else if (attachment.type === 'file') {
       const label = attachment.name || 'unknown'
       const sizeNote = attachment.size ? ` (${Math.round(attachment.size / 1024)} KB)` : ''
@@ -32,9 +34,15 @@ export function buildApiContent(msg: Message): MessageContent {
       } else {
         parts.push({ type: 'text', text: `[Attached file: ${label}${sizeNote}]` })
       }
+      attachmentAdded = true
     }
     // Audio: transcript already in msg.content via Whisper — skip binary
   }
+
+  // If no attachment actually contributed to parts (e.g., audio-only message
+  // where the transcript is already in msg.content), return a plain string
+  // so the gateway doesn't receive an unnecessary ContentPart[] wrapper.
+  if (!attachmentAdded) return msg.content
 
   return parts.length > 0 ? parts : msg.content
 }
