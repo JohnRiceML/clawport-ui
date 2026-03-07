@@ -4,7 +4,8 @@
 // Usage: npm run setup
 
 import { execSync } from 'node:child_process'
-import { readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, mkdirSync, accessSync } from 'node:fs'
+import { constants } from 'node:fs'
 import { resolve, join } from 'node:path'
 import { createInterface } from 'node:readline'
 import { homedir } from 'node:os'
@@ -210,7 +211,28 @@ async function main() {
 
   // Support --cwd flag for CLI usage (clawport setup writes .env.local into the package dir)
   const cwdFlag = process.argv.find((a) => a.startsWith('--cwd='))
-  const targetDir = cwdFlag ? cwdFlag.split('=')[1] : process.cwd()
+  let targetDir = cwdFlag ? cwdFlag.split('=')[1] : process.cwd()
+
+  // When installed globally (e.g. /usr/lib/node_modules/clawport-ui), targetDir may not be writable.
+  // Use ~/.config/clawport-ui/.env.local in that case so setup works without sudo.
+  function canWriteToDir(dir) {
+    try {
+      accessSync(dir, constants.W_OK)
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  if (!canWriteToDir(targetDir)) {
+    const userConfigDir = join(homedir(), '.config', 'clawport-ui')
+    if (!existsSync(userConfigDir)) {
+      mkdirSync(userConfigDir, { recursive: true })
+    }
+    targetDir = userConfigDir
+    console.log(`  ${yellow('!')} Package directory is not writable; using ${dim(targetDir)} for .env.local`)
+    console.log()
+  }
 
   // Check if .env.local already exists
   const envPath = resolve(targetDir, '.env.local')
@@ -254,7 +276,7 @@ async function main() {
   writeFileSync(envPath, content, 'utf-8')
 
   console.log()
-  console.log(`  ${green('Done!')} .env.local written.`)
+  console.log(`  ${green('Done!')} .env.local written${targetDir !== (cwdFlag ? cwdFlag.split('=')[1] : process.cwd()) ? ` to ${dim(targetDir)}` : ''}.`)
   console.log()
   const startCmd = cwdFlag ? 'clawport dev' : 'npm run dev'
   console.log(`  Next steps:`)

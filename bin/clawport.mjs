@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 
 import { fileURLToPath } from 'node:url'
-import { dirname, resolve } from 'node:path'
+import { dirname, resolve, join } from 'node:path'
 import { spawn } from 'node:child_process'
 import { existsSync, readFileSync, accessSync, constants } from 'node:fs'
+import { homedir } from 'node:os'
 import { execSync } from 'node:child_process'
 import { createServer } from 'node:net'
 
@@ -25,6 +26,40 @@ if (major < 22) {
 
 const __filename = fileURLToPath(import.meta.url)
 const PKG_ROOT = resolve(dirname(__filename), '..')
+
+const USER_CONFIG_DIR = join(homedir(), '.config', 'clawport-ui')
+const ENV_LOCAL_FILENAME = '.env.local'
+
+/** Path to .env.local: package root (preferred) or user config dir (for global installs). */
+function getEnvLocalPath() {
+  const pkgEnv = resolve(PKG_ROOT, ENV_LOCAL_FILENAME)
+  if (existsSync(pkgEnv)) return pkgEnv
+  const userEnv = resolve(USER_CONFIG_DIR, ENV_LOCAL_FILENAME)
+  if (existsSync(userEnv)) return userEnv
+  return null
+}
+
+/** Load .env.local into process.env so Next.js and status/doctor see the vars. */
+function loadEnvLocal() {
+  const path = getEnvLocalPath()
+  if (!path) return
+  try {
+    const content = readFileSync(path, 'utf-8')
+    for (const line of content.split('\n')) {
+      const trimmed = line.trim()
+      if (trimmed && !trimmed.startsWith('#')) {
+        const eq = trimmed.indexOf('=')
+        if (eq > 0) {
+          const key = trimmed.slice(0, eq).trim()
+          const value = trimmed.slice(eq + 1).trim()
+          if (key) process.env[key] = value
+        }
+      }
+    }
+  } catch (_) {}
+}
+
+loadEnvLocal()
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -153,10 +188,10 @@ async function cmdStatus() {
     console.log(`    ${dim('Start it with: openclaw gateway run')}`)
   }
 
-  // Check .env.local
-  const envPath = resolve(PKG_ROOT, '.env.local')
+  // Check .env.local (package root or ~/.config/clawport-ui)
+  const envPath = getEnvLocalPath()
   console.log()
-  if (existsSync(envPath)) {
+  if (envPath && existsSync(envPath)) {
     console.log(`  ${green('+')} .env.local found`)
     const content = readFileSync(envPath, 'utf-8')
     const lines = content.split('\n').filter((l) => l && !l.startsWith('#'))
@@ -175,6 +210,9 @@ async function cmdStatus() {
   }
 
   console.log()
+  if (envPath) {
+    console.log(`  ${dim(`Config: ${envPath}`)}`)
+  }
   console.log(`  ${dim(`Package root: ${PKG_ROOT}`)}`)
   console.log()
 }
@@ -212,12 +250,12 @@ async function cmdDoctor() {
   const gatewayUp = await checkGateway()
   check(gatewayUp, 'Gateway reachable at localhost:18789', 'Start it with: openclaw gateway run')
 
-  // 5. Configuration -- .env.local with required vars
-  const envPath = resolve(PKG_ROOT, '.env.local')
+  // 5. Configuration -- .env.local with required vars (package root or ~/.config/clawport-ui)
+  const envPath = getEnvLocalPath()
   const requiredVars = ['WORKSPACE_PATH', 'OPENCLAW_BIN', 'OPENCLAW_GATEWAY_TOKEN']
   let envOk = false
   let envFix = 'Run: clawport setup'
-  if (existsSync(envPath)) {
+  if (envPath && existsSync(envPath)) {
     const content = readFileSync(envPath, 'utf-8')
     const missing = requiredVars.filter((v) => !content.includes(`${v}=`))
     if (missing.length === 0) {
