@@ -40,9 +40,9 @@
     "clawport": "./bin/clawport.mjs"
   },
   "scripts": {
-    "dev": "next dev",
+    "dev": "dotenv -e .env.local -- next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "dotenv -e .env.local -- next start",
     "test": "vitest run",
     "setup": "node scripts/setup.mjs",
     "prepublishOnly": "npx tsc --noEmit && vitest run"
@@ -71,6 +71,7 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@vitejs/plugin-react": "^5.1.4",
+    "dotenv-cli": "^11.0.0",
     "jsdom": "^28.1.0",
     "shadcn": "^3.8.5",
     "vitest": "^4.0.18"
