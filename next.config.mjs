@@ -9,6 +9,9 @@ const nextConfig = {
     root: __dirname,
   },
   allowedDevOrigins: ["*"],
+  env: {
+    PORT: process.env.PORT ?? "3000",
+  },
 };
 
 export default nextConfig;

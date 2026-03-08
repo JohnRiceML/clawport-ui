@@ -150,9 +150,15 @@ ${dim(`Package root: ${PKG_ROOT}`)}
 `)
 }
 
+function portArgs() {
+  const hasPort = extraArgs.some((a) => a === '--port' || a.startsWith('--port=') || a === '-p')
+  if (!hasPort && process.env.PORT) return ['--port', process.env.PORT]
+  return []
+}
+
 function cmdDev() {
   console.log(`\n  ${bold('Starting ClawPort dev server...')}\n`)
-  run(NEXT_BIN, ['dev', ...extraArgs])
+  run(NEXT_BIN, ['dev', ...portArgs(), ...extraArgs])
 }
 
 function cmdStart() {
@@ -164,13 +170,13 @@ function cmdStart() {
   })
   build.on('close', (code) => {
     if (code !== 0) process.exit(code)
-    run(NEXT_BIN, ['start', ...extraArgs])
+    run(NEXT_BIN, ['start', ...portArgs(), ...extraArgs])
   })
 }
 
 function cmdSetup() {
   console.log()
-  run('node', [resolve(PKG_ROOT, 'scripts/setup.mjs'), `--cwd=${PKG_ROOT}`])
+  run('node', [resolve(PKG_ROOT, 'scripts/setup.mjs'), `--cwd=${PKG_ROOT}`, ...extraArgs])
 }
 
 async function cmdStatus() {

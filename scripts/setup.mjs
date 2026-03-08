@@ -213,6 +213,15 @@ async function main() {
     }
   }
 
+  // PORT (defaults to 3000)
+  const portFlag = process.argv.find((a) => a.startsWith('--port='))
+  if (portFlag) {
+    final.PORT = portFlag.split('=')[1]
+  } else {
+    const portAnswer = await ask(`  ${yellow('?')} Port for web UI (default: 3000): `)
+    final.PORT = portAnswer || '3000'
+  }
+
   // Support --cwd flag for CLI usage (clawport setup writes .env.local into the package dir)
   const cwdFlag = process.argv.find((a) => a.startsWith('--cwd='))
   let targetDir = cwdFlag ? cwdFlag.split('=')[1] : process.cwd()
@@ -254,6 +263,7 @@ async function main() {
   console.log(`    WORKSPACE_PATH=${dim(final.WORKSPACE_PATH)}`)
   console.log(`    OPENCLAW_BIN=${dim(final.OPENCLAW_BIN)}`)
   console.log(`    OPENCLAW_GATEWAY_TOKEN=${dim(final.OPENCLAW_GATEWAY_TOKEN.slice(0, 8) + '...')}`)
+  console.log(`    PORT=${dim(final.PORT)}`)
   console.log()
 
   const confirm = await ask(`  ${bold('Write .env.local?')} (Y/n) `)
@@ -271,6 +281,7 @@ async function main() {
     `WORKSPACE_PATH=${final.WORKSPACE_PATH}`,
     `OPENCLAW_BIN=${final.OPENCLAW_BIN}`,
     `OPENCLAW_GATEWAY_TOKEN=${final.OPENCLAW_GATEWAY_TOKEN}`,
+    `PORT=${final.PORT}`,
     '',
     '# Optional -- uncomment to enable voice features',
     '# ELEVENLABS_API_KEY=',
