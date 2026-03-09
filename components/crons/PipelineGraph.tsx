@@ -20,6 +20,7 @@ import { getAllPipelineJobNames } from "@/lib/cron-pipelines"
 import { formatDuration } from "@/lib/cron-utils"
 import { buildPipelineLayout, buildHealthCheckPrompt, extractJobNameFromNodeId } from "@/lib/pipeline-utils"
 import { generateId } from "@/lib/id"
+import { renderMarkdown } from "@/lib/sanitize"
 
 interface HealthChatMessage {
   id: string
@@ -328,6 +329,64 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
     }
   }, [crons, pipelines, agentColorMap, hasPipelines, selectedJob, setNodes, setEdges])
 
+  // Derive quick-action suggestions from cron/pipeline data
+  const quickActions = useMemo(() => {
+    const actions: { label: string; prompt: string; color: string }[] = []
+
+    const errorJobs = crons.filter(c => c.status === "error")
+    if (errorJobs.length > 0) {
+      const names = errorJobs.map(c => c.name).join(", ")
+      actions.push({
+        label: `Fix ${errorJobs.length} errored job${errorJobs.length > 1 ? "s" : ""}`,
+        prompt: `The following jobs are in error state: ${names}. Diagnose the root cause for each and suggest specific fixes.`,
+        color: "var(--system-red)",
+      })
+    }
+
+    const unownedJobs = crons.filter(c => !c.agentId)
+    if (unownedJobs.length > 0) {
+      const names = unownedJobs.map(c => c.name).join(", ")
+      actions.push({
+        label: `Assign ${unownedJobs.length} unowned job${unownedJobs.length > 1 ? "s" : ""}`,
+        prompt: `These jobs have no agent owner: ${names}. Based on each job's purpose and the available agents, recommend which agent should own each one and explain why.`,
+        color: "var(--system-orange)",
+      })
+    }
+
+    const missingDelivery = crons.filter(c => c.delivery && !c.delivery.to)
+    if (missingDelivery.length > 0) {
+      const names = missingDelivery.map(c => c.name).join(", ")
+      actions.push({
+        label: `Fix ${missingDelivery.length} missing delivery target${missingDelivery.length > 1 ? "s" : ""}`,
+        prompt: `These jobs have delivery configured but no target: ${names}. What should the delivery targets be for each? Suggest the right channel and destination.`,
+        color: "var(--system-orange)",
+      })
+    }
+
+    const overdue = crons.filter(c => {
+      if (!c.nextRun) return false
+      return new Date(c.nextRun).getTime() < Date.now()
+    })
+    if (overdue.length > 0) {
+      const names = overdue.map(c => c.name).join(", ")
+      actions.push({
+        label: `Investigate ${overdue.length} overdue job${overdue.length > 1 ? "s" : ""}`,
+        prompt: `These jobs are overdue (past their next scheduled run): ${names}. What could be preventing them from running? How do I get them back on schedule?`,
+        color: "var(--system-orange)",
+      })
+    }
+
+    if (actions.length === 0) {
+      actions.push({
+        label: "How can I improve reliability?",
+        prompt: "Based on the health check results, what are the top 3 things I should do to improve the reliability and observability of this pipeline system?",
+        color: "var(--accent)",
+      })
+    }
+
+    return actions
+  }, [crons])
+
   // Auto-scroll health check panel
   useEffect(() => {
     if (healthRef.current) {
@@ -400,16 +459,16 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
   }, [rootAgent, healthCheckStreaming, crons, pipelines, agents])
 
   // Send a follow-up message in the health check chat
-  const sendHealthChatMessage = useCallback(async () => {
-    const text = healthChatInput.trim()
+  const sendHealthChatMessage = useCallback(async (overrideText?: string) => {
+    const text = (overrideText ?? healthChatInput).trim()
     if (!text || healthChatStreaming || !rootAgent) return
+    if (!overrideText) setHealthChatInput("")
 
     const userMsg: HealthChatMessage = { id: generateId(), role: "user", content: text }
     const assistantMsgId = generateId()
     const assistantMsg: HealthChatMessage = { id: assistantMsgId, role: "assistant", content: "", isStreaming: true }
 
     setHealthChatMessages(prev => [...prev, userMsg, assistantMsg])
-    setHealthChatInput("")
     setHealthChatStreaming(true)
 
     // Build API messages: health check context + conversation history + new message
@@ -673,22 +732,27 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
             </div>
           )}
 
-          {/* Streamed content */}
+          {/* Streamed content — formatted markdown */}
           {healthCheckContent && (
             <div
               ref={healthRef}
               style={{
                 padding: "0 var(--space-4) var(--space-4)",
-                fontSize: "var(--text-footnote)",
-                color: "var(--text-secondary)",
-                lineHeight: 1.6,
-                maxHeight: 300,
+                maxHeight: 400,
                 overflowY: "auto",
-                whiteSpace: "pre-wrap",
-                wordBreak: "break-word",
               }}
             >
-              {healthCheckContent}
+              <div
+                style={{
+                  fontSize: "var(--text-footnote)",
+                  color: "var(--text-secondary)",
+                  lineHeight: 1.7,
+                  wordBreak: "break-word",
+                }}
+                dangerouslySetInnerHTML={{
+                  __html: `<p class="mb-3" style="color:var(--text-secondary)">${renderMarkdown(healthCheckContent)}</p>`,
+                }}
+              />
               {healthCheckStreaming && (
                 <span style={{
                   display: "inline-block",
@@ -700,6 +764,51 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
                   animation: "blink 1s infinite",
                   verticalAlign: "text-bottom",
                 }} />
+              )}
+
+              {/* Quick-action buttons — only after streaming completes */}
+              {!healthCheckStreaming && (
+                <div style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 8,
+                  marginTop: "var(--space-3)",
+                  paddingTop: "var(--space-3)",
+                  borderTop: "1px solid var(--separator)",
+                }}>
+                  {quickActions.map((action, i) => (
+                    <button
+                      key={i}
+                      onClick={() => sendHealthChatMessage(action.prompt)}
+                      disabled={healthChatStreaming}
+                      className="btn-ghost focus-ring"
+                      style={{
+                        padding: "6px 12px",
+                        borderRadius: 20,
+                        fontSize: "var(--text-caption1)",
+                        fontWeight: 500,
+                        border: `1px solid color-mix(in srgb, ${action.color} 30%, transparent)`,
+                        background: `color-mix(in srgb, ${action.color} 8%, transparent)`,
+                        color: action.color,
+                        cursor: healthChatStreaming ? "default" : "pointer",
+                        opacity: healthChatStreaming ? 0.5 : 1,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      <span style={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: "50%",
+                        background: action.color,
+                        flexShrink: 0,
+                      }} />
+                      {action.label}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
           )}
@@ -794,7 +903,7 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
                   }}
                 />
                 <button
-                  onClick={sendHealthChatMessage}
+                  onClick={() => sendHealthChatMessage()}
                   disabled={healthChatStreaming || !healthChatInput.trim()}
                   style={{
                     padding: "8px 12px",
