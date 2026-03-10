@@ -31,6 +31,7 @@ beforeEach(() => {
     getItem: (key: string) => storage[key] ?? null,
     setItem: (key: string, val: string) => { storage[key] = val },
     removeItem: (key: string) => { delete storage[key] },
+    clear: () => { Object.keys(storage).forEach((k) => delete storage[k]) },
   })
 })
 
@@ -47,40 +48,40 @@ beforeEach(() => {
 describe('getWorkPrompt', () => {
   it('returns lead-dev prompt for lead-dev role', () => {
     const prompt = getWorkPrompt(makeTicket({ assigneeRole: 'lead-dev' }))
-    expect(prompt).toContain('Lead Dev')
-    expect(prompt).toContain('Technical breakdown')
-    expect(prompt).toContain('Implementation plan')
+    expect(prompt).toContain('开发负责人')
+    expect(prompt).toContain('技术拆解')
+    expect(prompt).toContain('实现步骤')
     expect(prompt).toContain('Build login page')
   })
 
   it('returns ux-ui prompt for ux-ui role', () => {
     const prompt = getWorkPrompt(makeTicket({ assigneeRole: 'ux-ui' }))
-    expect(prompt).toContain('UX/UI Lead')
-    expect(prompt).toContain('Design review')
-    expect(prompt).toContain('Accessibility')
+    expect(prompt).toContain('UX/UI 负责人')
+    expect(prompt).toContain('设计审查')
+    expect(prompt).toContain('可访问性')
   })
 
   it('returns qa prompt for qa role', () => {
     const prompt = getWorkPrompt(makeTicket({ assigneeRole: 'qa' }))
-    expect(prompt).toContain('QA')
-    expect(prompt).toContain('Test scenarios')
-    expect(prompt).toContain('Acceptance criteria')
+    expect(prompt).toContain('质量保障负责人')
+    expect(prompt).toContain('测试场景')
+    expect(prompt).toContain('验收标准')
   })
 
   it('returns fallback prompt when no role assigned', () => {
     const prompt = getWorkPrompt(makeTicket({ assigneeRole: null }))
-    expect(prompt).toContain('Analysis of what needs to be done')
+    expect(prompt).toContain('任务分析')
     expect(prompt).toContain('Build login page')
   })
 
   it('includes ticket description when present', () => {
     const prompt = getWorkPrompt(makeTicket({ description: 'Custom desc' }))
-    expect(prompt).toContain('Description: Custom desc')
+    expect(prompt).toContain('描述：Custom desc')
   })
 
   it('handles empty description', () => {
     const prompt = getWorkPrompt(makeTicket({ description: '' }))
-    expect(prompt).toContain('No description provided')
+    expect(prompt).toContain('描述：未提供。')
   })
 })
 
@@ -162,7 +163,7 @@ describe('executeWork', () => {
 
     const result = await executeWork('agent-1', makeTicket())
     expect(result.success).toBe(false)
-    expect(result.error).toContain('Empty response')
+    expect(result.error).toContain('智能体返回为空')
   })
 
   it('returns error on network failure', async () => {

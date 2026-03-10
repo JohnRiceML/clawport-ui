@@ -66,7 +66,7 @@ export function useAgentWork({ tickets, onUpdateTicket }: UseAgentWorkOptions) {
     } else {
       onUpdateTicket(id, {
         workState: 'failed',
-        workError: result.error || 'Agent work failed',
+        workError: result.error || '智能体执行失败',
       })
     }
 

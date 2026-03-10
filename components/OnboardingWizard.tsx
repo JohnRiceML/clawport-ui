@@ -12,18 +12,18 @@ import type { ThemeId } from '@/lib/themes'
 // ---------------------------------------------------------------------------
 
 const ACCENT_PRESETS = [
-  { label: 'Red', value: '#EF4444' },
-  { label: 'Gold', value: '#F5C518' },
-  { label: 'Blue', value: '#3B82F6' },
-  { label: 'Green', value: '#22C55E' },
-  { label: 'Orange', value: '#F97316' },
-  { label: 'Purple', value: '#A855F7' },
-  { label: 'Pink', value: '#EC4899' },
-  { label: 'Teal', value: '#14B8A6' },
-  { label: 'Cyan', value: '#06B6D4' },
-  { label: 'Indigo', value: '#6366F1' },
-  { label: 'Rose', value: '#F43F5E' },
-  { label: 'Lime', value: '#84CC16' },
+  { label: '红色', value: '#EF4444' },
+  { label: '金色', value: '#F5C518' },
+  { label: '蓝色', value: '#3B82F6' },
+  { label: '绿色', value: '#22C55E' },
+  { label: '橙色', value: '#F97316' },
+  { label: '紫色', value: '#A855F7' },
+  { label: '粉色', value: '#EC4899' },
+  { label: '青绿色', value: '#14B8A6' },
+  { label: '青色', value: '#06B6D4' },
+  { label: '靛蓝', value: '#6366F1' },
+  { label: '玫红', value: '#F43F5E' },
+  { label: '黄绿色', value: '#84CC16' },
 ]
 
 // ---------------------------------------------------------------------------
@@ -31,11 +31,11 @@ const ACCENT_PRESETS = [
 // ---------------------------------------------------------------------------
 
 const FEATURES = [
-  { icon: Map, name: 'Agent Map', desc: 'Visual org chart of all your AI agents' },
-  { icon: MessageSquare, name: 'Chat', desc: 'Direct conversations with any agent' },
-  { icon: Columns3, name: 'Kanban', desc: 'Task board for agent work management' },
-  { icon: Clock, name: 'Crons', desc: 'Scheduled jobs with status monitoring' },
-  { icon: Brain, name: 'Memory', desc: 'Shared context and knowledge files' },
+  { icon: Map, nameKey: 'overview.agentMap', descKey: 'overview.agentMapDesc' },
+  { icon: MessageSquare, nameKey: 'overview.chat', descKey: 'overview.chatDesc' },
+  { icon: Columns3, nameKey: 'overview.kanban', descKey: 'overview.kanbanDesc' },
+  { icon: Clock, nameKey: 'overview.crons', descKey: 'overview.cronsDesc' },
+  { icon: Brain, nameKey: 'overview.memory', descKey: 'overview.memoryDesc' },
 ]
 
 // ---------------------------------------------------------------------------
@@ -74,6 +74,7 @@ interface OnboardingWizardProps {
 export function OnboardingWizard({ forceOpen, onClose }: OnboardingWizardProps) {
   const {
     settings,
+    t,
     setPortalName,
     setPortalSubtitle,
     setOperatorName,
@@ -139,12 +140,12 @@ export function OnboardingWizard({ forceOpen, onClose }: OnboardingWizardProps) 
           })))
           setAgentsStatus('ok')
         } else {
-          setAgentsError('No agents found. Check your agents.json or workspace config.')
+          setAgentsError('未发现智能体。请检查 agents.json 或工作区配置。')
           setAgentsStatus('error')
         }
       })
       .catch(() => {
-        setAgentsError('Could not reach agent registry. Is the server running?')
+        setAgentsError('无法连接智能体注册表。请确认服务已启动。')
         setAgentsStatus('error')
       })
 
@@ -158,7 +159,7 @@ export function OnboardingWizard({ forceOpen, onClose }: OnboardingWizardProps) 
         setCronsStatus('ok')
       })
       .catch(() => {
-        setCronsError('Could not reach OpenClaw gateway. Run: openclaw gateway run')
+        setCronsError('无法连接 OpenClaw 网关。请运行：openclaw gateway run')
         setCronsStatus('error')
       })
   }
@@ -271,7 +272,7 @@ export function OnboardingWizard({ forceOpen, onClose }: OnboardingWizardProps) 
                 color: 'var(--text-primary)',
                 marginBottom: 'var(--space-2)',
               }}>
-                Welcome to ClawPort
+                {t('onboarding.welcomeTitle')}
               </h2>
               <p style={{
                 fontSize: 'var(--text-body)',
@@ -281,9 +282,7 @@ export function OnboardingWizard({ forceOpen, onClose }: OnboardingWizardProps) 
                 margin: '0 auto',
                 marginBottom: 'var(--space-5)',
               }}>
-                A visual command centre for your AI agent team.
-                Built to give you direct, real-time access to every agent
-                in your OpenClaw workspace.
+                {t('onboarding.welcomeBody')}
               </p>
 
               <div style={{
@@ -293,9 +292,9 @@ export function OnboardingWizard({ forceOpen, onClose }: OnboardingWizardProps) 
                 textAlign: 'left',
               }}>
                 {[
-                  { emoji: '🗺️', title: 'Map & Chat', desc: 'Interactive agent org chart with direct messaging' },
-                  { emoji: '⚡', title: 'Monitor', desc: 'Cron jobs, shared memory, and task management' },
-                  { emoji: '🎨', title: 'Personalize', desc: 'Five themes, accent colors, and custom branding' },
+                  { emoji: '🗺️', title: t('onboarding.feature.mapTitle'), desc: t('onboarding.feature.mapDesc') },
+                  { emoji: '⚡', title: t('onboarding.feature.monitorTitle'), desc: t('onboarding.feature.monitorDesc') },
+                  { emoji: '🎨', title: t('onboarding.feature.personalizeTitle'), desc: t('onboarding.feature.personalizeDesc') },
                 ].map(item => (
                   <div
                     key={item.title}
@@ -335,7 +334,7 @@ export function OnboardingWizard({ forceOpen, onClose }: OnboardingWizardProps) 
                 color: 'var(--text-quaternary)',
                 marginTop: 'var(--space-4)',
               }}>
-                Built by John Rice with Jarvis (OpenClaw AI)
+                {t('onboarding.builtBy')}
               </p>
             </div>
           )}
@@ -350,14 +349,14 @@ export function OnboardingWizard({ forceOpen, onClose }: OnboardingWizardProps) 
                 color: 'var(--text-primary)',
                 marginBottom: 'var(--space-1)',
               }}>
-                System Check
+                {t('onboarding.systemCheckTitle')}
               </h2>
               <p style={{
                 fontSize: 'var(--text-subheadline)',
                 color: 'var(--text-tertiary)',
                 marginBottom: 'var(--space-4)',
               }}>
-                Verifying your OpenClaw connection...
+                {t('onboarding.systemCheckBody')}
               </p>
 
               {/* Your Name input */}
@@ -368,12 +367,12 @@ export function OnboardingWizard({ forceOpen, onClose }: OnboardingWizardProps) 
                   color: 'var(--text-tertiary)',
                   marginBottom: 'var(--space-1)',
                 }}>
-                  Your Name
+                  {t('onboarding.yourName')}
                 </label>
                 <input
                   type="text"
                   className="apple-input"
-                  placeholder="Your Name"
+                  placeholder={t('onboarding.yourName')}
                   value={localOperator}
                   onChange={e => setLocalOperator(e.target.value)}
                   style={{
@@ -404,11 +403,11 @@ export function OnboardingWizard({ forceOpen, onClose }: OnboardingWizardProps) 
                       fontWeight: 'var(--weight-medium)',
                       color: 'var(--text-primary)',
                     }}>
-                      Agent Registry
+                      {t('onboarding.agentRegistry')}
                     </div>
                     {agentsStatus === 'ok' && (
                       <div style={{ fontSize: 'var(--text-caption1)', color: 'var(--text-tertiary)' }}>
-                        {agents.length} agent{agents.length !== 1 ? 's' : ''} found
+                        {agents.length === 1 ? t('onboarding.agentsFoundOne') : t('onboarding.agentsFoundMany', { count: agents.length })}
                       </div>
                     )}
                     {agentsError && (
@@ -438,11 +437,11 @@ export function OnboardingWizard({ forceOpen, onClose }: OnboardingWizardProps) 
                       fontWeight: 'var(--weight-medium)',
                       color: 'var(--text-primary)',
                     }}>
-                      OpenClaw Gateway
+                      {t('onboarding.gateway')}
                     </div>
                     {cronsStatus === 'ok' && (
                       <div style={{ fontSize: 'var(--text-caption1)', color: 'var(--text-tertiary)' }}>
-                        Connected at localhost:18789
+                        {t('onboarding.gatewayConnected')}
                       </div>
                     )}
                     {cronsError && (
@@ -465,7 +464,7 @@ export function OnboardingWizard({ forceOpen, onClose }: OnboardingWizardProps) 
                     fontWeight: 600,
                     marginBottom: 'var(--space-2)',
                   }}>
-                    Your Agent Team
+                    {t('onboarding.agentTeam')}
                   </div>
                   <div style={{
                     padding: 'var(--space-2)',
@@ -500,7 +499,7 @@ export function OnboardingWizard({ forceOpen, onClose }: OnboardingWizardProps) 
                     color: 'var(--text-tertiary)',
                     marginTop: 'var(--space-2)',
                   }}>
-                    Does this look like your team? If not, check your <code style={{
+                    {t('onboarding.agentTeamHint')} <code style={{
                       fontSize: 'var(--text-caption2)',
                       background: 'var(--code-bg)',
                       padding: '1px 4px',
@@ -529,14 +528,13 @@ export function OnboardingWizard({ forceOpen, onClose }: OnboardingWizardProps) 
                     color: 'var(--text-secondary)',
                     lineHeight: 'var(--leading-relaxed)',
                   }}>
-                    Run <code style={{
+                    {t('onboarding.setupHint').split('clawport setup')[0]}<code style={{
                       fontSize: 'var(--text-caption2)',
                       background: 'var(--code-bg)',
                       padding: '1px 4px',
                       borderRadius: 3,
                       color: 'var(--code-text)',
-                    }}>clawport setup</code> in your terminal to auto-detect and configure your environment.
-                    You can continue setup and fix this later.
+                    }}>clawport setup</code>{t('onboarding.setupHint').split('clawport setup')[1]}
                   </div>
                 </div>
               )}
@@ -561,7 +559,7 @@ export function OnboardingWizard({ forceOpen, onClose }: OnboardingWizardProps) 
                   }}
                 >
                   <RotateCcw size={16} />
-                  Retry Checks
+                  {t('onboarding.retryChecks')}
                 </button>
               )}
             </div>
@@ -577,14 +575,14 @@ export function OnboardingWizard({ forceOpen, onClose }: OnboardingWizardProps) 
                 color: 'var(--text-primary)',
                 marginBottom: 'var(--space-1)',
               }}>
-                Name Your Dashboard
+                {t('onboarding.nameDashboardTitle')}
               </h2>
               <p style={{
                 fontSize: 'var(--text-subheadline)',
                 color: 'var(--text-tertiary)',
                 marginBottom: 'var(--space-5)',
               }}>
-                Personalize your command centre.
+                {t('onboarding.nameDashboardBody')}
               </p>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
@@ -595,7 +593,7 @@ export function OnboardingWizard({ forceOpen, onClose }: OnboardingWizardProps) 
                     color: 'var(--text-tertiary)',
                     marginBottom: 'var(--space-1)',
                   }}>
-                    Dashboard Name
+                    {t('onboarding.dashboardName')}
                   </label>
                   <input
                     type="text"
@@ -619,12 +617,12 @@ export function OnboardingWizard({ forceOpen, onClose }: OnboardingWizardProps) 
                     color: 'var(--text-tertiary)',
                     marginBottom: 'var(--space-1)',
                   }}>
-                    Subtitle
+                    {t('onboarding.subtitle')}
                   </label>
                   <input
                     type="text"
                     className="apple-input"
-                    placeholder="Command Centre"
+                    placeholder={t('app.commandCentre')}
                     value={localSubtitle}
                     onChange={e => setLocalSubtitle(e.target.value)}
                     style={{
@@ -653,7 +651,7 @@ export function OnboardingWizard({ forceOpen, onClose }: OnboardingWizardProps) 
                   fontWeight: 600,
                   marginBottom: 'var(--space-2)',
                 }}>
-                  Preview
+                  {t('onboarding.preview')}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
                   <div style={{
@@ -687,7 +685,7 @@ export function OnboardingWizard({ forceOpen, onClose }: OnboardingWizardProps) 
                       fontSize: 'var(--text-caption2)',
                       color: 'var(--text-tertiary)',
                     }}>
-                      {localSubtitle || 'Command Centre'}
+                      {localSubtitle || t('app.commandCentre')}
                     </div>
                   </div>
                   <div style={{
@@ -721,14 +719,14 @@ export function OnboardingWizard({ forceOpen, onClose }: OnboardingWizardProps) 
                 color: 'var(--text-primary)',
                 marginBottom: 'var(--space-1)',
               }}>
-                Choose a Theme
+                {t('onboarding.chooseThemeTitle')}
               </h2>
               <p style={{
                 fontSize: 'var(--text-subheadline)',
                 color: 'var(--text-tertiary)',
                 marginBottom: 'var(--space-4)',
               }}>
-                Pick the look that suits you. This applies live.
+                {t('onboarding.chooseThemeBody')}
               </p>
 
               <div style={{
@@ -780,14 +778,14 @@ export function OnboardingWizard({ forceOpen, onClose }: OnboardingWizardProps) 
                 color: 'var(--text-primary)',
                 marginBottom: 'var(--space-1)',
               }}>
-                Accent Color
+                {t('onboarding.accentTitle')}
               </h2>
               <p style={{
                 fontSize: 'var(--text-subheadline)',
                 color: 'var(--text-tertiary)',
                 marginBottom: 'var(--space-4)',
               }}>
-                Personalize with your favorite color.
+                {t('onboarding.accentBody')}
               </p>
 
               <div style={{
@@ -837,7 +835,7 @@ export function OnboardingWizard({ forceOpen, onClose }: OnboardingWizardProps) 
                 color: 'var(--text-primary)',
                 marginBottom: 'var(--space-1)',
               }}>
-                Voice Input
+                {t('onboarding.voiceTitle')}
               </h2>
               <p style={{
                 fontSize: 'var(--text-subheadline)',
@@ -845,8 +843,7 @@ export function OnboardingWizard({ forceOpen, onClose }: OnboardingWizardProps) 
                 marginBottom: 'var(--space-4)',
                 lineHeight: 'var(--leading-relaxed)',
               }}>
-                Talk to your agents using your system&apos;s built-in dictation.
-                No microphone setup needed in the browser.
+                {t('onboarding.voiceBody')}
               </p>
 
               <div style={{
@@ -884,13 +881,13 @@ export function OnboardingWizard({ forceOpen, onClose }: OnboardingWizardProps) 
                         fontWeight: 'var(--weight-semibold)',
                         color: 'var(--text-primary)',
                       }}>
-                        macOS Dictation
+                        macOS 听写
                       </div>
                       <div style={{
                         fontSize: 'var(--text-caption1)',
                         color: 'var(--text-tertiary)',
                       }}>
-                        Recommended
+                        {t('onboarding.voiceRecommended')}
                       </div>
                     </div>
                   </div>
@@ -905,15 +902,15 @@ export function OnboardingWizard({ forceOpen, onClose }: OnboardingWizardProps) 
                   }}>
                     <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
                       <span style={{ color: 'var(--accent)', fontWeight: 'var(--weight-semibold)', flexShrink: 0 }}>1.</span>
-                      <span>Open <strong>System Settings &gt; Keyboard</strong></span>
+                      <span>{t('onboarding.voiceStep1')}</span>
                     </div>
                     <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
                       <span style={{ color: 'var(--accent)', fontWeight: 'var(--weight-semibold)', flexShrink: 0 }}>2.</span>
-                      <span>Turn on <strong>Dictation</strong></span>
+                      <span>{t('onboarding.voiceStep2')}</span>
                     </div>
                     <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
                       <span style={{ color: 'var(--accent)', fontWeight: 'var(--weight-semibold)', flexShrink: 0 }}>3.</span>
-                      <span>Click any chat input, press <strong>Fn Fn</strong> (double-tap), and start talking</span>
+                      <span>{t('onboarding.voiceStep3')}</span>
                     </div>
                   </div>
                 </div>
@@ -933,8 +930,7 @@ export function OnboardingWizard({ forceOpen, onClose }: OnboardingWizardProps) 
                     color: 'var(--text-tertiary)',
                     lineHeight: 'var(--leading-relaxed)',
                   }}>
-                    Your voice is converted to text by macOS, then sent as a regular message.
-                    Agents respond just like they would to typed text. Works in any input field across the app.
+                    {t('onboarding.voiceHint')}
                   </div>
                 </div>
               </div>
@@ -951,14 +947,14 @@ export function OnboardingWizard({ forceOpen, onClose }: OnboardingWizardProps) 
                 color: 'var(--text-primary)',
                 marginBottom: 'var(--space-1)',
               }}>
-                You&apos;re All Set
+                {t('onboarding.readyTitle')}
               </h2>
               <p style={{
                 fontSize: 'var(--text-subheadline)',
                 color: 'var(--text-tertiary)',
                 marginBottom: 'var(--space-4)',
               }}>
-                Here&apos;s what you can do.
+                {t('onboarding.readyBody')}
               </p>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
@@ -966,7 +962,7 @@ export function OnboardingWizard({ forceOpen, onClose }: OnboardingWizardProps) 
                   const Icon = f.icon
                   return (
                     <div
-                      key={f.name}
+                      key={f.nameKey}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
@@ -995,13 +991,13 @@ export function OnboardingWizard({ forceOpen, onClose }: OnboardingWizardProps) 
                           fontWeight: 'var(--weight-semibold)',
                           color: 'var(--text-primary)',
                         }}>
-                          {f.name}
+                          {t(f.nameKey)}
                         </div>
                         <div style={{
                           fontSize: 'var(--text-caption1)',
                           color: 'var(--text-tertiary)',
                         }}>
-                          {f.desc}
+                          {t(f.descKey)}
                         </div>
                       </div>
                     </div>
@@ -1039,7 +1035,7 @@ export function OnboardingWizard({ forceOpen, onClose }: OnboardingWizardProps) 
               }}
             >
               <ArrowLeft size={16} />
-              Back
+              {t('onboarding.back')}
             </button>
           ) : (
             <div />
@@ -1062,7 +1058,7 @@ export function OnboardingWizard({ forceOpen, onClose }: OnboardingWizardProps) 
               gap: 6,
             }}
           >
-            {step === 0 ? 'Begin' : step === TOTAL_STEPS - 1 ? 'Get Started' : 'Next'}
+            {step === 0 ? t('onboarding.begin') : step === TOTAL_STEPS - 1 ? t('onboarding.getStarted') : t('onboarding.next')}
             {step === TOTAL_STEPS - 1 ? <Rocket size={16} /> : <ArrowRight size={16} />}
           </button>
         </div>

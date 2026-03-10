@@ -103,7 +103,7 @@ function CronPipelineNode({ data }: NodeProps) {
             marginTop: 2,
           }}
         >
-          delivered
+          已投递
         </div>
       )}
 
@@ -129,10 +129,10 @@ function PipelinesEmptyState({ onSetupClick }: { onSetupClick?: () => void }) {
       }}
     >
       <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>
-        No pipelines configured
+        暂未配置流水线
       </div>
       <div style={{ fontSize: 12, color: "var(--text-secondary)", maxWidth: 480, margin: "0 auto", lineHeight: 1.6 }}>
-        Pipelines visualize file I/O dependencies between cron jobs.
+        流水线会可视化展示定时任务之间的文件输入/输出依赖关系。
       </div>
 
       {onSetupClick && (
@@ -158,16 +158,16 @@ function PipelinesEmptyState({ onSetupClick }: { onSetupClick?: () => void }) {
               <line x1="12" y1="12" x2="12" y2="16" />
               <line x1="10" y1="14" x2="14" y2="14" />
             </svg>
-            Auto-Detect Pipelines with AI
+            使用 AI 自动识别流水线
           </button>
           <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 8, maxWidth: 360, margin: "8px auto 0", lineHeight: 1.5 }}>
-            Sends your cron job list to an AI agent to analyze file dependencies and generate a pipeline config.
+            会把你的定时任务列表发送给 AI 智能体，分析文件依赖并生成流水线配置。
           </div>
         </div>
       )}
 
       <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 16, maxWidth: 480, margin: "16px auto 0" }}>
-        Or manually create:
+        或手动创建：
       </div>
       <div
         style={{
@@ -201,7 +201,7 @@ function PipelinesEmptyState({ onSetupClick }: { onSetupClick?: () => void }) {
         }}
       >{`[
   {
-    "name": "Daily Report",
+    "name": "每日报告",
     "edges": [
       { "from": "data-collector", "to": "report-builder", "artifact": "raw-data.json" }
     ]
@@ -337,8 +337,8 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
     if (errorJobs.length > 0) {
       const names = errorJobs.map(c => c.name).join(", ")
       actions.push({
-        label: `Fix ${errorJobs.length} errored job${errorJobs.length > 1 ? "s" : ""}`,
-        prompt: `The following jobs are in error state: ${names}. Diagnose the root cause for each and suggest specific fixes.`,
+        label: `修复 ${errorJobs.length} 个报错任务`,
+        prompt: `以下任务处于错误状态：${names}。请诊断每个任务的根因，并给出具体修复建议。`,
         color: "var(--system-red)",
       })
     }
@@ -347,8 +347,8 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
     if (unownedJobs.length > 0) {
       const names = unownedJobs.map(c => c.name).join(", ")
       actions.push({
-        label: `Assign ${unownedJobs.length} unowned job${unownedJobs.length > 1 ? "s" : ""}`,
-        prompt: `These jobs have no agent owner: ${names}. Based on each job's purpose and the available agents, recommend which agent should own each one and explain why.`,
+        label: `为 ${unownedJobs.length} 个无归属任务分配负责人`,
+        prompt: `这些任务没有智能体负责人：${names}。请根据任务目的和可用智能体，建议每个任务的负责人并说明理由。`,
         color: "var(--system-orange)",
       })
     }
@@ -357,8 +357,8 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
     if (missingDelivery.length > 0) {
       const names = missingDelivery.map(c => c.name).join(", ")
       actions.push({
-        label: `Fix ${missingDelivery.length} missing delivery target${missingDelivery.length > 1 ? "s" : ""}`,
-        prompt: `These jobs have delivery configured but no target: ${names}. What should the delivery targets be for each? Suggest the right channel and destination.`,
+        label: `修复 ${missingDelivery.length} 个缺失投递目标`,
+        prompt: `这些任务已配置投递但没有目标：${names}。请为每个任务建议合适的渠道与目标地址。`,
         color: "var(--system-orange)",
       })
     }
@@ -370,16 +370,16 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
     if (overdue.length > 0) {
       const names = overdue.map(c => c.name).join(", ")
       actions.push({
-        label: `Investigate ${overdue.length} overdue job${overdue.length > 1 ? "s" : ""}`,
-        prompt: `These jobs are overdue (past their next scheduled run): ${names}. What could be preventing them from running? How do I get them back on schedule?`,
+        label: `排查 ${overdue.length} 个逾期任务`,
+        prompt: `这些任务已经逾期（超过下次计划运行时间）：${names}。可能是什么原因导致未运行？应如何恢复到正常计划？`,
         color: "var(--system-orange)",
       })
     }
 
     if (actions.length === 0) {
       actions.push({
-        label: "How can I improve reliability?",
-        prompt: "Based on the health check results, what are the top 3 things I should do to improve the reliability and observability of this pipeline system?",
+        label: "如何提升整体可靠性？",
+        prompt: "基于健康检查结果，我应该优先做哪三件事来提升这个流水线系统的可靠性和可观测性？",
         color: "var(--accent)",
       })
     }
@@ -426,7 +426,7 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
         body: JSON.stringify({ messages: [{ role: "user", content: prompt }] }),
       })
 
-      if (!res.ok || !res.body) throw new Error("Stream failed")
+      if (!res.ok || !res.body) throw new Error("流式请求失败")
 
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
@@ -487,7 +487,7 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
         body: JSON.stringify({ messages: apiMessages }),
       })
 
-      if (!res.ok || !res.body) throw new Error("Stream failed")
+      if (!res.ok || !res.body) throw new Error("流式请求失败")
 
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
@@ -529,7 +529,7 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
     } catch {
       setHealthChatMessages(prev =>
         prev.map(m => m.id === assistantMsgId
-          ? { ...m, content: "Error getting response. Check API connection.", isStreaming: false }
+          ? { ...m, content: "获取回复失败，请检查 API 连接。", isStreaming: false }
           : m
         )
       )
@@ -543,7 +543,7 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
     return (
       <div>
         <PipelinesEmptyState onSetupClick={onSetupClick} />
-        <CronsCardGrid crons={crons} agentColorMap={agentColorMap} label="All Crons" />
+        <CronsCardGrid crons={crons} agentColorMap={agentColorMap} label="全部定时任务" />
       </div>
     )
   }
@@ -572,7 +572,7 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
             }}
           >
             <Activity size={13} className={healthCheckStreaming ? "animate-pulse" : ""} />
-            Pipeline Health Check
+            流水线健康检查
           </button>
         )}
         {onEditClick && (
@@ -594,7 +594,7 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
             }}
           >
             <RefreshCw size={13} />
-            Regenerate Pipelines
+            重新生成流水线
           </button>
         )}
         {onClearClick && (
@@ -616,7 +616,7 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
             }}
           >
             <Trash2 size={13} />
-            Clear Pipelines
+            清空流水线
           </button>
         )}
       </div>
@@ -645,7 +645,7 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
           >
             <Activity size={14} style={{ color: healthCheckStreaming ? "var(--accent)" : healthCheckContent ? "var(--system-green)" : "var(--accent)" }} />
             <span style={{ fontSize: "var(--text-footnote)", fontWeight: 600, color: "var(--text-primary)", flex: 1, textAlign: "left" }}>
-              Pipeline Health Check
+              流水线健康检查
             </span>
             {healthCheckStreaming && (
               <span style={{
@@ -663,12 +663,12 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
                   background: "var(--accent)",
                   animation: "blink 1s infinite",
                 }} />
-                Analyzing pipelines...
+                正在分析流水线...
               </span>
             )}
             {!healthCheckStreaming && healthCheckContent && (
               <span style={{ fontSize: "var(--text-caption2)", color: "var(--system-green)" }}>
-                Complete
+                已完成
               </span>
             )}
             <ChevronDown size={14} style={{ color: "var(--text-tertiary)", transition: "transform 200ms ease" }} />
@@ -702,10 +702,10 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
                     color: "var(--text-primary)",
                     marginBottom: 4,
                   }}>
-                    Analyzing system health...
+                    正在分析系统健康状态...
                   </div>
                   <div style={{ fontSize: "var(--text-caption2)", color: "var(--text-tertiary)", lineHeight: 1.4 }}>
-                    Checking agent ownership, pipeline edges, schedules, and deliveries
+                    正在检查智能体归属、流水线边、计划与投递配置
                   </div>
                 </div>
               </div>
@@ -848,7 +848,7 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
                     >
                       {msg.content}
                       {msg.isStreaming && !msg.content && (
-                        <span style={{ opacity: 0.5 }}>Thinking...</span>
+                        <span style={{ opacity: 0.5 }}>思考中...</span>
                       )}
                       {msg.isStreaming && msg.content && (
                         <span style={{
@@ -885,7 +885,7 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
                       sendHealthChatMessage()
                     }
                   }}
-                  placeholder="Ask about the health check..."
+                  placeholder="继续询问健康检查结果..."
                   disabled={healthChatStreaming}
                   rows={1}
                   style={{
@@ -956,10 +956,10 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
         marginTop: "var(--space-2)",
         textAlign: "right",
       }}>
-        Pipeline config does not auto-update. Regenerate to re-analyze with AI.
+        流水线配置不会自动更新。请重新生成以让 AI 再次分析。
       </div>
 
-      <CronsCardGrid crons={standaloneCrons} agentColorMap={agentColorMap} label="Standalone Crons" />
+      <CronsCardGrid crons={standaloneCrons} agentColorMap={agentColorMap} label="独立定时任务" />
     </div>
   )
 }

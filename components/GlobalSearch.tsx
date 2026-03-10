@@ -13,6 +13,7 @@ import {
   Settings,
 } from 'lucide-react';
 import type { Agent, CronJob } from '@/lib/types';
+import { useSettings } from '@/app/settings-provider';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -24,7 +25,7 @@ interface SearchResult {
   subtitle?: string;
   icon: React.ReactNode;
   href: string;
-  category: 'Agents' | 'Pages' | 'Crons';
+  category: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -61,11 +62,12 @@ function fuzzyMatch(query: string, target: string): boolean {
 // ---------------------------------------------------------------------------
 
 export function SearchTrigger({ onClick }: { onClick: () => void }) {
+  const { t } = useSettings();
   return (
     <button
       onClick={onClick}
       className="nav-item focus-ring"
-      aria-label="Open search (Cmd+K)"
+      aria-label={t('search.open')}
       style={{
         width: '100%',
         display: 'flex',
@@ -83,7 +85,7 @@ export function SearchTrigger({ onClick }: { onClick: () => void }) {
       }}
     >
       <Search size={14} style={{ flexShrink: 0, opacity: 0.7 }} />
-      <span style={{ flex: 1, textAlign: 'left' }}>Search...</span>
+      <span style={{ flex: 1, textAlign: 'left' }}>{t('app.search')}</span>
       <kbd
         style={{
           fontSize: '11px',
@@ -107,6 +109,7 @@ export function SearchTrigger({ onClick }: { onClick: () => void }) {
 // ---------------------------------------------------------------------------
 
 export function GlobalSearch() {
+  const { t } = useSettings();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
@@ -211,12 +214,24 @@ export function GlobalSearch() {
         subtitle: a.title,
         icon: <Bot size={16} style={{ color: a.color }} />,
         href: `/chat?agent=${a.id}`,
-        category: 'Agents',
+        category: t('search.agents') as SearchResult['category'],
       });
     });
 
     // Static pages
-    all.push(...STATIC_PAGES);
+    all.push(
+      ...STATIC_PAGES.map((page) => ({
+        ...page,
+        label:
+          page.href === '/' ? t('nav.map')
+            : page.href === '/chat' ? t('nav.messages')
+            : page.href === '/crons' ? t('nav.crons')
+            : page.href === '/memory' ? t('nav.memory')
+            : page.href === '/settings' ? t('nav.settings')
+            : page.label,
+        category: t('search.pages') as SearchResult['category'],
+      })),
+    );
 
     // Crons
     crons.forEach((c) => {
@@ -226,7 +241,7 @@ export function GlobalSearch() {
         subtitle: c.schedule,
         icon: <Timer size={16} />,
         href: '/crons',
-        category: 'Crons',
+        category: t('search.crons') as SearchResult['category'],
       });
     });
 
@@ -244,7 +259,7 @@ export function GlobalSearch() {
   // -----------------------------------------------------------------------
   const grouped = useMemo(() => {
     const groups: { category: string; items: SearchResult[] }[] = [];
-    const categoryOrder = ['Agents', 'Pages', 'Crons'];
+    const categoryOrder = [t('search.agents'), t('search.pages'), t('search.crons')];
     for (const cat of categoryOrder) {
       const items = results.filter((r) => r.category === cat);
       if (items.length > 0) {

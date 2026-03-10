@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { Copy, Check } from "lucide-react"
+import { useSettings } from "@/app/settings-provider"
 import type { Agent, CronJob, CronRun } from "@/lib/types"
 import type { Pipeline } from "@/lib/cron-pipelines"
 import { formatDuration, timeAgo, nextRunLabel } from "@/lib/cron-utils"
@@ -22,6 +23,7 @@ interface ChatMessage {
 /* ─── Recent Runs (lazy-loaded) ────────────────────────────────── */
 
 function RecentRuns({ jobId }: { jobId: string }) {
+  const { resolvedLocale } = useSettings()
   const [runs, setRuns] = useState<CronRun[] | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -36,7 +38,7 @@ function RecentRuns({ jobId }: { jobId: string }) {
     return (
       <div>
         <div style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "var(--space-2)" }}>
-          Recent Runs
+          最近运行
         </div>
         {[1, 2, 3].map(i => (
           <Skeleton key={i} style={{ height: 16, marginBottom: 4, width: "80%" }} />
@@ -49,9 +51,9 @@ function RecentRuns({ jobId }: { jobId: string }) {
     return (
       <div>
         <div style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "var(--space-2)" }}>
-          Recent Runs
+          最近运行
         </div>
-        <div style={{ fontSize: "var(--text-caption2)", color: "var(--text-tertiary)" }}>No run history</div>
+        <div style={{ fontSize: "var(--text-caption2)", color: "var(--text-tertiary)" }}>暂无运行记录</div>
       </div>
     )
   }
@@ -59,15 +61,15 @@ function RecentRuns({ jobId }: { jobId: string }) {
   return (
     <div>
       <div style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "var(--space-2)" }}>
-        Recent Runs
+        最近运行
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         {runs.map((run, i) => {
           const statusDot = run.status === "ok" ? "var(--system-green)" : "var(--system-red)"
-          const ago = timeAgo(new Date(run.ts).toISOString())
+          const ago = timeAgo(new Date(run.ts).toISOString(), resolvedLocale)
           const duration = formatDuration(run.durationMs)
-          const deliveryStat = run.deliveryStatus === "delivered" ? "Delivered" : run.deliveryStatus === "unknown" ? "Unknown" : run.deliveryStatus || "\u2014"
-          const summaryText = run.status === "error" ? (run.error || "Error") : (run.summary || "\u2014")
+          const deliveryStat = run.deliveryStatus === "delivered" ? "已投递" : run.deliveryStatus === "unknown" ? "未知" : run.deliveryStatus || "\u2014"
+          const summaryText = run.status === "error" ? (run.error || "错误") : (run.summary || "\u2014")
           const truncatedSummary = summaryText.length > 60 ? summaryText.slice(0, 57) + "..." : summaryText
 
           return (
@@ -104,6 +106,7 @@ interface PipelineDetailPanelProps {
 }
 
 export function PipelineDetailPanel({ jobName, crons, agents, pipelines, onClose }: PipelineDetailPanelProps) {
+  const { resolvedLocale } = useSettings()
   const closeRef = useRef<HTMLButtonElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -119,8 +122,8 @@ export function PipelineDetailPanel({ jobName, crons, agents, pipelines, onClose
   const { inputs, outputs } = computePipelineContext(jobName, pipelines)
 
   const statusColor = cron?.status === "ok" ? "var(--system-green)" : cron?.status === "error" ? "var(--system-red)" : "var(--text-tertiary)"
-  const statusLabel = cron?.status || "unknown"
-  const isOverdue = cron?.nextRun && nextRunLabel(cron.nextRun) === "overdue"
+  const statusLabel = cron?.status === "ok" ? "正常" : cron?.status === "error" ? "错误" : cron?.status === "idle" ? "空闲" : "未知"
+  const isOverdue = cron?.nextRun ? new Date(cron.nextRun).getTime() < Date.now() : false
 
   // Build context string for the agent (memoize-ish via ref to avoid rebuilding)
   const cronContext = buildCronContext(jobName, cron, inputs, outputs)
@@ -177,7 +180,7 @@ export function PipelineDetailPanel({ jobName, crons, agents, pipelines, onClose
     const allMessages = [...messages, userMsg]
     const apiMessages = [
       { role: "user" as const, content: cronContext },
-      { role: "assistant" as const, content: `Understood, I have context about the "${jobName}" cron job. How can I help?` },
+      { role: "assistant" as const, content: `已了解，我已获取“${jobName}”定时任务的上下文。你想让我怎么处理？` },
       ...allMessages.map(m => ({ role: m.role, content: m.content })),
     ]
 
@@ -188,7 +191,7 @@ export function PipelineDetailPanel({ jobName, crons, agents, pipelines, onClose
         body: JSON.stringify({ messages: apiMessages }),
       })
 
-      if (!res.ok || !res.body) throw new Error("Stream failed")
+      if (!res.ok || !res.body) throw new Error("流式请求失败")
 
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
@@ -230,7 +233,7 @@ export function PipelineDetailPanel({ jobName, crons, agents, pipelines, onClose
     } catch {
       setMessages(prev =>
         prev.map(m => m.id === assistantMsgId
-          ? { ...m, content: "Error getting response. Check API connection.", isStreaming: false }
+          ? { ...m, content: "获取回复失败，请检查 API 连接。", isStreaming: false }
           : m
         )
       )
@@ -282,7 +285,7 @@ export function PipelineDetailPanel({ jobName, crons, agents, pipelines, onClose
               ref={closeRef}
               onClick={onClose}
               className="focus-ring"
-              aria-label="Close detail panel"
+              aria-label="关闭详情面板"
               style={{
                 width: 28,
                 height: 28,
@@ -354,7 +357,7 @@ export function PipelineDetailPanel({ jobName, crons, agents, pipelines, onClose
 
             <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "var(--space-1) var(--space-4)" }}>
               {/* Schedule */}
-              <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>Schedule</span>
+              <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>计划</span>
               <div>
                 {cron?.scheduleDescription && (
                   <div style={{ fontSize: "var(--text-caption1)", color: "var(--text-secondary)" }}>{cron.scheduleDescription}</div>
@@ -366,23 +369,23 @@ export function PipelineDetailPanel({ jobName, crons, agents, pipelines, onClose
               </div>
 
               {/* Last run */}
-              <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>Last run</span>
-              <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-secondary)" }}>{timeAgo(cron?.lastRun || null)}</span>
+              <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>上次运行</span>
+              <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-secondary)" }}>{timeAgo(cron?.lastRun || null, resolvedLocale)}</span>
 
               {/* Next run */}
-              <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>Next run</span>
+              <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>下次运行</span>
               <span style={{
                 fontSize: "var(--text-caption1)",
                 color: isOverdue ? "var(--system-orange)" : "var(--text-secondary)",
                 fontWeight: isOverdue ? 600 : undefined,
               }}>
-                {nextRunLabel(cron?.nextRun || null)}
+                {nextRunLabel(cron?.nextRun || null, resolvedLocale)}
               </span>
 
               {/* Duration */}
               {cron?.lastDurationMs != null && (
                 <>
-                  <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>Duration</span>
+                  <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>耗时</span>
                   <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-secondary)" }}>{formatDuration(cron.lastDurationMs)}</span>
                 </>
               )}
@@ -390,7 +393,7 @@ export function PipelineDetailPanel({ jobName, crons, agents, pipelines, onClose
               {/* Delivery */}
               {cron?.delivery && (
                 <>
-                  <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>Delivery</span>
+                  <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>投递</span>
                   <span style={{ fontSize: "var(--text-caption1)" }}>
                     <span style={{ color: "var(--text-secondary)" }}>{cron.delivery.channel}</span>
                     {cron.delivery.to && (
@@ -404,7 +407,7 @@ export function PipelineDetailPanel({ jobName, crons, agents, pipelines, onClose
                         marginLeft: 8,
                         fontWeight: 500,
                       }}>
-                        {cron.lastDeliveryStatus === "delivered" ? "Delivered" : cron.lastDeliveryStatus}
+                        {cron.lastDeliveryStatus === "delivered" ? "已投递" : cron.lastDeliveryStatus}
                       </span>
                     )}
                   </span>
@@ -437,7 +440,7 @@ export function PipelineDetailPanel({ jobName, crons, agents, pipelines, onClose
                   <button
                     onClick={copyError}
                     className="btn-ghost focus-ring flex-shrink-0"
-                    aria-label="Copy error text"
+                    aria-label="复制错误文本"
                     style={{
                       padding: "4px 10px",
                       borderRadius: "var(--radius-sm)",
@@ -449,7 +452,7 @@ export function PipelineDetailPanel({ jobName, crons, agents, pipelines, onClose
                     }}
                   >
                     {copiedError ? <Check size={12} /> : <Copy size={12} />}
-                    {copiedError ? "Copied" : "Copy"}
+                    {copiedError ? "已复制" : "复制"}
                   </button>
                 </div>
               </div>
@@ -462,19 +465,19 @@ export function PipelineDetailPanel({ jobName, crons, agents, pipelines, onClose
               <div style={{ height: 1, background: "var(--separator)", marginBottom: "var(--space-3)" }} />
 
               <div style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "var(--space-2)" }}>
-                Pipeline Context
+                流水线上下文
               </div>
 
               {inputs.length > 0 && (
                 <div style={{ marginBottom: inputs.length > 0 && outputs.length > 0 ? "var(--space-3)" : 0 }}>
                   <div style={{ fontSize: "var(--text-caption2)", color: "var(--text-tertiary)", marginBottom: "var(--space-1)" }}>
-                    Inputs
+                    输入
                   </div>
                   {inputs.map((inp, i) => (
                     <div key={i} className="flex items-center" style={{ gap: "var(--space-2)", fontSize: "var(--text-caption1)", marginBottom: 2 }}>
                       <span style={{ color: "var(--system-green)" }}>&larr;</span>
                       <span className="font-mono" style={{ color: "var(--accent)", fontSize: "var(--text-caption2)" }}>{inp.artifact}</span>
-                      <span style={{ color: "var(--text-tertiary)" }}>from</span>
+                      <span style={{ color: "var(--text-tertiary)" }}>来自</span>
                       <span style={{ color: "var(--text-secondary)", fontWeight: 500 }}>{inp.from}</span>
                     </div>
                   ))}
@@ -484,13 +487,13 @@ export function PipelineDetailPanel({ jobName, crons, agents, pipelines, onClose
               {outputs.length > 0 && (
                 <div>
                   <div style={{ fontSize: "var(--text-caption2)", color: "var(--text-tertiary)", marginBottom: "var(--space-1)" }}>
-                    Outputs
+                    输出
                   </div>
                   {outputs.map((out, i) => (
                     <div key={i} className="flex items-center" style={{ gap: "var(--space-2)", fontSize: "var(--text-caption1)", marginBottom: 2 }}>
                       <span style={{ color: "var(--system-blue)" }}>&rarr;</span>
                       <span className="font-mono" style={{ color: "var(--accent)", fontSize: "var(--text-caption2)" }}>{out.artifact}</span>
-                      <span style={{ color: "var(--text-tertiary)" }}>to</span>
+                      <span style={{ color: "var(--text-tertiary)" }}>到</span>
                       <span style={{ color: "var(--text-secondary)", fontWeight: 500 }}>{out.to}</span>
                     </div>
                   ))}
@@ -533,7 +536,7 @@ export function PipelineDetailPanel({ jobName, crons, agents, pipelines, onClose
             marginBottom: "var(--space-2)",
             flexShrink: 0,
           }}>
-            {agent ? `Chat with ${agent.name}` : "Agent Chat"}
+            {agent ? `与 ${agent.name} 对话` : "智能体对话"}
           </div>
 
           {!agent ? (
@@ -546,7 +549,7 @@ export function PipelineDetailPanel({ jobName, crons, agents, pipelines, onClose
               fontSize: "var(--text-footnote)",
               fontStyle: "italic",
             }}>
-              No agent owns this cron job
+              当前没有智能体负责这个定时任务
             </div>
           ) : (
             <>
@@ -569,10 +572,10 @@ export function PipelineDetailPanel({ jobName, crons, agents, pipelines, onClose
                     fontStyle: "italic",
                     lineHeight: 1.5,
                   }}>
-                    Ask {agent.name} about {jobName}...
+                    问问 {agent.name} 关于 {jobName} 的情况...
                     <br />
                     <span style={{ fontSize: "var(--text-caption2)" }}>
-                      Cron context is included automatically.
+                      定时任务上下文会自动附带。
                     </span>
                   </div>
                 )}
@@ -599,7 +602,7 @@ export function PipelineDetailPanel({ jobName, crons, agents, pipelines, onClose
                     }}>
                       {msg.content}
                       {msg.isStreaming && !msg.content && (
-                        <span style={{ opacity: 0.5 }}>Thinking...</span>
+                        <span style={{ opacity: 0.5 }}>思考中...</span>
                       )}
                       {msg.isStreaming && msg.content && (
                         <span style={{
@@ -632,7 +635,7 @@ export function PipelineDetailPanel({ jobName, crons, agents, pipelines, onClose
                   value={input}
                   onChange={e => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder={`Message ${agent.name}...`}
+                  placeholder={`给 ${agent.name} 发消息...`}
                   rows={1}
                   disabled={isStreaming}
                   style={{
@@ -654,7 +657,7 @@ export function PipelineDetailPanel({ jobName, crons, agents, pipelines, onClose
                   onClick={sendMessage}
                   disabled={!input.trim() || isStreaming}
                   className="focus-ring"
-                  aria-label="Send message"
+                  aria-label="发送消息"
                   style={{
                     width: 32,
                     height: 32,

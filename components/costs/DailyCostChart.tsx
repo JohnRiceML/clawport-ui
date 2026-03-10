@@ -37,7 +37,7 @@ export function DailyCostChart({ dailyCosts }: { dailyCosts: CostSummary['dailyC
         fontWeight: 'var(--weight-medium)',
         marginBottom: 'var(--space-3)',
       }}>
-        Daily Estimated Cost
+        每日预估成本
       </div>
       <svg
         viewBox={`0 0 ${W} ${H}`}

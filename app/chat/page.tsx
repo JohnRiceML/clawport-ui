@@ -4,6 +4,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import type { Agent } from '@/lib/types'
 import { AgentList, AgentListMobile } from '@/components/chat/AgentList'
 import { ConversationView } from '@/components/chat/ConversationView'
+import { fetchAgentsClient } from '@/lib/agents-client'
 import {
   loadConversations, saveConversations, getOrCreateConversation,
   markRead, type ConversationStore
@@ -12,19 +13,41 @@ import {
 function MessengerApp() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const agentFromQuery = searchParams.get('agent')
   const [agents, setAgents] = useState<Agent[]>([])
   const [conversations, setConversations] = useState<ConversationStore>({})
-  const [activeAgentId, setActiveAgentId] = useState<string | null>(searchParams.get('agent'))
+  const [activeAgentId, setActiveAgentId] = useState<string | null>(agentFromQuery)
   const [loading, setLoading] = useState(true)
-  const [mobileShowConversation, setMobileShowConversation] = useState(!!searchParams.get('agent'))
+  const [mobileShowConversation, setMobileShowConversation] = useState(!!agentFromQuery)
 
   // Load agents
   useEffect(() => {
-    fetch('/api/agents').then(r => r.json()).then((data: Agent[]) => {
-      setAgents(data)
-      setLoading(false)
-    })
+    let cancelled = false
+
+    fetchAgentsClient()
+      .then((data) => {
+        if (cancelled) return
+        setAgents(data)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setAgents([])
+      })
+      .finally(() => {
+        if (cancelled) return
+        setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
   }, [])
+
+  // Keep UI state in sync with URL query param
+  useEffect(() => {
+    setActiveAgentId(agentFromQuery)
+    setMobileShowConversation(!!agentFromQuery)
+  }, [agentFromQuery])
 
   // Load conversations from localStorage
   useEffect(() => {
@@ -47,6 +70,20 @@ function MessengerApp() {
       }
     }
   }, [loading, agents, activeAgentId])
+
+  // Recover from invalid/removed query agent IDs
+  useEffect(() => {
+    if (loading || !activeAgentId || agents.length === 0) return
+    if (agents.some(a => a.id === activeAgentId)) return
+
+    if (window.innerWidth >= 768) {
+      const fallback = agents[0].id
+      setActiveAgentId(fallback)
+      router.replace(`/chat?agent=${fallback}`, { scroll: false })
+      return
+    }
+    setMobileShowConversation(false)
+  }, [loading, activeAgentId, agents, router])
 
   const handleSelectAgent = useCallback((agent: Agent) => {
     setActiveAgentId(agent.id)
@@ -111,7 +148,9 @@ function MessengerApp() {
         className="hidden md:flex md:flex-col"
         style={{ flex: 1, height: '100%' }}
       >
-        {activeAgent && conversations[activeAgent.id] ? (
+        {loading ? (
+          <LoadingState />
+        ) : activeAgent && conversations[activeAgent.id] ? (
           <ConversationView
             key={activeAgent.id}
             agent={activeAgent}
@@ -147,6 +186,36 @@ function MessengerApp() {
   )
 }
 
+function LoadingState() {
+  return (
+    <div style={{
+      flex: 1,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'var(--bg)',
+      gap: 'var(--space-2)',
+      padding: 'var(--space-8)',
+    }}>
+      <div style={{
+        width: 24,
+        height: 24,
+        borderRadius: '50%',
+        border: '2px solid var(--separator)',
+        borderTopColor: 'var(--accent)',
+        animation: 'spin 0.8s linear infinite',
+      }} />
+      <div style={{
+        fontSize: 'var(--text-subheadline)',
+        color: 'var(--text-secondary)',
+      }}>
+        正在加载智能体...
+      </div>
+    </div>
+  )
+}
+
 function EmptyState() {
   return (
     <div style={{
@@ -170,7 +239,7 @@ function EmptyState() {
         color: 'var(--text-primary)',
         letterSpacing: '-0.3px',
       }}>
-        ClawPort Messages
+        ClawPort 消息
       </div>
       <div style={{
         fontSize: 'var(--text-subheadline)',
@@ -178,14 +247,14 @@ function EmptyState() {
         textAlign: 'center',
         lineHeight: 'var(--leading-relaxed)',
       }}>
-        Select an agent from the sidebar to start chatting
+        从侧边栏选择一个智能体开始对话
       </div>
       <div style={{
         fontSize: 'var(--text-caption1)',
         color: 'var(--text-quaternary)',
         marginTop: 'var(--space-2)',
       }}>
-        Press Cmd+K to search agents
+        按 Cmd+K 搜索智能体
       </div>
     </div>
   )

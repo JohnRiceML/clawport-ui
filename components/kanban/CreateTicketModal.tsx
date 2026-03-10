@@ -29,9 +29,9 @@ interface CreateTicketModalProps {
 
 const PRIORITIES: TicketPriority[] = ['low', 'medium', 'high']
 const PRIORITY_LABELS: Record<TicketPriority, string> = {
-  low: 'Low',
-  medium: 'Medium',
-  high: 'High',
+  low: '低',
+  medium: '中',
+  high: '高',
 }
 
 const ROLES: TeamRole[] = ['lead-dev', 'ux-ui', 'qa']
@@ -99,7 +99,7 @@ export function CreateTicketModal({
               color: 'var(--text-primary)',
             }}
           >
-            Create Ticket
+            新建工单
           </DialogTitle>
           <DialogDescription
             style={{
@@ -107,7 +107,7 @@ export function CreateTicketModal({
               color: 'var(--text-tertiary)',
             }}
           >
-            Add a new ticket to the backlog.
+            向积压列表添加一个新工单。
           </DialogDescription>
         </DialogHeader>
 
@@ -129,13 +129,13 @@ export function CreateTicketModal({
                 color: 'var(--text-secondary)',
               }}
             >
-              Title
+              标题
             </label>
             <input
               id="ticket-title"
               type="text"
               className="apple-input focus-ring"
-              placeholder="What needs to be done?"
+              placeholder="需要完成什么？"
               value={form.title}
               onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
               required
@@ -157,12 +157,12 @@ export function CreateTicketModal({
                 color: 'var(--text-secondary)',
               }}
             >
-              Description
+              描述
             </label>
             <textarea
               id="ticket-description"
               className="apple-input focus-ring"
-              placeholder="Add details..."
+              placeholder="补充详情..."
               rows={3}
               value={form.description}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
@@ -184,7 +184,7 @@ export function CreateTicketModal({
                 color: 'var(--text-secondary)',
               }}
             >
-              Priority
+              优先级
             </span>
             <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
               {PRIORITIES.map((p) => {
@@ -239,7 +239,7 @@ export function CreateTicketModal({
                 color: 'var(--text-secondary)',
               }}
             >
-              Assignee
+              负责人
             </label>
             <AgentPicker
               agents={agents}
@@ -264,7 +264,7 @@ export function CreateTicketModal({
                   color: 'var(--text-secondary)',
                 }}
               >
-                Role
+                角色
               </span>
               <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
                 {ROLES.map((r) => {
@@ -324,7 +324,7 @@ export function CreateTicketModal({
             }}
           >
             <Plus size={16} />
-            Create Ticket
+            新建工单
           </button>
         </form>
       </DialogContent>

@@ -61,7 +61,7 @@ export function AgentList({ agents, conversations, activeId, onSelect, loading }
           color: 'var(--text-primary)',
           margin: 0,
         }}>
-          Messages
+          消息
         </h2>
 
         {/* Search */}
@@ -87,8 +87,8 @@ export function AgentList({ agents, conversations, activeId, onSelect, loading }
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search agents..."
-            aria-label="Search agents"
+            placeholder="搜索智能体..."
+            aria-label="搜索智能体"
             className="focus-ring"
             style={{
               flex: 1,
@@ -106,7 +106,7 @@ export function AgentList({ agents, conversations, activeId, onSelect, loading }
             <button
               className="btn-ghost focus-ring"
               onClick={() => setSearch('')}
-              aria-label="Clear search"
+              aria-label="清除搜索"
               style={{
                 padding: 2,
                 borderRadius: '50%',
@@ -126,9 +126,9 @@ export function AgentList({ agents, conversations, activeId, onSelect, loading }
       </div>
 
       {/* Agent list */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: 'var(--space-1) 0' }} role="listbox" aria-label="Agent list">
+      <div style={{ flex: 1, overflowY: 'auto', padding: 'var(--space-1) 0' }} role="listbox" aria-label="智能体列表">
         {loading ? (
-          <div style={{ padding: 'var(--space-1) 0' }} role="status" aria-label="Loading agents">
+          <div style={{ padding: 'var(--space-1) 0' }} role="status" aria-label="正在加载智能体">
             {[1, 2, 3, 4].map((i) => (
               <div key={i} style={{
                 display: 'flex',
@@ -158,7 +158,7 @@ export function AgentList({ agents, conversations, activeId, onSelect, loading }
               color: 'var(--text-tertiary)',
               lineHeight: 'var(--leading-relaxed)',
             }}>
-              No agents match &lsquo;{search.trim()}&rsquo;
+              没有匹配 &lsquo;{search.trim()}&rsquo; 的智能体
             </div>
           </div>
         ) : (
@@ -169,10 +169,10 @@ export function AgentList({ agents, conversations, activeId, onSelect, loading }
             const isActive = agent.id === activeId
 
             const preview = lastMsg
-              ? (lastMsg.role === 'user' ? 'You: ' : '') +
+              ? (lastMsg.role === 'user' ? '你：' : '') +
                 lastMsg.content.replace(/[#*`]/g, '').slice(0, 50) +
                 (lastMsg.content.length > 50 ? '\u2026' : '')
-              : agent.description?.slice(0, 50) || 'Start a conversation'
+              : agent.description?.slice(0, 50) || '开始对话'
 
             const timeLabel = lastMsg ? formatTime(lastMsg.timestamp) : ''
 
@@ -331,7 +331,7 @@ export function AgentListMobile({
           color: 'var(--text-primary)',
           margin: 0,
         }}>
-          Messages
+          消息
         </h2>
 
         {/* Search */}
@@ -357,8 +357,8 @@ export function AgentListMobile({
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search agents..."
-            aria-label="Search agents"
+            placeholder="搜索智能体..."
+            aria-label="搜索智能体"
             className="focus-ring"
             style={{
               flex: 1,
@@ -376,9 +376,9 @@ export function AgentListMobile({
       </div>
 
       {/* Agent list */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: 'var(--space-1) 0' }} role="listbox" aria-label="Agent list">
+      <div style={{ flex: 1, overflowY: 'auto', padding: 'var(--space-1) 0' }} role="listbox" aria-label="智能体列表">
         {loading ? (
-          <div style={{ padding: 'var(--space-1) 0' }} role="status" aria-label="Loading agents">
+          <div style={{ padding: 'var(--space-1) 0' }} role="status" aria-label="正在加载智能体">
             {[1, 2, 3, 4].map((i) => (
               <div key={i} style={{
                 display: 'flex',
@@ -408,7 +408,7 @@ export function AgentListMobile({
               color: 'var(--text-tertiary)',
               lineHeight: 'var(--leading-relaxed)',
             }}>
-              No agents match &lsquo;{search.trim()}&rsquo;
+              没有匹配 &lsquo;{search.trim()}&rsquo; 的智能体
             </div>
           </div>
         ) : (
@@ -418,10 +418,10 @@ export function AgentListMobile({
             const unread = conv?.unread || 0
 
             const preview = lastMsg
-              ? (lastMsg.role === 'user' ? 'You: ' : '') +
+              ? (lastMsg.role === 'user' ? '你：' : '') +
                 lastMsg.content.replace(/[#*`]/g, '').slice(0, 60) +
                 (lastMsg.content.length > 60 ? '\u2026' : '')
-              : agent.description?.slice(0, 60) || 'Start a conversation'
+              : agent.description?.slice(0, 60) || '开始对话'
 
             const timeLabel = lastMsg ? formatTime(lastMsg.timestamp) : ''
 
@@ -530,8 +530,8 @@ export function AgentListMobile({
 function formatTime(ts: number): string {
   const now = Date.now()
   const diff = now - ts
-  if (diff < 60000) return 'now'
-  if (diff < 3600000) return `${Math.floor(diff / 60000)}m`
-  if (diff < 86400000) return new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
-  return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  if (diff < 60000) return '刚刚'
+  if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`
+  return new Date(ts).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })
 }

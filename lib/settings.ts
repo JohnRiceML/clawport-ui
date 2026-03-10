@@ -1,3 +1,5 @@
+import type { LocalePreference } from '@/lib/i18n'
+
 // Settings types + localStorage helpers for ClawPort
 
 export interface AgentOverride {
@@ -6,6 +8,7 @@ export interface AgentOverride {
 }
 
 export interface ClawPortSettings {
+  locale: LocalePreference
   accentColor: string | null
   portalName: string | null
   portalSubtitle: string | null
@@ -21,6 +24,7 @@ const STORAGE_KEY = 'clawport-settings'
 const LEGACY_KEY = 'manor-settings'
 
 export const DEFAULTS: ClawPortSettings = {
+  locale: 'zh-CN',
   accentColor: null,
   portalName: null,
   portalSubtitle: null,
@@ -47,6 +51,7 @@ export function loadSettings(): ClawPortSettings {
     if (!raw) return { ...DEFAULTS }
     const parsed = JSON.parse(raw)
     return {
+      locale: parsed.locale === 'zh-CN' || parsed.locale === 'en' ? parsed.locale : 'auto',
       accentColor: typeof parsed.accentColor === 'string' ? parsed.accentColor : null,
       portalName: typeof parsed.portalName === 'string' ? parsed.portalName : typeof parsed.manorName === 'string' ? parsed.manorName : null,
       portalSubtitle: typeof parsed.portalSubtitle === 'string' ? parsed.portalSubtitle : typeof parsed.manorSubtitle === 'string' ? parsed.manorSubtitle : null,

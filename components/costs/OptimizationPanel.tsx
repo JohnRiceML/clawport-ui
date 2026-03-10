@@ -46,7 +46,7 @@ export function InsightCard({ insight, onAction }: { insight: OptimizationInsigh
             {insight.title}
             {insight.projectedSavings !== null && insight.projectedSavings > 0 && (
               <span style={{ marginLeft: 8, fontSize: 'var(--text-caption1)', fontWeight: 600, color: 'var(--system-green)' }}>
-                Save ~{fmtCost(insight.projectedSavings)}/period
+                预计可省 ~{fmtCost(insight.projectedSavings)}/周期
               </span>
             )}
           </div>
@@ -74,7 +74,7 @@ export function InsightCard({ insight, onAction }: { insight: OptimizationInsigh
           }}
         >
           <Zap size={10} />
-          Fix
+          修复
         </button>
       </div>
     </div>

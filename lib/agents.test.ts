@@ -637,7 +637,7 @@ describe('auto-discovery from workspace', () => {
     const jarvisEntries = agents.filter(a => a.id === 'jarvis')
     expect(jarvisEntries).toHaveLength(1)
     expect(jarvisEntries[0].reportsTo).toBeNull() // it's the root
-    expect(jarvisEntries[0].title).toBe('Orchestrator') // root title, not agent scan
+    expect(jarvisEntries[0].title).toBe('总协调者') // root title, not agent scan
     expect(agents.find(a => a.id === 'vera')).toBeDefined()
   })
 
@@ -706,7 +706,7 @@ describe('auto-discovery from workspace', () => {
     const agents = await getAgents()
     const vera = agents.find(a => a.id === 'vera')!
     expect(vera.name).toBe('VERA')
-    expect(vera.title).toBe('Agent') // no title from heading alone
+    expect(vera.title).toBe('智能体') // no title from heading alone
 
     const kaze = agents.find(a => a.id === 'kaze')!
     expect(kaze.name).toBe('KAZE')

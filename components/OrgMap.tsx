@@ -150,13 +150,13 @@ function buildTeamLayout(
         if (ids.includes(cid)) colEdges.push([id, cid])
       }
     }
-    columns.push({ label: `Team ${t.manager.name}`, color: t.manager.color, agentIds: ids, edges: colEdges })
+    columns.push({ label: `团队 ${t.manager.name}`, color: t.manager.color, agentIds: ids, edges: colEdges })
   }
   if (soloOps.length > 0) {
-    columns.push({ label: "Solo Ops", agentIds: soloOps.map((a) => a.id), edges: [] })
+    columns.push({ label: "独立成员", agentIds: soloOps.map((a) => a.id), edges: [] })
   }
   if (disconnected.length > 0) {
-    columns.push({ label: "Unlinked", agentIds: disconnected.map((a) => a.id), edges: [] })
+    columns.push({ label: "未关联", agentIds: disconnected.map((a) => a.id), edges: [] })
   }
 
   // Layout each column with dagre independently, then offset horizontally
@@ -370,7 +370,7 @@ export function OrgMap({ agents, crons, selectedId, onNodeClick }: OrgMapProps) 
                     }),
               }}
             >
-              {opt === "teams" ? "Teams" : "Hierarchy"}
+              {opt === "teams" ? "团队视图" : "层级视图"}
             </button>
           )
         })}

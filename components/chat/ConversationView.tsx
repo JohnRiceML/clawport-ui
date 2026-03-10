@@ -85,9 +85,9 @@ function CodeBlock({ code, keyProp }: { code: string; keyProp: number }) {
       <button
         className="code-copy-btn focus-ring"
         onClick={handleCopy}
-        aria-label="Copy code"
+        aria-label="复制代码"
       >
-        {copied ? 'Copied!' : 'Copy'}
+        {copied ? '已复制' : '复制代码'}
       </button>
       <pre><code>{code}</code></pre>
     </div>
@@ -173,11 +173,11 @@ function formatTimestamp(ts: number): string {
   const yesterday = new Date(now)
   yesterday.setDate(yesterday.getDate() - 1)
   const isYesterday = yesterday.toDateString() === date.toDateString()
-  const time = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+  const time = date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })
 
-  if (isToday) return `Today ${time}`
-  if (isYesterday) return `Yesterday ${time}`
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ` ${time}`
+  if (isToday) return `今天 ${time}`
+  if (isYesterday) return `昨天 ${time}`
+  return date.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' }) + ` ${time}`
 }
 
 function shouldShowTimestamp(messages: Message[], index: number): boolean {
@@ -273,7 +273,7 @@ function renderMedia(media: MediaAttachment[], isUser: boolean) {
         }}>
           <img
             src={m.url}
-            alt={m.name || 'Image'}
+            alt={m.name || '图片'}
             style={{ width: '100%', display: 'block', borderRadius: 'var(--radius-lg)', cursor: 'pointer' }}
             onClick={() => window.open(m.url, '_blank')}
           />
@@ -282,7 +282,7 @@ function renderMedia(media: MediaAttachment[], isUser: boolean) {
       {files.map((m, mi) => (
         <div key={`file-${mi}`} style={{ marginTop: 'var(--space-2)' }}>
           <FileAttachment
-            name={m.name || 'File'}
+            name={m.name || '文件'}
             size={m.size}
             mimeType={m.mimeType}
             url={m.url}
@@ -382,7 +382,7 @@ export function ConversationView({ agent, conversation, onUpdate, onBack }: Conv
         body: JSON.stringify({ messages: apiMessages, operatorName: settings.operatorName }),
       })
 
-      if (!res.ok || !res.body) throw new Error('Stream failed')
+      if (!res.ok || !res.body) throw new Error('流式响应失败')
 
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
@@ -412,7 +412,7 @@ export function ConversationView({ agent, conversation, onUpdate, onBack }: Conv
       const finalContent = fullContent
       onUpdate(agent.id, prev => updateLastMessage(prev, agent.id, assistantMsgId, finalContent, false))
     } catch {
-      onUpdate(agent.id, prev => updateLastMessage(prev, agent.id, assistantMsgId, 'Error getting response. Check API connection.', false))
+      onUpdate(agent.id, prev => updateLastMessage(prev, agent.id, assistantMsgId, '获取回复失败，请检查 API 连接。', false))
     } finally {
       setIsStreaming(false)
       textareaRef.current?.focus()
@@ -640,7 +640,7 @@ export function ConversationView({ agent, conversation, onUpdate, onBack }: Conv
         messages: [{
           id: generateId(),
           role: 'assistant' as const,
-          content: `I'm ${agent.name}. ${agent.description} What do you need?`,
+          content: `我是 ${agent.name}。${agent.description ?? ''} 你需要我做什么？`,
           timestamp: Date.now(),
         }],
         unread: 0,
@@ -679,7 +679,7 @@ export function ConversationView({ agent, conversation, onUpdate, onBack }: Conv
           <button
             className="md:hidden btn-ghost focus-ring"
             onClick={onBack}
-            aria-label="Back to agents"
+            aria-label="返回智能体列表"
             style={{
               padding: 'var(--space-1) var(--space-2)',
               borderRadius: 'var(--radius-sm)',
@@ -693,7 +693,7 @@ export function ConversationView({ agent, conversation, onUpdate, onBack }: Conv
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="15 18 9 12 15 6" />
             </svg>
-            Back
+            返回
           </button>
         )}
 
@@ -733,7 +733,7 @@ export function ConversationView({ agent, conversation, onUpdate, onBack }: Conv
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
           <button
             className="btn-ghost focus-ring"
-            aria-label="View agent profile"
+            aria-label="查看智能体资料"
             onClick={() => router.push(`/agents/${agent.id}`)}
             style={{
               padding: 'var(--space-2)',
@@ -751,7 +751,7 @@ export function ConversationView({ agent, conversation, onUpdate, onBack }: Conv
           </button>
           <button
             className="btn-ghost focus-ring"
-            aria-label="Clear conversation"
+            aria-label="清空会话"
             onClick={clearChat}
             style={{
               padding: 'var(--space-2)',
@@ -803,7 +803,7 @@ export function ConversationView({ agent, conversation, onUpdate, onBack }: Conv
               fontWeight: 'var(--weight-semibold)',
               color: 'var(--accent)',
             }}>
-              Drop files to attach
+              拖拽文件到这里即可添加
             </div>
           </div>
         )}
@@ -1070,7 +1070,7 @@ export function ConversationView({ agent, conversation, onUpdate, onBack }: Conv
             {/* Attach button */}
             <button
               className="btn-ghost focus-ring"
-              aria-label="Attach file"
+              aria-label="添加附件"
               onClick={() => fileInputRef.current?.click()}
               style={{
                 padding: 'var(--space-1)',
@@ -1111,7 +1111,7 @@ export function ConversationView({ agent, conversation, onUpdate, onBack }: Conv
               }}
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
-              placeholder={`Message ${agent.name}...`}
+              placeholder={`给 ${agent.name} 发消息...`}
               rows={1}
               disabled={isStreaming}
               style={{
@@ -1140,7 +1140,7 @@ export function ConversationView({ agent, conversation, onUpdate, onBack }: Conv
               className="focus-ring"
               onClick={() => sendMessage()}
               disabled={!hasContent || isStreaming}
-              aria-label="Send message"
+              aria-label="发送消息"
               style={{
                 width: 32,
                 height: 32,
@@ -1172,7 +1172,7 @@ export function ConversationView({ agent, conversation, onUpdate, onBack }: Conv
           textAlign: 'center',
           marginTop: 'var(--space-1)',
         }}>
-          Enter to send &middot; Shift+Enter for newline &middot; / for commands
+          回车发送 &middot; Shift+回车换行 &middot; 输入 / 使用命令
         </div>
       </div>
     </div>

@@ -6,12 +6,12 @@ export interface SlashCommand {
 }
 
 export const COMMANDS: SlashCommand[] = [
-  { name: '/clear', description: 'Clear conversation history' },
-  { name: '/help', description: 'Show available commands' },
-  { name: '/info', description: 'Show agent profile summary' },
-  { name: '/soul', description: "Show agent's SOUL.md persona" },
-  { name: '/tools', description: "List agent's available tools" },
-  { name: '/crons', description: "Show agent's scheduled jobs" },
+  { name: '/clear', description: '清空会话历史' },
+  { name: '/help', description: '显示可用命令' },
+  { name: '/info', description: '显示智能体简介' },
+  { name: '/soul', description: '显示智能体 SOUL.md 人设' },
+  { name: '/tools', description: '列出智能体可用工具' },
+  { name: '/crons', description: '显示智能体计划任务' },
 ]
 
 export interface ParsedCommand {
@@ -54,16 +54,16 @@ export function matchCommands(partial: string): SlashCommand[] {
 export function executeCommand(command: string, agent: Agent): { content: string; action?: 'clear' } {
   switch (command) {
     case '/clear':
-      return { content: 'Conversation cleared.', action: 'clear' }
+      return { content: '会话已清空。', action: 'clear' }
 
     case '/help':
       return {
         content: [
-          '**Available commands**',
+          '**可用命令**',
           '',
           ...COMMANDS.map(c => `\`${c.name}\` -- ${c.description}`),
           '',
-          'Type `/` to see the command menu.',
+          '输入 `/` 可打开命令菜单。',
         ].join('\n'),
       }
 
@@ -75,26 +75,26 @@ export function executeCommand(command: string, agent: Agent): { content: string
           '',
           agent.description,
           '',
-          `Tools: ${agent.tools.length > 0 ? agent.tools.join(', ') : 'none'}`,
-          `Cron jobs: ${agent.crons.length}`,
-          agent.memoryPath ? `Memory: ${agent.memoryPath}` : 'Memory: not configured',
+          `工具：${agent.tools.length > 0 ? agent.tools.join(', ') : '无'}`,
+          `计划任务：${agent.crons.length}`,
+          agent.memoryPath ? `记忆路径：${agent.memoryPath}` : '记忆路径：未配置',
         ].join('\n'),
       }
 
     case '/soul': {
       if (!agent.soul) {
-        return { content: `No SOUL.md found for ${agent.name}.` }
+        return { content: `${agent.name} 未找到 SOUL.md。` }
       }
       return { content: agent.soul }
     }
 
     case '/tools': {
       if (agent.tools.length === 0) {
-        return { content: `${agent.name} has no tools configured.` }
+        return { content: `${agent.name} 未配置任何工具。` }
       }
       return {
         content: [
-          `**${agent.name}'s tools**`,
+          `**${agent.name} 的工具**`,
           '',
           ...agent.tools.map(t => `- ${t}`),
         ].join('\n'),
@@ -103,14 +103,14 @@ export function executeCommand(command: string, agent: Agent): { content: string
 
     case '/crons': {
       if (agent.crons.length === 0) {
-        return { content: `${agent.name} has no cron jobs.` }
+        return { content: `${agent.name} 没有计划任务。` }
       }
       return {
         content: [
-          `**${agent.name}'s cron jobs**`,
+          `**${agent.name} 的计划任务**`,
           '',
           ...agent.crons.map(c => {
-            const status = c.enabled ? c.status : 'disabled'
+            const status = c.enabled ? c.status : '已禁用'
             return `- **${c.name}** (${c.scheduleDescription}) -- ${status}`
           }),
         ].join('\n'),
@@ -118,6 +118,6 @@ export function executeCommand(command: string, agent: Agent): { content: string
     }
 
     default:
-      return { content: `Unknown command: ${command}` }
+      return { content: `未知命令：${command}` }
   }
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useState } from 'react'
 import type { Agent } from '@/lib/types'
 import {
   type ClawPortSettings,
@@ -11,6 +11,7 @@ import {
   hexToAccentFill,
   hexToContrastText,
 } from '@/lib/settings'
+import { detectLocale, translate, type Locale, type LocalePreference } from '@/lib/i18n'
 
 interface AgentDisplay {
   emoji: string
@@ -20,6 +21,9 @@ interface AgentDisplay {
 
 interface SettingsContextValue {
   settings: ClawPortSettings
+  resolvedLocale: Locale
+  setLocale: (locale: LocalePreference) => void
+  t: (key: string, vars?: Record<string, string | number>) => string
   setAccentColor: (color: string | null) => void
   setPortalName: (name: string | null) => void
   setPortalSubtitle: (subtitle: string | null) => void
@@ -35,7 +39,10 @@ interface SettingsContextValue {
 }
 
 const SettingsContext = createContext<SettingsContextValue>({
-  settings: { accentColor: null, portalName: null, portalSubtitle: null, portalEmoji: null, portalIcon: null, iconBgHidden: false, emojiOnly: false, operatorName: null, agentOverrides: {} },
+  settings: { locale: 'zh-CN', accentColor: null, portalName: null, portalSubtitle: null, portalEmoji: null, portalIcon: null, iconBgHidden: false, emojiOnly: false, operatorName: null, agentOverrides: {} },
+  resolvedLocale: 'zh-CN',
+  setLocale: () => {},
+  t: (key) => key,
   setAccentColor: () => {},
   setPortalName: () => {},
   setPortalSubtitle: () => {},
@@ -54,10 +61,37 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   // Initialize with defaults so server and client render the same HTML.
   // Hydrate from localStorage after mount to avoid hydration mismatch.
   const [settings, setSettings] = useState<ClawPortSettings>({ ...DEFAULTS })
+  const [resolvedLocale, setResolvedLocale] = useState<Locale>('zh-CN')
 
-  useEffect(() => {
-    setSettings(loadSettings())
+  useLayoutEffect(() => {
+    const loaded = loadSettings()
+    setSettings(loaded)
+    const locale =
+      loaded.locale === 'auto'
+        ? detectLocale(
+            typeof navigator === 'undefined' ? [] : navigator.languages,
+            typeof navigator === 'undefined' ? undefined : navigator.language,
+          )
+        : loaded.locale
+    setResolvedLocale(locale)
+    document.documentElement.lang = locale
+    document.documentElement.dataset.locale = locale
+    document.documentElement.dataset.localePreference = loaded.locale
   }, [])
+
+  useLayoutEffect(() => {
+    const locale =
+      settings.locale === 'auto'
+        ? detectLocale(
+            typeof navigator === 'undefined' ? [] : navigator.languages,
+            typeof navigator === 'undefined' ? undefined : navigator.language,
+          )
+        : settings.locale
+    setResolvedLocale(locale)
+    document.documentElement.lang = locale
+    document.documentElement.dataset.locale = locale
+    document.documentElement.dataset.localePreference = settings.locale
+  }, [settings.locale])
 
   // Apply accent color CSS variables when settings change
   useEffect(() => {
@@ -170,6 +204,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
 
   const resetAll = useCallback(() => {
     const defaults: ClawPortSettings = {
+      locale: 'zh-CN',
       accentColor: null,
       portalName: null,
       portalSubtitle: null,
@@ -183,10 +218,25 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     update(defaults)
   }, [update])
 
+  const setLocale = useCallback(
+    (locale: LocalePreference) => {
+      update({ ...settings, locale })
+    },
+    [settings, update],
+  )
+
+  const t = useCallback(
+    (key: string, vars?: Record<string, string | number>) => translate(resolvedLocale, key, vars),
+    [resolvedLocale],
+  )
+
   return (
     <SettingsContext.Provider
       value={{
         settings,
+        resolvedLocale,
+        setLocale,
+        t,
         setAccentColor,
         setPortalName,
         setPortalSubtitle,

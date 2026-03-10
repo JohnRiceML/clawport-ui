@@ -18,6 +18,7 @@ beforeEach(() => {
     getItem: (key: string) => storage[key] ?? null,
     setItem: (key: string, val: string) => { storage[key] = val },
     removeItem: (key: string) => { delete storage[key] },
+    clear: () => { Object.keys(storage).forEach((k) => delete storage[k]) },
   })
 })
 

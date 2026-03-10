@@ -59,7 +59,7 @@ export function getOrCreateConversation(store: ConversationStore, agent: Agent):
     messages: [{
       id: generateId(),
       role: 'assistant',
-      content: `I'm ${agent.name}. ${agent.description} What do you need?`,
+      content: `我是 ${agent.name}。${agent.description ?? ''} 你需要我做什么？`,
       timestamp: Date.now(),
     }],
     unread: 0,
@@ -98,7 +98,7 @@ export function parseMedia(content: string): MediaAttachment[] {
   const imgRegex = /!\[([^\]]*)\]\((https?:\/\/[^\)]+\.(jpg|jpeg|png|gif|webp|svg)(\?[^\)]*)?)\)/gi
   let m: RegExpExecArray | null
   while ((m = imgRegex.exec(content)) !== null) {
-    media.push({ type: 'image', url: m[2], name: m[1] || 'Image' })
+    media.push({ type: 'image', url: m[2], name: m[1] || '图片' })
   }
 
   const bareImgRegex = /(?<!\]\()https?:\/\/\S+\.(jpg|jpeg|png|gif|webp)(\?\S*)?\b/gi

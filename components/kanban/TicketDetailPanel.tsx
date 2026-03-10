@@ -145,6 +145,7 @@ function formatContent(content: string): React.ReactNode {
 /* ── Priority badge ──────────────────────────────────── */
 
 function PriorityBadge({ priority }: { priority: TicketPriority }) {
+  const label = priority === 'high' ? '高' : priority === 'medium' ? '中' : '低'
   return (
     <span style={{
       display: 'inline-flex',
@@ -162,7 +163,7 @@ function PriorityBadge({ priority }: { priority: TicketPriority }) {
         borderRadius: '50%',
         background: PRIORITY_COLORS[priority],
       }} />
-      {priority}
+      {label}
     </span>
   )
 }
@@ -290,7 +291,7 @@ export function TicketDetailPanel({
         }),
       })
 
-      if (!res.ok || !res.body) throw new Error('Stream failed')
+      if (!res.ok || !res.body) throw new Error('流式响应失败')
 
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
@@ -338,7 +339,7 @@ export function TicketDetailPanel({
         body: JSON.stringify({ messages: [userMsg, completedAssistant] }),
       }).catch(() => { /* persist best-effort */ })
     } catch {
-      const errorContent = 'Error getting response. Check API connection.'
+      const errorContent = '获取回复失败，请检查 API 连接。'
       setMessages(prev =>
         prev.map(m => m.id === assistantMsgId
           ? { ...m, content: errorContent, isStreaming: false }
@@ -367,7 +368,7 @@ export function TicketDetailPanel({
   }
 
   function handleDelete() {
-    if (window.confirm(`Delete ticket "${ticket.title}"? This cannot be undone.`)) {
+    if (window.confirm(`确认删除工单“${ticket.title}”？此操作不可恢复。`)) {
       onDelete()
     }
   }
@@ -408,7 +409,7 @@ export function TicketDetailPanel({
             <button
               onClick={() => setExpanded(e => !e)}
               className="focus-ring"
-              aria-label={expanded ? 'Collapse panel' : 'Expand panel'}
+              aria-label={expanded ? '收起面板' : '展开面板'}
               style={{
                 width: 28,
                 height: 28,
@@ -429,7 +430,7 @@ export function TicketDetailPanel({
               ref={closeRef}
               onClick={onClose}
               className="focus-ring"
-              aria-label="Close detail panel"
+              aria-label="关闭详情面板"
               style={{
                 width: 28,
                 height: 28,
@@ -497,7 +498,7 @@ export function TicketDetailPanel({
                 color: 'var(--text-tertiary)',
                 fontStyle: 'italic',
               }}>
-                Unassigned
+                未分配
               </div>
             )}
           </div>
@@ -514,7 +515,7 @@ export function TicketDetailPanel({
               letterSpacing: '0.5px',
               marginBottom: 'var(--space-2)',
             }}>
-              Move to
+              移动到
             </div>
             <div style={{ display: 'flex', gap: 'var(--space-1)', flexWrap: 'wrap' }}>
               {COLUMNS.map(col => {
@@ -561,7 +562,7 @@ export function TicketDetailPanel({
                 letterSpacing: '0.5px',
                 marginBottom: 'var(--space-2)',
               }}>
-                Description
+                描述
               </div>
               <div style={{
                 fontSize: 'var(--text-footnote)',
@@ -590,7 +591,7 @@ export function TicketDetailPanel({
                 letterSpacing: '0.5px',
                 marginBottom: 'var(--space-2)',
               }}>
-                Agent Work
+                智能体执行结果
               </div>
               <div style={{
                 fontSize: 'var(--text-footnote)',
@@ -623,7 +624,7 @@ export function TicketDetailPanel({
                   fontWeight: 600,
                   color: 'var(--system-red)',
                 }}>
-                  Agent work failed
+                  智能体执行失败
                 </div>
                 {ticket.workError && (
                   <div style={{
@@ -649,7 +650,7 @@ export function TicketDetailPanel({
                       cursor: 'pointer',
                     }}
                   >
-                    Retry
+                    重试
                   </button>
                 )}
               </div>
@@ -682,7 +683,7 @@ export function TicketDetailPanel({
             marginBottom: 'var(--space-2)',
             flexShrink: 0,
           }}>
-            Agent Chat
+            智能体对话
           </div>
 
           {!agent ? (
@@ -695,7 +696,7 @@ export function TicketDetailPanel({
               fontSize: 'var(--text-footnote)',
               fontStyle: 'italic',
             }}>
-              No agent assigned
+              暂未指定智能体
             </div>
           ) : (
             <>
@@ -717,7 +718,7 @@ export function TicketDetailPanel({
                     padding: 'var(--space-6) 0',
                     fontStyle: 'italic',
                   }}>
-                    Ask {agent.name} about this ticket...
+                    向 {agent.name} 询问此工单...
                   </div>
                 )}
 
@@ -741,7 +742,7 @@ export function TicketDetailPanel({
                     }}>
                       {formatContent(msg.content)}
                       {msg.isStreaming && !msg.content && (
-                        <span style={{ opacity: 0.5 }}>Thinking...</span>
+                        <span style={{ opacity: 0.5 }}>思考中...</span>
                       )}
                       {msg.isStreaming && msg.content && (
                         <span style={{
@@ -774,7 +775,7 @@ export function TicketDetailPanel({
                   value={input}
                   onChange={e => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder={`Message ${agent.name}...`}
+                  placeholder={`给 ${agent.name} 发消息...`}
                   rows={1}
                   disabled={isStreaming}
                   style={{
@@ -796,7 +797,7 @@ export function TicketDetailPanel({
                   onClick={sendMessage}
                   disabled={!input.trim() || isStreaming}
                   className="focus-ring"
-                  aria-label="Send message"
+                  aria-label="发送消息"
                   style={{
                     width: 32,
                     height: 32,
@@ -842,7 +843,7 @@ export function TicketDetailPanel({
               transition: 'all 120ms ease',
             }}
           >
-            Delete Ticket
+            删除工单
           </button>
         </div>
       </div>

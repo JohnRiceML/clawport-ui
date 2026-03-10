@@ -296,10 +296,10 @@ const CALLOUT_COLORS: Record<string, string> = {
 };
 
 const CALLOUT_LABELS: Record<string, string> = {
-  tip: "Tip",
-  warning: "Warning",
-  note: "Note",
-  error: "Error",
+  tip: "提示",
+  warning: "警告",
+  note: "说明",
+  error: "错误",
 };
 
 export function Callout({
@@ -330,7 +330,7 @@ export function Callout({
           marginBottom: "var(--space-1)",
         }}
       >
-        {CALLOUT_LABELS[type] ?? "Note"}
+        {CALLOUT_LABELS[type] ?? "说明"}
       </div>
       <div
         style={{

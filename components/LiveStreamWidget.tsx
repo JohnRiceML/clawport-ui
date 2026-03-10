@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useSettings } from '@/app/settings-provider'
 import type { LiveLogLine } from '@/lib/types'
 import { parseSSEBuffer } from '@/lib/sse'
 import { Play, Pause, Copy, Minimize2, Search, ChevronRight } from 'lucide-react'
@@ -115,6 +116,7 @@ function LogRow({ line }: { line: LiveLogLine }) {
 /* ── Component ────────────────────────────────────────────────── */
 
 export function LiveStreamWidget() {
+  const { t } = useSettings()
   const [state, setState] = useState<WidgetState>('collapsed')
   const [lines, setLines] = useState<LiveLogLine[]>([])
   const [streaming, setStreaming] = useState(false)
@@ -282,7 +284,7 @@ export function LiveStreamWidget() {
             border: 'none', cursor: 'pointer', padding: 0,
           }}
         >
-          Live Logs
+          {t('logs.liveLogs')}
         </button>
         {lines.length > 0 && (
           <span style={{
@@ -349,7 +351,7 @@ export function LiveStreamWidget() {
           fontSize: 'var(--text-footnote)', fontWeight: 'var(--weight-semibold)',
           color: 'var(--text-primary)',
         }}>
-          Live Logs
+          {t('logs.liveLogs')}
         </span>
         {lines.length > 0 && (
           <span style={{ fontSize: 'var(--text-caption2)', color: 'var(--text-tertiary)' }}>
@@ -361,7 +363,7 @@ export function LiveStreamWidget() {
           <button
             onClick={handleCopy}
             className="focus-ring"
-            title={isFiltering ? 'Copy filtered logs' : 'Copy all logs'}
+            title={isFiltering ? t('logs.copyFiltered') : t('logs.copyAll')}
             disabled={filteredLines.length === 0}
             style={{
               width: 28, height: 28,
@@ -379,7 +381,7 @@ export function LiveStreamWidget() {
           <button
             onClick={() => setState('collapsed')}
             className="focus-ring"
-            title="Minimize"
+            title={t('logs.minimize')}
             style={{
               width: 28, height: 28,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -412,7 +414,7 @@ export function LiveStreamWidget() {
           <Search size={12} style={{ color: 'var(--text-tertiary)', flexShrink: 0 }} />
           <input
             type="text"
-            placeholder="Search logs..."
+            placeholder={t('logs.searchLogs')}
             value={search}
             onChange={e => setSearch(e.target.value)}
             style={{
@@ -501,7 +503,7 @@ export function LiveStreamWidget() {
               <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
             </svg>
             <span style={{ fontSize: 'var(--text-caption1)', fontWeight: 'var(--weight-medium)' }}>
-              {streaming ? 'Waiting for log data...' : 'Click Play to start streaming'}
+              {streaming ? t('logs.waiting') : t('logs.clickPlay')}
             </span>
           </div>
         ) : filteredLines.length === 0 ? (
@@ -511,7 +513,7 @@ export function LiveStreamWidget() {
           }}>
             <Search size={20} />
             <span style={{ fontSize: 'var(--text-caption1)', fontWeight: 'var(--weight-medium)' }}>
-              No matching logs
+              {t('logs.noResults')}
             </span>
           </div>
         ) : (

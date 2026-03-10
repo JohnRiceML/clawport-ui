@@ -6,38 +6,38 @@ import { generateId } from '../id'
 /* ── Role-specific work prompts ──────────────────────── */
 
 const ROLE_PROMPTS: Record<TeamRole, string> = {
-  'lead-dev': `You are working this ticket as the Lead Dev. Provide:
-1. Technical breakdown of the work needed
-2. Implementation plan with clear steps
-3. Key technical decisions or trade-offs
-4. Dependencies or blockers to flag
+  'lead-dev': `你是该工单的开发负责人，请输出：
+1. 需要完成工作的技术拆解
+2. 清晰可执行的实现步骤
+3. 关键技术决策与取舍
+4. 需要提前暴露的依赖或阻塞项
 
-Be specific and actionable. Reference concrete files, APIs, or patterns where relevant.`,
+要求具体、可执行，并尽量引用明确的文件、接口或实现模式。`,
 
-  'ux-ui': `You are working this ticket as the UX/UI Lead. Provide:
-1. Design review and recommendations
-2. User flow walkthrough
-3. Accessibility considerations (WCAG)
-4. Visual/interaction suggestions
+  'ux-ui': `你是该工单的 UX/UI 负责人，请输出：
+1. 设计审查与改进建议
+2. 用户流程说明
+3. 可访问性（WCAG）关注点
+4. 视觉与交互优化建议
 
-Focus on the user experience. Call out any usability concerns or improvements.`,
+聚焦真实用户体验，明确指出可用性风险与改进方向。`,
 
-  'qa': `You are working this ticket as QA. Provide:
-1. Test scenarios (happy path + edge cases)
-2. Acceptance criteria checklist
-3. Potential regression areas
-4. Edge cases and boundary conditions to verify
+  'qa': `你是该工单的质量保障负责人，请输出：
+1. 测试场景（主路径 + 边界情况）
+2. 验收标准清单
+3. 潜在回归风险区域
+4. 需要重点验证的边界条件
 
-Be thorough. Think about what could break and how to verify it works.`,
+要求全面，明确“可能会坏的地方”以及验证方法。`,
 }
 
-const FALLBACK_PROMPT = `You are working this ticket. Provide:
-1. Analysis of what needs to be done
-2. Recommended approach
-3. Key considerations or risks
-4. Next steps
+const FALLBACK_PROMPT = `你正在处理该工单，请输出：
+1. 任务分析
+2. 推荐方案
+3. 关键风险与注意事项
+4. 下一步行动
 
-Be concise and actionable.`
+请保持简洁且可执行。`
 
 export function getWorkPrompt(ticket: KanbanTicket): string {
   const rolePrompt = ticket.assigneeRole
@@ -46,9 +46,9 @@ export function getWorkPrompt(ticket: KanbanTicket): string {
 
   return `${rolePrompt}
 
-Ticket: ${ticket.title}
-${ticket.description ? `Description: ${ticket.description}` : 'No description provided.'}
-Priority: ${ticket.priority}`
+工单：${ticket.title}
+${ticket.description ? `描述：${ticket.description}` : '描述：未提供。'}
+优先级：${ticket.priority}`
 }
 
 /* ── Execute work via chat API ───────────────────────── */
@@ -77,7 +77,7 @@ export async function executeWork(
     if (externalSignal) {
       if (externalSignal.aborted) {
         clearTimeout(timeoutId)
-        return { success: false, content: '', error: 'Cancelled' }
+        return { success: false, content: '', error: '已取消' }
       }
       externalSignal.addEventListener('abort', () => controller.abort(), { once: true })
     }
@@ -101,7 +101,7 @@ export async function executeWork(
 
     if (!res.ok || !res.body) {
       clearTimeout(timeoutId)
-      return { success: false, content: '', error: `API error: ${res.status}` }
+      return { success: false, content: '', error: `API 错误：${res.status}` }
     }
 
     const reader = res.body.getReader()
@@ -123,7 +123,7 @@ export async function executeWork(
             try {
               const chunk = JSON.parse(line.slice(6))
               if (chunk.error) {
-                return { success: false, content: fullContent, error: `Stream error: ${chunk.error}` }
+                return { success: false, content: fullContent, error: `流式错误：${chunk.error}` }
               }
               if (chunk.content) {
                 fullContent += chunk.content
@@ -138,15 +138,15 @@ export async function executeWork(
     }
 
     if (!fullContent) {
-      return { success: false, content: '', error: 'Empty response from agent' }
+      return { success: false, content: '', error: '智能体返回为空' }
     }
 
     return { success: true, content: fullContent }
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') {
-      return { success: false, content: '', error: 'Agent work timed out' }
+      return { success: false, content: '', error: '智能体执行超时' }
     }
-    const message = err instanceof Error ? err.message : 'Unknown error'
+    const message = err instanceof Error ? err.message : '未知错误'
     return { success: false, content: '', error: message }
   }
 }

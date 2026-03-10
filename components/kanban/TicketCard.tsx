@@ -10,21 +10,21 @@ import {
 import { AgentAvatar } from '@/components/AgentAvatar'
 
 const PRIORITY_LABELS: Record<string, string> = {
-  low: 'Low',
-  medium: 'Med',
-  high: 'High',
+  low: '低',
+  medium: '中',
+  high: '高',
 }
 
 function relativeTime(ts: number): string {
   const diff = Date.now() - ts
   const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
+  if (mins < 1) return '刚刚'
+  if (mins < 60) return `${mins} 分钟前`
   const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h ago`
+  if (hrs < 24) return `${hrs} 小时前`
   const days = Math.floor(hrs / 24)
-  if (days < 30) return `${days}d ago`
-  return `${Math.floor(days / 30)}mo ago`
+  if (days < 30) return `${days} 天前`
+  return `${Math.floor(days / 30)} 个月前`
 }
 
 interface TicketCardProps {
@@ -222,7 +222,7 @@ export function TicketCard({ ticket, agent, onClick, isWorking }: TicketCardProp
             background: 'var(--system-orange)',
             animation: 'pulse 2s ease-in-out infinite',
           }} />
-          Working...
+          执行中...
         </div>
       )}
 
@@ -237,7 +237,7 @@ export function TicketCard({ ticket, agent, onClick, isWorking }: TicketCardProp
             padding: '1px var(--space-2)',
           }}
         >
-          Failed
+          失败
         </div>
       )}
     </div>

@@ -8,8 +8,8 @@ interface WeeklyScheduleProps {
   crons: CronJob[]
 }
 
-const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-const DAY_LABELS_FULL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+const DAY_LABELS = ["一", "二", "三", "四", "五", "六", "日"]
+const DAY_LABELS_FULL = ["星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"]
 // Map cron dow (0=Sun) to grid column (0=Mon)
 const DOW_TO_COL: Record<number, number> = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 0: 6 }
 
@@ -32,15 +32,11 @@ const AGENT_COLORS: Record<string, string> = {
 }
 
 function formatHour(h: number): string {
-  if (h === 0 || h === 24) return "12 AM"
-  if (h === 12) return "12 PM"
-  return h < 12 ? `${h} AM` : `${h - 12} PM`
+  return `${String(h).padStart(2, "0")}:00`
 }
 
 function formatHourShort(h: number): string {
-  if (h === 0 || h === 24) return "12a"
-  if (h === 12) return "12p"
-  return h < 12 ? `${h}a` : `${h - 12}p`
+  return `${String(h).padStart(2, "0")}`
 }
 
 interface SlotInfo {
@@ -139,14 +135,13 @@ function PillTooltip({ slot, rect, containerRect }: { slot: SlotInfo; rect: DOMR
               : slot.cron.status === "error" ? "var(--system-red)"
               : "var(--text-tertiary)",
             fontWeight: "var(--weight-medium)",
-            textTransform: "capitalize",
           }}>
-            {slot.cron.status}
+            {slot.cron.status === "ok" ? "正常" : slot.cron.status === "error" ? "错误" : slot.cron.status === "idle" ? "空闲" : slot.cron.status}
           </span>
         </span>
         {slot.cron.nextRun && (
           <span style={{ color: "var(--text-tertiary)" }}>
-            Next: {new Date(slot.cron.nextRun).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })}
+            下次：{new Date(slot.cron.nextRun).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })}
           </span>
         )}
       </div>
@@ -297,10 +292,10 @@ export function WeeklySchedule({ crons }: WeeklyScheduleProps) {
           <line x1="3" y1="10" x2="21" y2="10" />
         </svg>
         <span style={{ fontSize: "var(--text-subheadline)", fontWeight: "var(--weight-medium)" }}>
-          No scheduled jobs to display
+          暂无可显示的计划任务
         </span>
         <span style={{ fontSize: "var(--text-footnote)", color: "var(--text-tertiary)" }}>
-          Enable some cron jobs to see the weekly schedule
+          启用定时任务后，这里会显示周计划
         </span>
       </div>
     )

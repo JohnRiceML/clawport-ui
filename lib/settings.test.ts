@@ -15,7 +15,7 @@ const localStorageMock = {
     Object.keys(store).forEach((k) => delete store[k])
   }),
 }
-Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock })
+Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock, configurable: true, writable: true })
 
 beforeEach(() => {
   localStorageMock.clear()
@@ -26,6 +26,7 @@ describe('loadSettings', () => {
   it('returns defaults when nothing is stored', () => {
     const s = loadSettings()
     expect(s).toEqual({
+      locale: 'zh-CN',
       accentColor: null,
       portalName: null,
       portalSubtitle: null,
@@ -81,6 +82,7 @@ describe('loadSettings', () => {
 describe('saveSettings', () => {
   it('persists settings to localStorage', () => {
     const settings = {
+      locale: 'auto' as const,
       accentColor: '#EF4444',
       portalName: 'Test',
       portalSubtitle: null,
@@ -100,6 +102,7 @@ describe('saveSettings', () => {
 
   it('round-trips through load', () => {
     const settings = {
+      locale: 'auto' as const,
       accentColor: '#22C55E',
       portalName: 'Green HQ',
       portalSubtitle: 'Ops Center',

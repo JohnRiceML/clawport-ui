@@ -67,7 +67,7 @@ export function VoiceMessage({ src, duration, waveform, isUser }: VoiceMessagePr
       {/* Play/Pause button */}
       <button
         onClick={toggle}
-        aria-label={playing ? 'Pause' : 'Play'}
+        aria-label={playing ? '暂停' : '播放'}
         style={{
           width: 28,
           height: 28,

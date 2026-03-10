@@ -11,9 +11,9 @@ export function TokenDonut({ data }: { data: CostSummary }) {
   if (total === 0) return null
 
   const segments = [
-    { label: 'Input', tokens: totalInput, color: DONUT_COLORS[0] },
-    { label: 'Output', tokens: totalOutput, color: DONUT_COLORS[1] },
-    { label: 'Cache', tokens: totalCache, color: DONUT_COLORS[2] },
+    { label: '输入', tokens: totalInput, color: DONUT_COLORS[0] },
+    { label: '输出', tokens: totalOutput, color: DONUT_COLORS[1] },
+    { label: '缓存', tokens: totalCache, color: DONUT_COLORS[2] },
   ].filter(s => s.tokens > 0)
 
   const R = 60
@@ -37,7 +37,7 @@ export function TokenDonut({ data }: { data: CostSummary }) {
         fontWeight: 'var(--weight-medium)',
         marginBottom: 'var(--space-3)',
       }}>
-        Token Breakdown
+        Token 构成
       </div>
       <div className="flex items-center" style={{ gap: 'var(--space-6)', flexWrap: 'wrap' }}>
         <svg viewBox="0 0 160 160" style={{ width: 140, height: 140, flexShrink: 0 }}>
@@ -67,7 +67,7 @@ export function TokenDonut({ data }: { data: CostSummary }) {
             {fmtTokens(total)}
           </text>
           <text x={cx} y={cy + 10} textAnchor="middle" fontSize={9} fill="var(--text-tertiary)">
-            total
+            总计
           </text>
         </svg>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>

@@ -12,18 +12,18 @@ import { OnboardingWizard } from '@/components/OnboardingWizard'
 // ---------------------------------------------------------------------------
 
 const ACCENT_PRESETS = [
-  { label: 'Red', value: '#EF4444' },
-  { label: 'Gold', value: '#F5C518' },
-  { label: 'Blue', value: '#3B82F6' },
-  { label: 'Green', value: '#22C55E' },
-  { label: 'Orange', value: '#F97316' },
-  { label: 'Purple', value: '#A855F7' },
-  { label: 'Pink', value: '#EC4899' },
-  { label: 'Teal', value: '#14B8A6' },
-  { label: 'Cyan', value: '#06B6D4' },
-  { label: 'Indigo', value: '#6366F1' },
-  { label: 'Rose', value: '#F43F5E' },
-  { label: 'Lime', value: '#84CC16' },
+  { label: '红色', value: '#EF4444' },
+  { label: '金色', value: '#F5C518' },
+  { label: '蓝色', value: '#3B82F6' },
+  { label: '绿色', value: '#22C55E' },
+  { label: '橙色', value: '#F97316' },
+  { label: '紫色', value: '#A855F7' },
+  { label: '粉色', value: '#EC4899' },
+  { label: '青绿色', value: '#14B8A6' },
+  { label: '青色', value: '#06B6D4' },
+  { label: '靛蓝', value: '#6366F1' },
+  { label: '玫红', value: '#F43F5E' },
+  { label: '黄绿色', value: '#84CC16' },
 ]
 
 // ---------------------------------------------------------------------------
@@ -61,6 +61,8 @@ function resizeImage(file: File, maxSize: number): Promise<string> {
 export default function SettingsPage() {
   const {
     settings,
+    setLocale,
+    t,
     setAccentColor,
     setPortalName,
     setPortalSubtitle,
@@ -145,7 +147,7 @@ export default function SettingsPage() {
             margin: '0 0 var(--space-8)',
           }}
         >
-          Settings
+          {t('settings.title')}
         </h1>
 
         {/* ── Section 1: Accent Color ── */}
@@ -160,7 +162,7 @@ export default function SettingsPage() {
               padding: '0 var(--space-4) var(--space-2)',
             }}
           >
-            Accent Color
+            {t('settings.accentColor')}
           </div>
           <div
             style={{
@@ -215,7 +217,7 @@ export default function SettingsPage() {
                   cursor: 'pointer',
                 }}
               >
-                Custom:
+                {t('settings.custom')}:
                 <input
                   type="color"
                   value={settings.accentColor ?? '#F5C518'}
@@ -247,10 +249,61 @@ export default function SettingsPage() {
                   }}
                 >
                   <RotateCcw size={12} />
-                  Reset to Default
+                  {t('settings.resetDefault')}
                 </button>
               )}
             </div>
+          </div>
+        </section>
+
+        <section style={{ marginBottom: 'var(--space-8)' }}>
+          <div
+            style={{
+              fontSize: 'var(--text-caption1)',
+              fontWeight: 'var(--weight-semibold)',
+              letterSpacing: 'var(--tracking-wide)',
+              textTransform: 'uppercase',
+              color: 'var(--text-tertiary)',
+              padding: '0 var(--space-4) var(--space-2)',
+            }}
+          >
+            {t('settings.language')}
+          </div>
+          <div
+            style={{
+              background: 'var(--material-regular)',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--separator)',
+              padding: 'var(--space-3)',
+              display: 'flex',
+              gap: 'var(--space-2)',
+            }}
+          >
+            {[
+              { value: 'auto', label: t('settings.languageAuto') },
+              { value: 'en', label: t('settings.languageEnglish') },
+              { value: 'zh-CN', label: t('settings.languageChinese') },
+            ].map((option) => {
+              const active = settings.locale === option.value
+              return (
+                <button
+                  key={option.value}
+                  onClick={() => setLocale(option.value as 'auto' | 'en' | 'zh-CN')}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: '999px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    background: active ? 'var(--accent-fill)' : 'var(--fill-quaternary)',
+                    color: active ? 'var(--accent)' : 'var(--text-secondary)',
+                    fontSize: 'var(--text-footnote)',
+                    fontWeight: active ? 'var(--weight-semibold)' : 'var(--weight-medium)',
+                  }}
+                >
+                  {option.label}
+                </button>
+              )
+            })}
           </div>
         </section>
 
@@ -266,7 +319,7 @@ export default function SettingsPage() {
               padding: '0 var(--space-4) var(--space-2)',
             }}
           >
-            Branding
+            {t('settings.branding')}
           </div>
           <div
             style={{
@@ -286,12 +339,12 @@ export default function SettingsPage() {
                   marginBottom: 'var(--space-1)',
                 }}
               >
-                Name
+                {t('settings.name')}
               </label>
               <input
                 type="text"
                 className="apple-input"
-                placeholder="ClawPort"
+                placeholder="指挥中心"
                 value={nameValue}
                 onChange={(e) => setNameValue(e.target.value)}
                 onBlur={() => setPortalName(nameValue || null)}
@@ -315,12 +368,12 @@ export default function SettingsPage() {
                   marginBottom: 'var(--space-1)',
                 }}
               >
-                Subtitle
+                {t('onboarding.subtitle')}
               </label>
               <input
                 type="text"
                 className="apple-input"
-                placeholder="Command Centre"
+                placeholder={t('app.commandCentre')}
                 value={subtitleValue}
                 onChange={(e) => setSubtitleValue(e.target.value)}
                 onBlur={() => setPortalSubtitle(subtitleValue || null)}
@@ -344,12 +397,12 @@ export default function SettingsPage() {
                   marginBottom: 'var(--space-1)',
                 }}
               >
-                Your Name
+                {t('onboarding.yourName')}
               </label>
               <input
                 type="text"
                 className="apple-input"
-                placeholder="Your Name"
+                placeholder={t('onboarding.yourName')}
                 value={operatorNameValue}
                 onChange={(e) => setOperatorNameValue(e.target.value)}
                 onBlur={() => setOperatorName(operatorNameValue || null)}
@@ -373,14 +426,14 @@ export default function SettingsPage() {
                   marginBottom: 'var(--space-2)',
                 }}
               >
-                Logo / Icon
+                {t('settings.logoIcon')}
               </label>
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
                 {/* Live preview */}
                 {settings.portalIcon ? (
                   <img
                     src={settings.portalIcon}
-                    alt="Portal icon"
+                    alt={t('settings.logoIcon')}
                     style={{
                       width: 36,
                       height: 36,
@@ -449,7 +502,7 @@ export default function SettingsPage() {
                   }}
                 >
                   <Upload size={14} />
-                  Upload Image
+                  {t('settings.uploadImage')}
                 </button>
                 <input
                   ref={portalIconInputRef}
@@ -470,7 +523,7 @@ export default function SettingsPage() {
                       setPortalIcon(null)
                       setPortalEmoji(null)
                     }}
-                    aria-label="Reset icon"
+                    aria-label={t('settings.resetDefault')}
                     style={{
                       width: 24,
                       height: 24,
@@ -508,7 +561,7 @@ export default function SettingsPage() {
                       color: 'var(--text-secondary)',
                     }}
                   >
-                    Hide background
+                    {t('settings.hideBackground')}
                   </span>
                   <button
                     role="switch"
@@ -565,7 +618,7 @@ export default function SettingsPage() {
                     color: 'var(--text-primary)',
                   }}
                 >
-                  Emoji Only Avatars
+                  {t('settings.emojiOnlyAvatars')}
                 </div>
                 <div
                   style={{
@@ -574,7 +627,7 @@ export default function SettingsPage() {
                     marginTop: 1,
                   }}
                 >
-                  Show emoji without colored background
+                  {t('settings.emojiOnlyHint')}
                 </div>
               </div>
               <button
@@ -624,7 +677,7 @@ export default function SettingsPage() {
               padding: '0 var(--space-4) var(--space-2)',
             }}
           >
-            Agent Customization
+            {t('settings.agentCustomization')}
           </div>
           <div
             style={{
@@ -728,7 +781,7 @@ export default function SettingsPage() {
                             marginBottom: 'var(--space-1)',
                           }}
                         >
-                          Custom Emoji
+                          {t('settings.customEmoji')}
                         </label>
                         <input
                           type="text"
@@ -762,7 +815,7 @@ export default function SettingsPage() {
                             marginBottom: 'var(--space-1)',
                           }}
                         >
-                          Profile Image
+                          {t('settings.profileImage')}
                         </label>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
                           <button
@@ -783,7 +836,7 @@ export default function SettingsPage() {
                             }}
                           >
                             <Upload size={14} />
-                            Upload
+                            {t('settings.upload')}
                           </button>
                           <input
                             ref={fileInputRef}
@@ -800,7 +853,7 @@ export default function SettingsPage() {
                             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
                               <img
                                 src={override.profileImage}
-                                alt="Preview"
+                                alt={t('settings.preview')}
                                 style={{
                                   width: 32,
                                   height: 32,
@@ -810,7 +863,7 @@ export default function SettingsPage() {
                               />
                               <button
                                 onClick={() => setAgentOverride(agent.id, { profileImage: undefined })}
-                                aria-label="Remove image"
+                                aria-label={t('settings.resetDefault')}
                                 style={{
                                   width: 20,
                                   height: 20,
@@ -850,7 +903,7 @@ export default function SettingsPage() {
                           }}
                         >
                           <RotateCcw size={14} />
-                          Reset to Default
+                          {t('settings.resetDefault')}
                         </button>
                       )}
                     </div>
@@ -894,11 +947,11 @@ export default function SettingsPage() {
               }}
             >
               <RotateCcw size={16} />
-              Re-run Setup
+              {t('settings.rerunSetup')}
             </button>
             <button
               onClick={() => {
-                if (window.confirm('Reset all settings to defaults?')) {
+                if (window.confirm(t('settings.resetAllConfirm'))) {
                   resetAll()
                 }
               }}
@@ -919,7 +972,7 @@ export default function SettingsPage() {
               }}
             >
               <Trash2 size={16} />
-              Reset All Settings
+              {t('settings.resetAllSettings')}
             </button>
           </div>
         </section>

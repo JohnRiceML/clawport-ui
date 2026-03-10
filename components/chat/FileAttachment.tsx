@@ -115,7 +115,7 @@ export function FileAttachment({ name, size, mimeType, url, isUser }: FileAttach
       <a
         href={url}
         download={name}
-        aria-label={`Download ${name}`}
+        aria-label={`下载 ${name}`}
         style={{
           width: 28,
           height: 28,

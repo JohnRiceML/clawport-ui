@@ -176,7 +176,7 @@ describe('executeCommand', () => {
 
   it('/clear returns action', () => {
     const result = executeCommand('/clear', agent)
-    expect(result.content).toBe('Conversation cleared.')
+    expect(result.content).toBe('会话已清空。')
     expect(result.action).toBe('clear')
   })
 
@@ -193,19 +193,19 @@ describe('executeCommand', () => {
     expect(result.content).toContain('VERA')
     expect(result.content).toContain('Chief Strategy Officer')
     expect(result.content).toContain('web-search')
-    expect(result.content).toContain('Memory: /memory/vera')
+    expect(result.content).toContain('记忆路径：/memory/vera')
   })
 
   it('/info shows "none" when agent has no tools', () => {
     const bare = makeAgent()
     const result = executeCommand('/info', bare)
-    expect(result.content).toContain('Tools: none')
+    expect(result.content).toContain('工具：无')
   })
 
   it('/info shows "not configured" when no memory path', () => {
     const bare = makeAgent()
     const result = executeCommand('/info', bare)
-    expect(result.content).toContain('Memory: not configured')
+    expect(result.content).toContain('记忆路径：未配置')
   })
 
   it('/soul shows SOUL.md content', () => {
@@ -216,7 +216,7 @@ describe('executeCommand', () => {
   it('/soul handles missing SOUL.md', () => {
     const bare = makeAgent()
     const result = executeCommand('/soul', bare)
-    expect(result.content).toContain('No SOUL.md found')
+    expect(result.content).toContain('未找到 SOUL.md')
   })
 
   it('/tools lists tools', () => {
@@ -228,7 +228,7 @@ describe('executeCommand', () => {
   it('/tools handles no tools', () => {
     const bare = makeAgent()
     const result = executeCommand('/tools', bare)
-    expect(result.content).toContain('no tools configured')
+    expect(result.content).toContain('未配置任何工具')
   })
 
   it('/crons lists cron jobs', () => {
@@ -260,17 +260,17 @@ describe('executeCommand', () => {
       }],
     })
     const result = executeCommand('/crons', agentWithDisabled)
-    expect(result.content).toContain('disabled')
+    expect(result.content).toContain('已禁用')
   })
 
   it('/crons handles no cron jobs', () => {
     const bare = makeAgent()
     const result = executeCommand('/crons', bare)
-    expect(result.content).toContain('no cron jobs')
+    expect(result.content).toContain('没有计划任务')
   })
 
   it('unknown command returns error message', () => {
     const result = executeCommand('/bogus', agent)
-    expect(result.content).toContain('Unknown command')
+    expect(result.content).toContain('未知命令')
   })
 })

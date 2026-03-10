@@ -112,7 +112,7 @@ export function AgentNode({ data, selected }: NodeProps) {
               borderRadius: 10,
             }}
           >
-            {toolCount} tools
+            {toolCount} 个工具
           </span>
         )}
         {reportCount > 0 && (
@@ -126,7 +126,7 @@ export function AgentNode({ data, selected }: NodeProps) {
               borderRadius: 10,
             }}
           >
-            {reportCount} reports
+            {reportCount} 个下属
           </span>
         )}
         {hasCrons && (
@@ -152,7 +152,7 @@ export function AgentNode({ data, selected }: NodeProps) {
                 background: hasErrors ? "var(--system-red)" : "var(--system-green)",
               }}
             />
-            {cronCount} cron{cronCount !== 1 ? "s" : ""}
+            {cronCount} 个任务
           </span>
         )}
       </div>

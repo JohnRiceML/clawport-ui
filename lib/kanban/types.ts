@@ -30,11 +30,11 @@ export interface KanbanColumn {
 }
 
 export const COLUMNS: KanbanColumn[] = [
-  { id: 'backlog', title: 'Backlog' },
-  { id: 'todo', title: 'To Do' },
-  { id: 'in-progress', title: 'In Progress' },
-  { id: 'review', title: 'Review' },
-  { id: 'done', title: 'Done' },
+  { id: 'backlog', title: '积压' },
+  { id: 'todo', title: '待处理' },
+  { id: 'in-progress', title: '进行中' },
+  { id: 'review', title: '待评审' },
+  { id: 'done', title: '已完成' },
 ]
 
 export const PRIORITY_COLORS: Record<TicketPriority, string> = {
@@ -44,7 +44,7 @@ export const PRIORITY_COLORS: Record<TicketPriority, string> = {
 }
 
 export const ROLE_LABELS: Record<TeamRole, string> = {
-  'lead-dev': 'Lead Dev',
-  'ux-ui': 'UX/UI Lead',
-  'qa': 'QA',
+  'lead-dev': '开发负责人',
+  'ux-ui': 'UX/UI 负责人',
+  'qa': '质量保障',
 }

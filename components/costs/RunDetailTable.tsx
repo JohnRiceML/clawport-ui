@@ -27,7 +27,7 @@ export function RunDetailTable({ runCosts, jobName }: { runCosts: RunCost[]; job
         color: 'var(--text-tertiary)',
         fontWeight: 'var(--weight-medium)',
       }}>
-        Per-Run Detail ({sorted.length} run{sorted.length !== 1 ? 's' : ''})
+        单次运行明细（{sorted.length} 次）
       </div>
 
       {/* Header */}
@@ -39,13 +39,13 @@ export function RunDetailTable({ runCosts, jobName }: { runCosts: RunCost[]; job
         fontWeight: 'var(--weight-medium)',
         gap: 'var(--space-3)',
       }}>
-        <span style={{ width: 120, flexShrink: 0 }}>Time</span>
-        <span style={{ flex: 2, minWidth: 0 }}>Job</span>
-        <span className="hidden-mobile" style={{ width: 120 }}>Model</span>
-        <span style={{ width: 60, textAlign: 'right' }}>Input</span>
-        <span style={{ width: 60, textAlign: 'right' }}>Output</span>
-        <span className="hidden-mobile" style={{ width: 60, textAlign: 'right' }}>Cache</span>
-        <span style={{ width: 70, textAlign: 'right' }}>Cost</span>
+        <span style={{ width: 120, flexShrink: 0 }}>时间</span>
+        <span style={{ flex: 2, minWidth: 0 }}>任务</span>
+        <span className="hidden-mobile" style={{ width: 120 }}>模型</span>
+        <span style={{ width: 60, textAlign: 'right' }}>输入</span>
+        <span style={{ width: 60, textAlign: 'right' }}>输出</span>
+        <span className="hidden-mobile" style={{ width: 60, textAlign: 'right' }}>缓存</span>
+        <span style={{ width: 70, textAlign: 'right' }}>成本</span>
       </div>
 
       {/* Rows */}
@@ -99,7 +99,7 @@ export function RunDetailTable({ runCosts, jobName }: { runCosts: RunCost[]; job
               fontWeight: 'var(--weight-medium)',
             }}
           >
-            Show all {sorted.length} runs
+            显示全部 {sorted.length} 条记录
           </button>
         </div>
       )}

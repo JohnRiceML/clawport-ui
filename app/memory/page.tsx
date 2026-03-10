@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSettings } from "@/app/settings-provider";
 import type {
   MemoryFileInfo,
   MemoryConfig,
@@ -29,9 +30,9 @@ type Tab = "overview" | "browser" | "guide";
 type SortKey = "date" | "name" | "size";
 
 const TABS: { key: Tab; label: string; Icon: typeof BarChart3 }[] = [
-  { key: "overview", label: "Overview", Icon: BarChart3 },
-  { key: "browser", label: "Browser", Icon: FolderOpen },
-  { key: "guide", label: "Guide", Icon: BookOpen },
+  { key: "overview", label: "概览", Icon: BarChart3 },
+  { key: "browser", label: "浏览", Icon: FolderOpen },
+  { key: "guide", label: "指南", Icon: BookOpen },
 ];
 
 /* ─── Helpers ────────────────────────────────────────────────── */
@@ -58,9 +59,9 @@ const CATEGORY_COLORS: Record<MemoryFileCategory, string> = {
 };
 
 const CATEGORY_LABELS: Record<MemoryFileCategory, string> = {
-  evergreen: "Evergreen",
-  daily: "Daily",
-  other: "Other",
+  evergreen: "常驻",
+  daily: "每日",
+  other: "其他",
 };
 
 /* ─── Icons ──────────────────────────────────────────────────── */
@@ -153,7 +154,7 @@ function FilesCard({ stats }: { stats: MemoryStats }) {
           marginBottom: "var(--space-1)",
         }}
       >
-        Files
+        文件
       </div>
       <div
         style={{
@@ -171,7 +172,7 @@ function FilesCard({ stats }: { stats: MemoryStats }) {
           marginTop: 2,
         }}
       >
-        {stats.evergreenCount} evergreen {"\u00b7"} {stats.dailyLogCount} daily
+        {stats.evergreenCount} 常驻 {"\u00b7"} {stats.dailyLogCount} 每日
       </div>
     </div>
   );
@@ -195,7 +196,7 @@ function SizeCard({ stats }: { stats: MemoryStats }) {
           marginBottom: "var(--space-1)",
         }}
       >
-        Size
+        大小
       </div>
       <div
         style={{
@@ -214,7 +215,7 @@ function SizeCard({ stats }: { stats: MemoryStats }) {
             marginTop: 2,
           }}
         >
-          {stats.oldestDaily} to {stats.newestDaily}
+          {stats.oldestDaily} 至 {stats.newestDaily}
         </div>
       )}
     </div>
@@ -240,7 +241,7 @@ function IndexCard({ status }: { status: MemoryStatus }) {
           marginBottom: "var(--space-1)",
         }}
       >
-        Index
+        索引
       </div>
       <div className="flex items-center" style={{ gap: "var(--space-2)" }}>
         <span
@@ -259,7 +260,7 @@ function IndexCard({ status }: { status: MemoryStatus }) {
             color: "var(--text-primary)",
           }}
         >
-          {status.indexed ? "Indexed" : "Not indexed"}
+          {status.indexed ? "已索引" : "未索引"}
         </span>
       </div>
       <div
@@ -269,7 +270,7 @@ function IndexCard({ status }: { status: MemoryStatus }) {
           marginTop: 2,
         }}
       >
-        {status.lastIndexed ? `Last: ${timeAgo(status.lastIndexed)}` : "No index data"}
+        {status.lastIndexed ? `最近：${timeAgo(status.lastIndexed, 'zh-CN')}` : "暂无索引数据"}
         {status.embeddingProvider && ` \u00b7 ${status.embeddingProvider}`}
       </div>
     </div>
@@ -303,7 +304,7 @@ function MemoryTimeline({ timeline }: { timeline: MemoryStats["dailyTimeline"] }
           marginBottom: "var(--space-3)",
         }}
       >
-        Daily Log Timeline (30 days)
+        每日日志时间线（30 天）
       </div>
       <svg
         width="100%"
@@ -414,7 +415,7 @@ function ConfigPanel({ config }: { config: MemoryConfig }) {
           marginBottom: "var(--space-3)",
         }}
       >
-        Configuration
+        配置
       </div>
 
       {!configFound && (
@@ -428,7 +429,7 @@ function ConfigPanel({ config }: { config: MemoryConfig }) {
             marginBottom: "var(--space-3)",
           }}
         >
-          Using OpenClaw defaults (no explicit memorySearch config)
+          使用 OpenClaw 默认值（未显式配置 memorySearch）
         </div>
       )}
 
@@ -440,41 +441,41 @@ function ConfigPanel({ config }: { config: MemoryConfig }) {
           fontSize: "var(--text-caption1)",
         }}
       >
-        <span style={{ color: "var(--text-tertiary)" }}>Search</span>
+        <span style={{ color: "var(--text-tertiary)" }}>搜索</span>
         <span style={{ color: ms.enabled ? "var(--system-green)" : "var(--text-secondary)" }}>
-          {ms.enabled ? "Enabled" : "Disabled"}
+          {ms.enabled ? "启用" : "禁用"}
         </span>
 
-        <span style={{ color: "var(--text-tertiary)" }}>Provider</span>
-        <span style={{ color: "var(--text-secondary)" }}>{ms.provider ?? "None"}</span>
+        <span style={{ color: "var(--text-tertiary)" }}>提供方</span>
+        <span style={{ color: "var(--text-secondary)" }}>{ms.provider ?? "无"}</span>
 
-        <span style={{ color: "var(--text-tertiary)" }}>Model</span>
+        <span style={{ color: "var(--text-tertiary)" }}>模型</span>
         <span className="font-mono" style={{ color: "var(--text-secondary)", fontSize: "var(--text-caption2)" }}>
-          {ms.model ?? "None"}
+          {ms.model ?? "无"}
         </span>
 
-        <span style={{ color: "var(--text-tertiary)" }}>Hybrid</span>
+        <span style={{ color: "var(--text-tertiary)" }}>混合检索</span>
         <span style={{ color: "var(--text-secondary)" }}>
           {ms.hybrid.enabled
-            ? `Vector ${ms.hybrid.vectorWeight} / Text ${ms.hybrid.textWeight}`
-            : "Disabled"}
+            ? `向量 ${ms.hybrid.vectorWeight} / 文本 ${ms.hybrid.textWeight}`
+            : "禁用"}
         </span>
 
-        <span style={{ color: "var(--text-tertiary)" }}>Decay</span>
+        <span style={{ color: "var(--text-tertiary)" }}>衰减</span>
         <span style={{ color: "var(--text-secondary)" }}>
           {ms.hybrid.temporalDecay.enabled
-            ? `Half-life: ${ms.hybrid.temporalDecay.halfLifeDays}d`
-            : "Disabled"}
+            ? `半衰期：${ms.hybrid.temporalDecay.halfLifeDays} 天`
+            : "禁用"}
         </span>
 
         <span style={{ color: "var(--text-tertiary)" }}>MMR</span>
         <span style={{ color: "var(--text-secondary)" }}>
-          {ms.hybrid.mmr.enabled ? `\u03bb = ${ms.hybrid.mmr.lambda}` : "Disabled"}
+          {ms.hybrid.mmr.enabled ? `\u03bb = ${ms.hybrid.mmr.lambda}` : "禁用"}
         </span>
 
-        <span style={{ color: "var(--text-tertiary)" }}>Flush</span>
+        <span style={{ color: "var(--text-tertiary)" }}>刷写</span>
         <span style={{ color: "var(--text-secondary)" }}>
-          {mf.enabled ? `Threshold: ${(mf.softThresholdTokens / 1000).toFixed(0)}k tokens` : "Disabled"}
+          {mf.enabled ? `阈值：${(mf.softThresholdTokens / 1000).toFixed(0)}k tokens` : "禁用"}
         </span>
       </div>
     </div>
@@ -529,7 +530,7 @@ function DecayVisualizer({ config }: { config: MemoryConfig }) {
             fontWeight: "var(--weight-medium)",
           }}
         >
-          Temporal Decay Curve
+          时间衰减曲线
         </span>
         {!enabled && (
           <span
@@ -542,7 +543,7 @@ function DecayVisualizer({ config }: { config: MemoryConfig }) {
               fontWeight: "var(--weight-medium)",
             }}
           >
-            Disabled
+            已禁用
           </span>
         )}
       </div>
@@ -658,7 +659,7 @@ function HybridBalanceBar({ config }: { config: MemoryConfig }) {
             fontWeight: "var(--weight-medium)",
           }}
         >
-          Hybrid Search Balance
+          混合检索权重
         </span>
         {!enabled && (
           <span
@@ -671,7 +672,7 @@ function HybridBalanceBar({ config }: { config: MemoryConfig }) {
               fontWeight: "var(--weight-medium)",
             }}
           >
-            Disabled
+            已禁用
           </span>
         )}
       </div>
@@ -695,7 +696,7 @@ function HybridBalanceBar({ config }: { config: MemoryConfig }) {
           }}
         >
           <span style={{ fontSize: 10, fontWeight: 600, color: "white" }}>
-            Vector {vPct.toFixed(0)}%
+            向量 {vPct.toFixed(0)}%
           </span>
         </div>
         <div
@@ -708,7 +709,7 @@ function HybridBalanceBar({ config }: { config: MemoryConfig }) {
           }}
         >
           <span style={{ fontSize: 10, fontWeight: 600, color: "white" }}>
-            Text {tPct.toFixed(0)}%
+            文本 {tPct.toFixed(0)}%
           </span>
         </div>
       </div>
@@ -720,33 +721,33 @@ function HybridBalanceBar({ config }: { config: MemoryConfig }) {
 
 const BEST_PRACTICE_SECTIONS = [
   {
-    title: "Writing to Memory",
+    title: "写入记忆",
     color: "var(--system-green)",
     tips: [
-      { do: true, text: "Keep MEMORY.md concise -- curated facts, not running logs" },
-      { do: true, text: "Use daily logs (YYYY-MM-DD.md) for ephemeral session context" },
-      { do: false, text: "Don't dump raw conversation transcripts into memory files" },
-      { do: true, text: "Structure entries with clear headers so search can find them" },
+      { do: true, text: "保持 MEMORY.md 精简，放整理后的事实，不要写流水日志" },
+      { do: true, text: "临时会话上下文写入每日日志（YYYY-MM-DD.md）" },
+      { do: false, text: "不要把原始对话全文直接塞进记忆文件" },
+      { do: true, text: "条目使用清晰标题结构，便于搜索命中" },
     ],
   },
   {
-    title: "Search & Retrieval",
+    title: "搜索与召回",
     color: "var(--system-blue)",
     tips: [
-      { do: true, text: "Enable hybrid search -- combines semantic + keyword matching" },
-      { do: true, text: "Turn on MMR (Maximal Marginal Relevance) to reduce duplicate results" },
-      { do: true, text: "Configure temporal decay so stale daily logs rank lower over time" },
-      { do: false, text: "Don't set half-life too short -- important context needs time to be useful" },
+      { do: true, text: "启用混合检索，结合语义匹配与关键词匹配" },
+      { do: true, text: "开启 MMR（最大边际相关性）以减少重复结果" },
+      { do: true, text: "配置时间衰减，让过期的每日日志逐步降权" },
+      { do: false, text: "半衰期不要设得太短，关键上下文需要保留时间" },
     ],
   },
   {
-    title: "Maintenance",
+    title: "维护",
     color: "var(--system-orange)",
     tips: [
-      { do: true, text: "Review and prune old daily logs periodically" },
-      { do: true, text: "Promote recurring patterns from daily logs into evergreen files" },
-      { do: true, text: "Enable memory flush to auto-compact context before token limits" },
-      { do: false, text: "Don't let MEMORY.md grow past ~200 lines -- split into topic files" },
+      { do: true, text: "定期复盘并清理过期的每日日志" },
+      { do: true, text: "把重复出现的模式从每日日志沉淀到常驻文件" },
+      { do: true, text: "开启 memory flush，在 token 上限前自动压缩上下文" },
+      { do: false, text: "不要让 MEMORY.md 超过约 200 行，按主题拆分文件" },
     ],
   },
 ];
@@ -803,7 +804,7 @@ function BestPractices() {
                     color: tip.do ? "var(--system-green)" : "var(--system-red)",
                   }}
                 >
-                  {tip.do ? "DO" : "DON'T"}
+                  {tip.do ? "建议" : "避免"}
                 </span>
                 <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-secondary)", lineHeight: "var(--leading-relaxed)" }}>
                   {tip.text}
@@ -820,10 +821,10 @@ function BestPractices() {
 /* ─── Guide: File Reference ──────────────────────────────────── */
 
 const FILE_REFERENCE = [
-  { path: "MEMORY.md", purpose: "Long-term curated facts", decay: "Low (evergreen)" },
-  { path: "memory/team-memory.md", purpose: "Shared team knowledge", decay: "Low (evergreen)" },
-  { path: "memory/team-intel.json", purpose: "Structured team data", decay: "Low (evergreen)" },
-  { path: "memory/YYYY-MM-DD.md", purpose: "Daily ephemeral context", decay: "High (temporal)" },
+  { path: "MEMORY.md", purpose: "长期整理后的事实", decay: "低（常驻）" },
+  { path: "memory/team-memory.md", purpose: "团队共享知识", decay: "低（常驻）" },
+  { path: "memory/team-intel.json", purpose: "结构化团队数据", decay: "低（常驻）" },
+  { path: "memory/YYYY-MM-DD.md", purpose: "每日临时上下文", decay: "高（时效）" },
 ];
 
 function FileReference() {
@@ -844,7 +845,7 @@ function FileReference() {
           marginBottom: "var(--space-3)",
         }}
       >
-        File Reference
+        文件参考
       </div>
       <div style={{ overflow: "auto" }}>
         <table
@@ -865,7 +866,7 @@ function FileReference() {
                   borderBottom: "1px solid var(--separator)",
                 }}
               >
-                Path
+                路径
               </th>
               <th
                 style={{
@@ -876,7 +877,7 @@ function FileReference() {
                   borderBottom: "1px solid var(--separator)",
                 }}
               >
-                Purpose
+                用途
               </th>
               <th
                 style={{
@@ -887,7 +888,7 @@ function FileReference() {
                   borderBottom: "1px solid var(--separator)",
                 }}
               >
-                Decay
+                衰减
               </th>
             </tr>
           </thead>
@@ -950,7 +951,7 @@ function FlushSection({ config }: { config: MemoryConfig }) {
             fontWeight: "var(--weight-medium)",
           }}
         >
-          Memory Flush
+          记忆刷写（Memory Flush）
         </span>
         <span
           style={{
@@ -962,7 +963,7 @@ function FlushSection({ config }: { config: MemoryConfig }) {
             fontWeight: "var(--weight-medium)",
           }}
         >
-          {mf.enabled ? "Enabled" : "Disabled"}
+          {mf.enabled ? "启用" : "禁用"}
         </span>
       </div>
       <p
@@ -973,12 +974,11 @@ function FlushSection({ config }: { config: MemoryConfig }) {
           margin: 0,
         }}
       >
-        When enabled, OpenClaw compacts conversation context by flushing
-        important facts to memory files when the context reaches{" "}
+        启用后，OpenClaw 会在上下文达到{" "}
         <strong style={{ color: "var(--text-primary)" }}>
           {(mf.softThresholdTokens / 1000).toFixed(0)}k tokens
         </strong>
-        . This prevents context window overflow while preserving key information.
+        时把重要事实刷写到记忆文件中，从而压缩上下文，避免窗口溢出并保留关键信息。
       </p>
     </div>
   );
@@ -1007,6 +1007,7 @@ function CategoryBadge({ category }: { category: MemoryFileCategory }) {
 /* ─── Main Component ─────────────────────────────────────────── */
 
 export default function MemoryPage() {
+  const { t } = useSettings();
   const [files, setFiles] = useState<MemoryFileInfo[]>([]);
   const [config, setConfig] = useState<MemoryConfig | null>(null);
   const [status, setStatus] = useState<MemoryStatus | null>(null);
@@ -1028,7 +1029,7 @@ export default function MemoryPage() {
     setError(null);
     fetch("/api/memory")
       .then((r) => {
-        if (!r.ok) throw new Error("Failed to load memory files");
+        if (!r.ok) throw new Error("加载记忆文件失败");
         return r.json();
       })
       .then((data: MemoryApiResponse | MemoryFileInfo[]) => {
@@ -1053,7 +1054,7 @@ export default function MemoryPage() {
         setLoading(false);
       })
       .catch((err) => {
-        setError(err instanceof Error ? err.message : "Unknown error");
+        setError(err instanceof Error ? err.message : "未知错误");
         setLoading(false);
       });
   }, []);
@@ -1137,7 +1138,7 @@ export default function MemoryPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = selected.path.split("/").pop() || "file.md";
+    a.download = selected.path.split("/").pop() || "文件.md";
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -1285,7 +1286,7 @@ export default function MemoryPage() {
                 lineHeight: "var(--leading-tight)",
               }}
             >
-              Memory
+              {t("memory.title")}
             </h1>
             {!loading && stats && (
               <p
@@ -1295,13 +1296,13 @@ export default function MemoryPage() {
                   marginTop: "var(--space-1)",
                 }}
               >
-                {stats.totalFiles} file{stats.totalFiles !== 1 ? "s" : ""}
+                {t("memory.filesCount", { count: stats.totalFiles })}
                 {" \u00b7 "}
                 {formatBytes(stats.totalSizeBytes)}
                 {stats.dailyLogCount > 0 && (
                   <>
                     {" \u00b7 "}
-                    {stats.dailyLogCount} daily log{stats.dailyLogCount !== 1 ? "s" : ""}
+                    {t("memory.dailyLogsCount", { count: stats.dailyLogCount })}
                   </>
                 )}
               </p>
@@ -1310,7 +1311,7 @@ export default function MemoryPage() {
           <button
             onClick={refresh}
             className="focus-ring"
-            aria-label="Refresh memory data"
+            aria-label="刷新记忆数据"
             style={{
               width: 32,
               height: 32,
@@ -1337,12 +1338,12 @@ export default function MemoryPage() {
             gap: "var(--space-1)",
           }}
         >
-          {TABS.map((t) => {
-            const isActive = tab === t.key;
+          {TABS.map((tabOption) => {
+            const isActive = tab === tabOption.key;
             return (
               <button
-                key={t.key}
-                onClick={() => setTab(t.key)}
+                key={tabOption.key}
+                onClick={() => setTab(tabOption.key)}
                 className="focus-ring"
                 style={{
                   padding: "6px 16px",
@@ -1361,8 +1362,12 @@ export default function MemoryPage() {
                   gap: 6,
                 }}
               >
-                <t.Icon size={14} />
-                {t.label}
+                <tabOption.Icon size={14} />
+                {tabOption.key === "overview"
+                  ? t("memory.tab.overview")
+                  : tabOption.key === "browser"
+                    ? t("memory.tab.browser")
+                    : t("memory.tab.guide")}
               </button>
             );
           })}
@@ -1478,11 +1483,11 @@ export default function MemoryPage() {
                     <input
                       ref={searchRef}
                       type="search"
-                      placeholder="Search files..."
+                      placeholder={t("memory.searchFiles")}
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                       className="apple-input focus-ring"
-                      aria-label="Search memory files"
+                      aria-label={t("memory.searchFiles")}
                       style={{
                         width: "100%",
                         height: 32,
@@ -1519,7 +1524,7 @@ export default function MemoryPage() {
                             textTransform: "capitalize",
                           }}
                         >
-                          {s}
+                          {s === "date" ? "日期" : s === "name" ? "名称" : "大小"}
                         </button>
                       ))}
                     </div>
@@ -1529,7 +1534,7 @@ export default function MemoryPage() {
                   <div
                     ref={listRef}
                     role="listbox"
-                    aria-label="Memory files"
+                    aria-label="记忆文件"
                     onKeyDown={handleListKeyDown}
                     className="flex-1 overflow-y-auto browser-sidebar"
                   >
@@ -1541,8 +1546,8 @@ export default function MemoryPage() {
                           fontSize: "var(--text-footnote)",
                           color: "var(--text-tertiary)",
                         }}
-                      >
-                        No files match
+                        >
+                        {t("memory.noFilesMatch")}
                       </div>
                     ) : (
                       sortedFiles.map((file) => {
@@ -1628,7 +1633,7 @@ export default function MemoryPage() {
                         <button
                           onClick={() => setMobileShowContent(false)}
                           className="md:hidden btn-ghost focus-ring"
-                          aria-label="Back to file list"
+                          aria-label="返回文件列表"
                           style={{
                             display: "inline-flex",
                             alignItems: "center",
@@ -1642,7 +1647,7 @@ export default function MemoryPage() {
                           }}
                         >
                           <BackArrow />
-                          Files
+                          {t("memory.filesLabel")}
                         </button>
 
                         <div className="flex items-center justify-between">
@@ -1693,11 +1698,11 @@ export default function MemoryPage() {
                                 marginTop: 2,
                               }}
                             >
-                              {lineCount} line{lineCount !== 1 ? "s" : ""}
+                              {lineCount} 行
                               {!isJson && (
                                 <>
-                                  {" "}
-                                  {"\u00b7"} {words.toLocaleString()} words
+                                  {" \u00b7 "}
+                                  {words.toLocaleString()} 字
                                 </>
                               )}
                               {" \u00b7 "}
@@ -1715,7 +1720,7 @@ export default function MemoryPage() {
                             <button
                               onClick={copyContent}
                               className="btn-ghost focus-ring"
-                              aria-label="Copy file content"
+                              aria-label="复制文件内容"
                               style={{
                                 padding: "6px 12px",
                                 borderRadius: "var(--radius-sm)",
@@ -1727,12 +1732,12 @@ export default function MemoryPage() {
                               }}
                             >
                               {copied ? <Check size={14} /> : <Copy size={14} />}
-                              {copied ? "Copied" : "Copy"}
+                              {copied ? t("memory.copied") : t("memory.copy")}
                             </button>
                             <button
                               onClick={downloadContent}
                               className="btn-ghost focus-ring"
-                              aria-label="Download file"
+                              aria-label="下载文件"
                               style={{
                                 padding: "6px 12px",
                                 borderRadius: "var(--radius-sm)",
@@ -1744,7 +1749,7 @@ export default function MemoryPage() {
                               }}
                             >
                               <Download size={14} />
-                              Download
+                              {t("memory.download")}
                             </button>
                           </div>
                         </div>
@@ -1769,15 +1774,15 @@ export default function MemoryPage() {
                       style={{ gap: "var(--space-3)" }}
                     >
                       <FolderIcon />
-                      <span
-                        style={{
-                          fontSize: "var(--text-subheadline)",
+                        <span
+                          style={{
+                            fontSize: "var(--text-subheadline)",
                           fontWeight: "var(--weight-medium)",
                           color: "var(--text-secondary)",
                           marginTop: "var(--space-2)",
                         }}
-                      >
-                        Select a file
+                        >
+                        选择一个文件
                       </span>
                       <span
                         style={{
@@ -1786,8 +1791,8 @@ export default function MemoryPage() {
                           textAlign: "center",
                           maxWidth: 240,
                         }}
-                      >
-                        Choose a file from the sidebar to view its contents
+                        >
+                        从左侧列表选择文件以查看内容
                       </span>
                     </div>
                   )}

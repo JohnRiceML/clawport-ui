@@ -10,6 +10,7 @@ import { ErrorState } from "@/components/ErrorState"
 import { AgentAvatar } from "@/components/AgentAvatar"
 import { GridView } from "@/components/GridView"
 import { FeedView } from "@/components/FeedView"
+import { useSettings } from "@/app/settings-provider"
 
 const OrgMap = dynamic(
   () => import("@/components/OrgMap").then((m) => ({ default: m.OrgMap })),
@@ -106,17 +107,12 @@ const VIEW_ICONS: Record<View, React.ComponentType<{ size: number }>> = {
   feed: List,
 }
 
-const VIEW_OPTIONS: { key: View; label: string }[] = [
-  { key: "map", label: "Map" },
-  { key: "grid", label: "Grid" },
-  { key: "feed", label: "Feed" },
-]
-
 /* ──────────────────────────────────────────────
    Main page
    ────────────────────────────────────────────── */
 export default function HomePage() {
   const router = useRouter()
+  const { t } = useSettings()
   const [agents, setAgents] = useState<Agent[]>([])
   const [crons, setCrons] = useState<CronJob[]>([])
   const [selected, setSelected] = useState<Agent | null>(null)
@@ -130,11 +126,11 @@ export default function HomePage() {
     setError(null)
     Promise.all([
       fetch("/api/agents").then((r) => {
-        if (!r.ok) throw new Error("Failed to fetch agents")
+        if (!r.ok) throw new Error("加载智能体失败")
         return r.json()
       }),
       fetch("/api/crons").then((r) => {
-        if (!r.ok) throw new Error("Failed to fetch crons")
+        if (!r.ok) throw new Error("加载定时任务失败")
         return r.json()
       }),
     ])
@@ -169,6 +165,11 @@ export default function HomePage() {
   }, [selected])
 
   const agentCrons = selected ? crons.filter((c) => c.agentId === selected.id) : []
+  const viewOptions: { key: View; label: string }[] = [
+    { key: "map", label: t('home.view.map') },
+    { key: "grid", label: t('home.view.grid') },
+    { key: "feed", label: t('home.view.feed') },
+  ]
 
   // Find hierarchy info for the detail panel
   const parentAgent = selected?.reportsTo
@@ -232,7 +233,7 @@ export default function HomePage() {
             border: "1px solid var(--separator)",
           }}
         >
-          {VIEW_OPTIONS.map((opt) => {
+          {viewOptions.map((opt) => {
             const isActive = view === opt.key
             const ViewIcon = VIEW_ICONS[opt.key]
             return (
@@ -240,7 +241,7 @@ export default function HomePage() {
                 key={opt.key}
                 onClick={() => setView(opt.key)}
                 className="focus-ring"
-                aria-label={`${opt.label} view`}
+                aria-label={`${opt.label}视图`}
                 aria-pressed={isActive}
                 style={{
                   padding: "5px 14px",
@@ -304,7 +305,7 @@ export default function HomePage() {
                   display: "inline-block",
                 }}
               />
-              Healthy
+              健康
             </span>
             <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
               <span
@@ -316,7 +317,7 @@ export default function HomePage() {
                   display: "inline-block",
                 }}
               />
-              Errors
+              错误
             </span>
             <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
               <span
@@ -328,7 +329,7 @@ export default function HomePage() {
                   display: "inline-block",
                 }}
               />
-              No crons
+              无定时任务
             </span>
           </div>
         )}
@@ -383,7 +384,7 @@ export default function HomePage() {
                 ref={closeRef}
                 onClick={() => setSelected(null)}
                 className="focus-ring"
-                aria-label="Close detail panel"
+                aria-label="关闭详情面板"
                 style={{
                   width: 30,
                   height: 30,
@@ -476,7 +477,7 @@ export default function HomePage() {
                 <button
                   onClick={() => router.push(`/chat/${selected.id}`)}
                   className="focus-ring btn-scale"
-                  aria-label={`Open chat with ${selected.name}`}
+                  aria-label={`与 ${selected.name} 对话`}
                   style={{
                     flex: 1,
                     display: "flex",
@@ -495,12 +496,12 @@ export default function HomePage() {
                   }}
                 >
                   <MessageSquare size={16} />
-                  Message
+                  发消息
                 </button>
                 <Link
                   href={`/agents/${selected.id}`}
                   className="focus-ring btn-scale"
-                  aria-label={`View full profile of ${selected.name}`}
+                  aria-label={`查看 ${selected.name} 的完整资料`}
                   style={{
                     flex: 1,
                     display: "flex",
@@ -520,7 +521,7 @@ export default function HomePage() {
                   }}
                 >
                   <User size={16} />
-                  Profile
+                  资料
                 </Link>
               </div>
             </div>
@@ -546,7 +547,7 @@ export default function HomePage() {
                     padding: "0 var(--space-4) var(--space-2)",
                   }}
                 >
-                  Capabilities
+                  能力
                 </div>
                 <div
                   style={{
@@ -609,7 +610,7 @@ export default function HomePage() {
                       padding: "0 var(--space-4) var(--space-2)",
                     }}
                   >
-                    Organization
+                    组织关系
                   </div>
                   <div
                     style={{
@@ -656,7 +657,7 @@ export default function HomePage() {
                               color: "var(--text-tertiary)",
                             }}
                           >
-                            Reports to
+                            上级
                           </div>
                         </div>
                         <span
@@ -709,7 +710,7 @@ export default function HomePage() {
                               color: "var(--text-tertiary)",
                             }}
                           >
-                            Direct report
+                            直属成员
                           </div>
                         </div>
                         <span
@@ -740,7 +741,7 @@ export default function HomePage() {
                       padding: "0 var(--space-4) var(--space-2)",
                     }}
                   >
-                    Scheduled Tasks
+                    计划任务
                   </div>
                   <div
                     style={{

@@ -142,7 +142,7 @@ function AgentCard({
                 display: "inline-block",
               }}
             />
-            {agentCrons.length} cron{agentCrons.length !== 1 ? "s" : ""}
+            {agentCrons.length} 个任务
           </span>
         )}
         {agent.tools.length > 0 && (
@@ -156,7 +156,7 @@ function AgentCard({
               borderRadius: 10,
             }}
           >
-            {agent.tools.length} tools
+            {agent.tools.length} 个工具
           </span>
         )}
       </div>
@@ -217,10 +217,10 @@ function TeamSection({
             marginLeft: "auto",
           }}
         >
-          {count} agent{count !== 1 ? "s" : ""}
+          {count} 个智能体
           {errorCount > 0 && (
             <span style={{ color: "var(--system-red)", marginLeft: 6 }}>
-              {errorCount} err
+              {errorCount} 个错误
             </span>
           )}
         </span>
@@ -344,7 +344,7 @@ export function GridView({ agents, crons, selectedId, onSelect }: GridViewProps)
                   marginTop: 2,
                 }}
               >
-                agents
+                智能体
               </div>
             </div>
             <div
@@ -372,7 +372,7 @@ export function GridView({ agents, crons, selectedId, onSelect }: GridViewProps)
                   marginTop: 2,
                 }}
               >
-                crons
+                任务
               </div>
             </div>
             <div
@@ -400,7 +400,7 @@ export function GridView({ agents, crons, selectedId, onSelect }: GridViewProps)
                   marginTop: 2,
                 }}
               >
-                health
+                健康度
               </div>
             </div>
           </div>
@@ -425,7 +425,7 @@ export function GridView({ agents, crons, selectedId, onSelect }: GridViewProps)
           return (
             <TeamSection
               key={team.manager.id}
-              label={`Team ${team.manager.name}`}
+              label={`团队 ${team.manager.name}`}
               icon={<AgentAvatar agent={team.manager} size={22} borderRadius={6} />}
               count={1 + team.members.length}
               errorCount={teamErrors}
@@ -452,7 +452,7 @@ export function GridView({ agents, crons, selectedId, onSelect }: GridViewProps)
         {/* Solo Ops column */}
         {soloOps.length > 0 && (
           <TeamSection
-            label="Solo Ops"
+            label="独立成员"
             icon={
               <span
                 style={{

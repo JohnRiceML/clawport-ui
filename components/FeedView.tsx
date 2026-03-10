@@ -14,9 +14,9 @@ interface FeedViewProps {
 type Filter = "all" | "error" | "ok"
 
 const PILLS: { key: Filter; label: string; dotColor: string }[] = [
-  { key: "all", label: "All", dotColor: "var(--text-primary)" },
-  { key: "ok", label: "Healthy", dotColor: "var(--system-green)" },
-  { key: "error", label: "Errors", dotColor: "var(--system-red)" },
+  { key: "all", label: "全部", dotColor: "var(--text-primary)" },
+  { key: "ok", label: "健康", dotColor: "var(--system-green)" },
+  { key: "error", label: "错误", dotColor: "var(--system-red)" },
 ]
 
 function relativeTime(dateStr: string): string {
@@ -25,14 +25,14 @@ function relativeTime(dateStr: string): string {
   if (isNaN(then)) return dateStr
   const diffMs = now - then
   const mins = Math.floor(diffMs / 60000)
-  if (mins < 1) return "Just now"
-  if (mins < 60) return `${mins}m ago`
+  if (mins < 1) return "刚刚"
+  if (mins < 60) return `${mins} 分钟前`
   const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h ago`
+  if (hours < 24) return `${hours} 小时前`
   const days = Math.floor(hours / 24)
-  if (days === 1) return "Yesterday"
-  if (days < 7) return `${days}d ago`
-  return new Date(dateStr).toLocaleDateString()
+  if (days === 1) return "昨天"
+  if (days < 7) return `${days} 天前`
+  return new Date(dateStr).toLocaleDateString('zh-CN')
 }
 
 function StatusBadge({ status }: { status: CronJob["status"] }) {
@@ -48,7 +48,7 @@ function StatusBadge({ status }: { status: CronJob["status"] }) {
       : status === "error"
         ? "var(--system-red)"
         : "var(--text-tertiary)"
-  const label = status === "ok" ? "healthy" : status
+  const label = status === "ok" ? "健康" : status === "error" ? "错误" : "空闲"
 
   return (
     <span
@@ -191,7 +191,7 @@ export function FeedView({ agents, crons, selectedId, onSelect }: FeedViewProps)
       >
         <StatCard
           value={counts.all}
-          label="Total crons"
+          label="任务总数"
           color="var(--text-primary)"
           icon={
             <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
@@ -202,7 +202,7 @@ export function FeedView({ agents, crons, selectedId, onSelect }: FeedViewProps)
         />
         <StatCard
           value={counts.ok}
-          label="Healthy"
+          label="健康"
           color="var(--system-green)"
           icon={
             <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
@@ -213,7 +213,7 @@ export function FeedView({ agents, crons, selectedId, onSelect }: FeedViewProps)
         />
         <StatCard
           value={counts.error}
-          label="Errors"
+          label="错误"
           color={counts.error > 0 ? "var(--system-red)" : "var(--text-tertiary)"}
           icon={
             <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
@@ -225,7 +225,7 @@ export function FeedView({ agents, crons, selectedId, onSelect }: FeedViewProps)
         />
         <StatCard
           value={idleCount}
-          label="Idle"
+          label="空闲"
           color="var(--text-tertiary)"
           icon={
             <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
@@ -324,10 +324,10 @@ export function FeedView({ agents, crons, selectedId, onSelect }: FeedViewProps)
             <polyline points="8 4.5 8 8 10.5 10" stroke="var(--fill-tertiary)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           <div style={{ fontSize: "var(--text-body)", fontWeight: "var(--weight-medium)" }}>
-            {filter === "all" ? "No cron jobs configured" : `No ${filter} crons`}
+            {filter === "all" ? "暂无定时任务" : `暂无${filter === "ok" ? "健康" : "错误"}任务`}
           </div>
           <div style={{ fontSize: "var(--text-caption1)", marginTop: "var(--space-1)" }}>
-            {filter !== "all" ? "Try changing the filter" : "Crons will appear here once configured"}
+            {filter !== "all" ? "试试切换筛选条件" : "配置后这里会显示定时任务"}
           </div>
         </div>
       ) : (
@@ -401,7 +401,7 @@ export function FeedView({ agents, crons, selectedId, onSelect }: FeedViewProps)
                         color: "var(--text-primary)",
                       }}
                     >
-                      {agent?.name ?? "Unknown"}
+                      {agent?.name ?? "未知智能体"}
                     </span>
                     <span
                       style={{

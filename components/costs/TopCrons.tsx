@@ -13,7 +13,7 @@ export function TopCrons({ jobCosts, jobName }: { jobCosts: CostSummary['jobCost
         fontWeight: 'var(--weight-medium)',
         marginBottom: 'var(--space-3)',
       }}>
-        Most Expensive Crons
+        成本最高的定时任务
       </div>
       <div className="top-crons-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--space-3)' }}>
         {top.map((job) => (
@@ -48,9 +48,9 @@ export function TopCrons({ jobCosts, jobName }: { jobCosts: CostSummary['jobCost
               {fmtCost(job.totalCost)}
             </div>
             <div style={{ fontSize: 'var(--text-caption1)', color: 'var(--text-tertiary)' }}>
-              {job.runs} run{job.runs !== 1 ? 's' : ''}
+              运行 {job.runs} 次
               {' \u00b7 '}
-              avg {fmtCost(job.runs > 0 ? job.totalCost / job.runs : 0)}
+              平均 {fmtCost(job.runs > 0 ? job.totalCost / job.runs : 0)}
             </div>
           </div>
         ))}

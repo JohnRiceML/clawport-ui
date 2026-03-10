@@ -109,7 +109,7 @@ export function KanbanColumn({
           <button
             onClick={onCreateTicket}
             className="focus-ring hover-bg"
-            aria-label="Create new ticket"
+            aria-label="新建工单"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -157,7 +157,7 @@ export function KanbanColumn({
               color: 'var(--text-tertiary)',
             }}
           >
-            No tickets
+            暂无工单
           </div>
         )}
       </div>

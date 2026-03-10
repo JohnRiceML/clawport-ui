@@ -13,7 +13,7 @@ import { useSettings } from '@/app/settings-provider';
  * and the Cmd+K search palette. Rendered inside layout.tsx.
  */
 export function Sidebar() {
-  const { settings } = useSettings();
+  const { settings, t } = useSettings();
   const openSearch = useCallback(() => {
     // We trigger the search modal by simulating Cmd+K.
     // Instead, we expose a controlled open state via a custom event.
@@ -72,9 +72,7 @@ export function Sidebar() {
                   color: 'var(--text-primary)',
                 }}
               >
-                {(!settings.portalName || settings.portalName === 'ClawPort')
-                  ? <>Claw<span style={{ color: 'var(--accent)' }}>Port</span></>
-                  : settings.portalName}
+                {settings.portalName?.trim() ? settings.portalName : t('app.commandCentre')}
               </div>
               <div
                 style={{
@@ -83,7 +81,7 @@ export function Sidebar() {
                   letterSpacing: '0.01em',
                 }}
               >
-                {settings.portalSubtitle ?? 'Command Centre'}
+                {settings.portalSubtitle ?? t('app.commandCentre')}
               </div>
             </div>
           </div>

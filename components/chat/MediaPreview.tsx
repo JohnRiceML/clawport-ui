@@ -32,7 +32,7 @@ export function MediaPreview({ attachments, onRemove }: MediaPreviewProps) {
           {att.type === 'image' ? (
             <img
               src={att.url}
-              alt={att.name || 'Preview'}
+              alt={att.name || '预览'}
               style={{
                 width: '100%',
                 height: '100%',
@@ -79,7 +79,7 @@ export function MediaPreview({ attachments, onRemove }: MediaPreviewProps) {
           {/* Remove button */}
           <button
             onClick={() => onRemove(i)}
-            aria-label="Remove attachment"
+            aria-label="移除附件"
             style={{
               position: 'absolute',
               top: 2,

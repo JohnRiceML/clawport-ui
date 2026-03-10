@@ -33,8 +33,8 @@ export function AgentPicker({ agents, value, onChange }: AgentPickerProps) {
       })
     : agents
 
-  // Include "Unassigned" option at the top
-  const hasUnassigned = !search.trim() || 'unassigned'.includes(search.toLowerCase())
+  // Include "未分配" option at the top
+  const hasUnassigned = !search.trim() || '未分配'.includes(search.toLowerCase())
 
   // Reset highlight when filter changes
   useEffect(() => {
@@ -148,7 +148,7 @@ export function AgentPicker({ agents, value, onChange }: AgentPickerProps) {
             </span>
           </>
         ) : (
-          <span>Unassigned</span>
+          <span>未分配</span>
         )}
       </button>
 
@@ -174,7 +174,7 @@ export function AgentPicker({ agents, value, onChange }: AgentPickerProps) {
             <input
               ref={searchRef}
               type="text"
-              placeholder="Search agents..."
+              placeholder="搜索智能体..."
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="focus-ring"
@@ -236,10 +236,10 @@ export function AgentPicker({ agents, value, onChange }: AgentPickerProps) {
                 </div>
                 <div>
                   <div style={{ fontSize: 'var(--text-footnote)', fontWeight: 'var(--weight-medium)', color: 'var(--text-secondary)' }}>
-                    Unassigned
+                    未分配
                   </div>
                   <div style={{ fontSize: 'var(--text-caption2)', color: 'var(--text-tertiary)' }}>
-                    No agent assigned
+                    未指定智能体
                   </div>
                 </div>
                 {value === '' && (
@@ -310,7 +310,7 @@ export function AgentPicker({ agents, value, onChange }: AgentPickerProps) {
                 fontSize: 'var(--text-footnote)',
                 color: 'var(--text-tertiary)',
               }}>
-                No agents match &ldquo;{search}&rdquo;
+                没有匹配 &ldquo;{search}&rdquo; 的智能体
               </div>
             )}
           </div>

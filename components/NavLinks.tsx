@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { Map, MessageSquare, Clock, Activity, Brain, Columns3, BookOpen, Settings, DollarSign } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { CronJob } from '@/lib/types';
+import { fetchAgentsClient } from '@/lib/agents-client';
 import { useSettings } from '@/app/settings-provider';
 
 function getInitials(name: string | null): string {
@@ -44,22 +45,16 @@ const NAV_ITEMS: NavItem[] = [
 
 export function NavLinks({ bottomSlot }: { bottomSlot?: React.ReactNode } = {}) {
   const pathname = usePathname();
-  const { settings } = useSettings();
+  const { settings, t } = useSettings();
   const [agentCount, setAgentCount] = useState<number | null>(null);
   const [cronCount, setCronCount] = useState<number | null>(null);
   const [cronErrorCount, setCronErrorCount] = useState<number | null>(null);
 
   // Fetch agent count
   useEffect(() => {
-    fetch('/api/agents')
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then((data: unknown) => {
-        if (Array.isArray(data)) {
-          setAgentCount(data.length);
-        }
+    fetchAgentsClient()
+      .then((data) => {
+        setAgentCount(data.length);
       })
       .catch(() => {
         setAgentCount(null);
@@ -130,11 +125,11 @@ export function NavLinks({ bottomSlot }: { bottomSlot?: React.ReactNode } = {}) 
               fontWeight: hasErrors ? 600 : undefined,
             }}
           >
-            {hasErrors ? `${cronErrorCount} err` : cronCount}
+            {hasErrors ? t('nav.cronErrors', { count: cronErrorCount ?? 0 }) : cronCount}
           </span>
           {hasErrors && (
             <span
-              aria-label={`${cronErrorCount} cron error${cronErrorCount > 1 ? 's' : ''}`}
+              aria-label={cronErrorCount === 1 ? t('nav.cronErrorsAria', { count: cronErrorCount }) : t('nav.cronErrorsAriaPlural', { count: cronErrorCount ?? 0 })}
               style={{
                 width: '6px',
                 height: '6px',
@@ -152,7 +147,7 @@ export function NavLinks({ bottomSlot }: { bottomSlot?: React.ReactNode } = {}) 
   }
 
   return (
-    <nav className="flex-1 flex flex-col" style={{ minHeight: 0, overflow: 'hidden' }} aria-label="Main navigation">
+    <nav className="flex-1 flex flex-col" style={{ minHeight: 0, overflow: 'hidden' }} aria-label={t('nav.workspace')}>
       {/* Scrollable nav items */}
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '4px 12px 8px' }}>
         {/* Section header */}
@@ -167,7 +162,7 @@ export function NavLinks({ bottomSlot }: { bottomSlot?: React.ReactNode } = {}) 
             marginBottom: '2px',
           }}
         >
-          Workspace
+          {t('nav.workspace')}
         </div>
 
         <div className="flex flex-col gap-0.5">
@@ -209,7 +204,18 @@ export function NavLinks({ bottomSlot }: { bottomSlot?: React.ReactNode } = {}) 
                     transition: 'color 100ms var(--ease-smooth)',
                   }}
                 />
-                <span style={{ flex: 1 }}>{item.label}</span>
+                  <span style={{ flex: 1 }}>
+                    {item.href === '/' ? t('nav.map')
+                      : item.href === '/kanban' ? t('nav.kanban')
+                      : item.href === '/chat' ? t('nav.messages')
+                      : item.href === '/crons' ? t('nav.crons')
+                      : item.href === '/activity' ? t('nav.activity')
+                      : item.href === '/costs' ? t('nav.costs')
+                      : item.href === '/memory' ? t('nav.memory')
+                      : item.href === '/docs' ? t('nav.docs')
+                      : item.href === '/settings' ? t('nav.settings')
+                      : item.label}
+                  </span>
                 {getBadge(item)}
               </Link>
             );
@@ -258,7 +264,7 @@ export function NavLinks({ bottomSlot }: { bottomSlot?: React.ReactNode } = {}) 
                   whiteSpace: 'nowrap',
                 }}
               >
-                {settings.operatorName ?? 'Operator'}
+                {settings.operatorName ?? t('nav.operator')}
               </div>
               <div
                 style={{
@@ -266,7 +272,7 @@ export function NavLinks({ bottomSlot }: { bottomSlot?: React.ReactNode } = {}) 
                   color: 'var(--text-tertiary)',
                 }}
               >
-                Owner
+                {t('nav.owner')}
               </div>
             </div>
           </div>

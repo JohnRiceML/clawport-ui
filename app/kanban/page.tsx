@@ -41,11 +41,11 @@ export default function KanbanPage() {
     // Load agents from API
     fetch('/api/agents')
       .then((r) => {
-        if (!r.ok) throw new Error('Failed to fetch agents')
+        if (!r.ok) throw new Error('加载智能体失败')
         return r.json()
       })
       .then((a: Agent[]) => setAgents(a))
-      .catch((e) => setError(e.message))
+      .catch((e) => setError(e instanceof Error ? e.message : '未知错误'))
       .finally(() => setLoading(false))
   }, [])
 
@@ -169,7 +169,7 @@ export default function KanbanPage() {
                 letterSpacing: '-0.3px',
               }}
             >
-              Kanban Board
+              看板
             </h1>
             <p
               style={{
@@ -178,7 +178,7 @@ export default function KanbanPage() {
                 margin: '2px 0 0',
               }}
             >
-              {ticketCount} ticket{ticketCount !== 1 ? 's' : ''}
+              {ticketCount} 个工单
             </p>
           </div>
 
@@ -197,7 +197,7 @@ export default function KanbanPage() {
             }}
           >
             <Plus size={16} />
-            New Ticket
+            新建工单
           </button>
         </div>
 
@@ -231,7 +231,7 @@ export default function KanbanPage() {
                 flexShrink: 0,
               }}
             >
-              All
+              全部
             </button>
             {assignedAgents.map((agent) => (
               <button

@@ -219,7 +219,7 @@ describe('Partial user (OpenClaw installed, no ClawPort config)', () => {
       const agents = await getAgents()
       expect(agents.length).toBe(1)
       expect(agents[0].name).toBe('MyAssistant')
-      expect(agents[0].title).toBe('Orchestrator')
+      expect(agents[0].title).toBe('总协调者')
       expect(agents[0].reportsTo).toBeNull()
     })
   })

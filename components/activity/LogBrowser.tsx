@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useSettings } from '@/app/settings-provider'
 import type { LogEntry, LogFilter, LogSummary } from '@/lib/types'
 import { Skeleton } from '@/components/ui/skeleton'
 
@@ -54,6 +55,7 @@ interface LogBrowserProps {
 }
 
 export function LogBrowser({ entries, summary, loading, filter, onFilterChange }: LogBrowserProps) {
+  const { t } = useSettings()
   const [search, setSearch] = useState('')
   const [expanded, setExpanded] = useState<string | null>(null)
 
@@ -129,7 +131,7 @@ export function LogBrowser({ entries, summary, loading, filter, onFilterChange }
         {/* Search input */}
         <input
           type="text"
-          placeholder="Search logs..."
+          placeholder={t('logs.searchLogs')}
           value={search}
           onChange={e => setSearch(e.target.value)}
           className="focus-ring"
@@ -152,7 +154,7 @@ export function LogBrowser({ entries, summary, loading, filter, onFilterChange }
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center" style={{ height: 200, color: 'var(--text-secondary)', gap: 'var(--space-2)' }}>
           <span style={{ fontSize: 'var(--text-subheadline)', fontWeight: 'var(--weight-medium)' }}>
-            {entries.length === 0 ? 'No log entries found' : 'No entries match this filter'}
+            {entries.length === 0 ? t('logs.waiting') : t('logs.noResults')}
           </span>
           <span style={{ fontSize: 'var(--text-footnote)', color: 'var(--text-tertiary)' }}>
             {entries.length === 0 ? 'Log entries from cron runs and config changes will appear here' : 'Try adjusting your filter or search'}

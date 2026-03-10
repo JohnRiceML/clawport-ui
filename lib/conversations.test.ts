@@ -59,6 +59,18 @@ const fakeAgent: Agent = {
   description: 'CSO. Decides what gets built.',
 }
 
+// Ensure a stable localStorage implementation for this file.
+const localStore: Record<string, string> = {}
+beforeEach(() => {
+  vi.stubGlobal('localStorage', {
+    getItem: (key: string) => localStore[key] ?? null,
+    setItem: (key: string, val: string) => { localStore[key] = val },
+    removeItem: (key: string) => { delete localStore[key] },
+    clear: () => { Object.keys(localStore).forEach((k) => delete localStore[k]) },
+  })
+  localStorage.clear()
+})
+
 // --- addMessage ---
 
 describe('addMessage', () => {

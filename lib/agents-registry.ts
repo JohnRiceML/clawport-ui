@@ -200,7 +200,7 @@ function discoverAgents(workspacePath: string): AgentEntry[] | null {
     discovered.push({
       id: rootId,
       name: rootName,
-      title: 'Orchestrator',
+      title: '总协调者',
       reportsTo: null,
       directReports: directReportIds, // populated below
       soulPath: 'SOUL.md',
@@ -209,7 +209,7 @@ function discoverAgents(workspacePath: string): AgentEntry[] | null {
       emoji: rootEmoji,
       tools: ['read', 'write', 'exec', 'message'],
       memoryPath: null,
-      description: 'Top-level orchestrator.',
+      description: '顶层协调智能体。',
     })
 
     // We'll fill directReportIds as we discover agents below
@@ -240,7 +240,7 @@ function discoverAgents(workspacePath: string): AgentEntry[] | null {
         directReportIds.push(subId)
         const subParsed = parseSoulHeading(sub.content)
         const subName = subParsed.name || slugToName(basename(sub.fileName, '.md'))
-        const subTitle = subParsed.title || 'Agent'
+        const subTitle = subParsed.title || '智能体'
         discovered.push({
           id: subId,
           name: subName,
@@ -253,7 +253,7 @@ function discoverAgents(workspacePath: string): AgentEntry[] | null {
           emoji: subName.charAt(0).toUpperCase(),
           tools: ['read', 'write'],
           memoryPath: null,
-          description: `${subName} agent.`,
+          description: `${subName} 智能体。`,
         })
       }
 
@@ -263,7 +263,7 @@ function discoverAgents(workspacePath: string): AgentEntry[] | null {
         directReportIds.push(subId)
         const subParsed = parseSoulHeading(sub.content)
         const subName = subParsed.name || slugToName(sub.dirName)
-        const subTitle = subParsed.title || 'Agent'
+        const subTitle = subParsed.title || '智能体'
         discovered.push({
           id: subId,
           name: subName,
@@ -276,7 +276,7 @@ function discoverAgents(workspacePath: string): AgentEntry[] | null {
           emoji: subName.charAt(0).toUpperCase(),
           tools: ['read', 'write'],
           memoryPath: null,
-          description: `${subName} agent.`,
+          description: `${subName} 智能体。`,
         })
       }
       continue
@@ -293,7 +293,7 @@ function discoverAgents(workspacePath: string): AgentEntry[] | null {
     if (!hasSoul && !hasSubAgents && !hasMembers) continue
 
     let name = slugToName(dirName)
-    let title = 'Agent'
+    let title = '智能体'
     const subAgentIds: string[] = []
 
     // Parse SOUL.md for name and title
@@ -305,7 +305,7 @@ function discoverAgents(workspacePath: string): AgentEntry[] | null {
         if (parsed.title) title = parsed.title
 
         // Also check for Role: or Title: lines as fallback
-        if (title === 'Agent') {
+        if (title === '智能体') {
           const roleMatch = content.match(/^##\s*Role\b/mi)
           if (roleMatch) {
             // Try to get first line after ## Role
@@ -330,7 +330,7 @@ function discoverAgents(workspacePath: string): AgentEntry[] | null {
 
       const subParsed = parseSoulHeading(sub.content)
       const subName = subParsed.name || slugToName(basename(sub.fileName, '.md'))
-      const subTitle = subParsed.title || 'Agent'
+      const subTitle = subParsed.title || '智能体'
 
       discovered.push({
         id: subId,
@@ -344,7 +344,7 @@ function discoverAgents(workspacePath: string): AgentEntry[] | null {
         emoji: subName.charAt(0).toUpperCase(),
         tools: ['read', 'write'],
         memoryPath: null,
-        description: `${subName} agent.`,
+        description: `${subName} 智能体。`,
       })
     }
 
@@ -357,7 +357,7 @@ function discoverAgents(workspacePath: string): AgentEntry[] | null {
       subAgentIds.push(subId)
       const subParsed = parseSoulHeading(sub.content)
       const subName = subParsed.name || slugToName(sub.dirName)
-      const subTitle = subParsed.title || 'Agent'
+      const subTitle = subParsed.title || '智能体'
       discovered.push({
         id: subId,
         name: subName,
@@ -370,7 +370,7 @@ function discoverAgents(workspacePath: string): AgentEntry[] | null {
         emoji: subName.charAt(0).toUpperCase(),
         tools: ['read', 'write'],
         memoryPath: null,
-        description: `${subName} agent.`,
+        description: `${subName} 智能体。`,
       })
     }
 
@@ -386,7 +386,7 @@ function discoverAgents(workspacePath: string): AgentEntry[] | null {
       emoji: name.charAt(0).toUpperCase(),
       tools: ['read', 'write'],
       memoryPath: null,
-      description: `${name} agent.`,
+      description: `${name} 智能体。`,
     })
   }
 
@@ -474,7 +474,7 @@ function mergeExtraWorkspaces(
       added.push({
         id,
         name,
-        title: 'Agent',
+        title: '智能体',
         reportsTo: null,
         directReports: [],
         soulPath: null,
@@ -483,7 +483,7 @@ function mergeExtraWorkspaces(
         emoji: cli.identityEmoji || name.charAt(0).toUpperCase(),
         tools: ['read', 'write'],
         memoryPath: null,
-        description: `${name} agent.`,
+        description: `${name} 智能体。`,
       })
       existingIds.add(id)
     }
@@ -498,13 +498,14 @@ function mergeExtraWorkspaces(
  * Resolution order:
  *   1. $WORKSPACE_PATH/clawport/agents.json  (user's own config)
  *   2. Auto-discovered from $WORKSPACE_PATH   (agents/ directory scan)
- *      + merged with other workspaces from `openclaw agents list --json`
- *   3. CLI-only discovery (scans each agent's workspace)
+ *   3. Optional multi-workspace merge from `openclaw agents list --json`
+ *      when CLAWPORT_ENABLE_MULTI_WORKSPACE=1
  *   4. Bundled lib/agents.json               (default example registry)
  */
 export function loadRegistry(): AgentEntry[] {
   const workspacePath = process.env.WORKSPACE_PATH
   const openclawBin = process.env.OPENCLAW_BIN
+  const enableMultiWorkspace = process.env.CLAWPORT_ENABLE_MULTI_WORKSPACE !== '0'
 
   if (workspacePath) {
     // 1. User-provided override
@@ -521,18 +522,19 @@ export function loadRegistry(): AgentEntry[] {
     // 2. Auto-discover from primary workspace filesystem
     const discovered = discoverAgents(workspacePath)
 
-    // 2b. Merge agents from other workspaces known to the CLI
-    if (discovered && openclawBin) {
-      const cliAgents = listCliAgents(openclawBin)
-      if (cliAgents && cliAgents.length > 1) {
-        return mergeExtraWorkspaces(discovered, cliAgents, workspacePath)
+    // 3. Optional: merge agents from other workspaces known to the CLI
+    if (discovered) {
+      if (enableMultiWorkspace && openclawBin) {
+        const cliAgents = listCliAgents(openclawBin)
+        if (cliAgents && cliAgents.length > 1) {
+          return mergeExtraWorkspaces(discovered, cliAgents, workspacePath)
+        }
       }
       return discovered
     }
-    if (discovered) return discovered
 
-    // 3. CLI-only: no primary workspace agents, scan each CLI agent's workspace
-    if (openclawBin) {
+    // 3b. Optional CLI-only: no primary workspace agents, scan each CLI workspace
+    if (enableMultiWorkspace && openclawBin) {
       const cliAgents = listCliAgents(openclawBin)
       if (cliAgents) {
         return mergeExtraWorkspaces([], cliAgents, '')

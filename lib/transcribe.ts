@@ -36,7 +36,11 @@ export async function transcribeViaBrowser(audioBlob: Blob): Promise<string | nu
     const recognition = new SpeechRecognition()
     recognition.continuous = false
     recognition.interimResults = false
-    recognition.lang = 'en-US'
+    const preferredLang =
+      typeof navigator !== 'undefined'
+        ? (navigator.languages?.find(Boolean) ?? navigator.language ?? 'en-US')
+        : 'en-US'
+    recognition.lang = preferredLang.toLowerCase().startsWith('zh') ? 'zh-CN' : preferredLang
 
     let resolved = false
 

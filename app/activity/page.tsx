@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { useSettings } from '@/app/settings-provider'
 import type { LogEntry, LogFilter, LogSummary } from '@/lib/types'
 import { timeAgo } from '@/lib/cron-utils'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -11,6 +12,7 @@ import { LogBrowser } from '@/components/activity/LogBrowser'
 /* ── Summary Cards ─────────────────────────────────────────────── */
 
 function TotalCard({ count }: { count: number }) {
+  const { t } = useSettings()
   return (
     <div style={{
       background: 'var(--material-regular)',
@@ -19,7 +21,7 @@ function TotalCard({ count }: { count: number }) {
       padding: 'var(--space-4)',
     }}>
       <div style={{ fontSize: 'var(--text-caption1)', color: 'var(--text-tertiary)', fontWeight: 'var(--weight-medium)', marginBottom: 'var(--space-1)' }}>
-        Total Events
+        {t('activity.totalEvents')}
       </div>
       <div style={{ fontSize: 'var(--text-title2)', color: 'var(--text-primary)', fontWeight: 'var(--weight-bold)' }}>
         {count}
@@ -29,6 +31,7 @@ function TotalCard({ count }: { count: number }) {
 }
 
 function ErrorCard({ count }: { count: number }) {
+  const { t } = useSettings()
   const hasErrors = count > 0
   return (
     <div style={{
@@ -38,7 +41,7 @@ function ErrorCard({ count }: { count: number }) {
       padding: 'var(--space-4)',
     }}>
       <div style={{ fontSize: 'var(--text-caption1)', color: 'var(--text-tertiary)', fontWeight: 'var(--weight-medium)', marginBottom: 'var(--space-1)' }}>
-        Errors
+        {t('activity.errors')}
       </div>
       <div className="flex items-center" style={{ gap: 'var(--space-2)' }}>
         {hasErrors && (
@@ -57,6 +60,7 @@ function ErrorCard({ count }: { count: number }) {
 }
 
 function SourcesCard({ cron, config }: { cron: number; config: number }) {
+  const { t } = useSettings()
   return (
     <div style={{
       background: 'var(--material-regular)',
@@ -65,7 +69,7 @@ function SourcesCard({ cron, config }: { cron: number; config: number }) {
       padding: 'var(--space-4)',
     }}>
       <div style={{ fontSize: 'var(--text-caption1)', color: 'var(--text-tertiary)', fontWeight: 'var(--weight-medium)', marginBottom: 'var(--space-1)' }}>
-        Sources
+        {t('activity.sources')}
       </div>
       <div className="flex items-center" style={{ gap: 'var(--space-3)' }}>
         <div>
@@ -84,6 +88,7 @@ function SourcesCard({ cron, config }: { cron: number; config: number }) {
 /* ── Page ──────────────────────────────────────────────────────── */
 
 export default function ActivityPage() {
+  const { t, resolvedLocale } = useSettings()
   const [entries, setEntries] = useState<LogEntry[]>([])
   const [summary, setSummary] = useState<LogSummary | null>(null)
   const [filter, setFilter] = useState<LogFilter>('all')
@@ -124,11 +129,11 @@ export default function ActivityPage() {
 
   // Updated ago ticker
   useEffect(() => {
-    const tick = () => setUpdatedAgo(timeAgo(lastRefresh.toISOString()))
+    const tick = () => setUpdatedAgo(timeAgo(lastRefresh.toISOString(), resolvedLocale))
     tick()
     const interval = setInterval(tick, 30000)
     return () => clearInterval(interval)
-  }, [lastRefresh])
+  }, [lastRefresh, resolvedLocale])
 
   if (error && entries.length === 0) {
     return <ErrorState message={error} onRetry={refresh} />
@@ -155,14 +160,14 @@ export default function ActivityPage() {
               letterSpacing: '-0.5px',
               lineHeight: 'var(--leading-tight)',
             }}>
-              Activity Console
+              {t('activity.title')}
             </h1>
             {!loading && summary && (
               <p style={{ fontSize: 'var(--text-footnote)', color: 'var(--text-secondary)', marginTop: 'var(--space-1)' }}>
-                {summary.totalEntries} event{summary.totalEntries !== 1 ? 's' : ''}
+                {t('activity.eventsCount', { count: summary.totalEntries })}
                 {summary.errorCount > 0 && (
                   <span style={{ color: 'var(--system-red)' }}>
-                    {' \u00b7 '}{summary.errorCount} error{summary.errorCount !== 1 ? 's' : ''}
+                    {' \u00b7 '}{t('activity.errorsCount', { count: summary.errorCount })}
                   </span>
                 )}
               </p>
@@ -187,11 +192,11 @@ export default function ActivityPage() {
               }}
             >
               <Radio size={14} />
-              Open Live Logs
+              {t('activity.openLiveLogs')}
             </button>
 
             <span style={{ fontSize: 'var(--text-caption1)', color: 'var(--text-tertiary)' }}>
-              Updated {updatedAgo}
+              {t('common.updated', { value: updatedAgo })}
             </span>
             <button
               onClick={refresh}
