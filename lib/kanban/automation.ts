@@ -153,20 +153,25 @@ export async function executeWork(
 
 /* ── Persist work chat to filesystem via API ─────────── */
 
-export function persistWorkChat(
+export async function persistWorkChat(
   ticketId: string,
   prompt: string,
   response: string,
-): void {
+): Promise<boolean> {
   const now = Date.now()
   const messages = [
     { id: generateId(), role: 'user' as const, content: prompt, timestamp: now },
     { id: generateId(), role: 'assistant' as const, content: response, timestamp: now + 1 },
   ]
 
-  fetch(`/api/kanban/chat-history/${ticketId}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages }),
-  }).catch(() => { /* persist best-effort */ })
+  try {
+    const res = await fetch(`/api/kanban/chat-history/${ticketId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages }),
+    })
+    return res.ok
+  } catch {
+    return false
+  }
 }

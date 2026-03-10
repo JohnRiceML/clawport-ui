@@ -55,13 +55,14 @@ export function useAgentWork({ tickets, onUpdateTicket }: UseAgentWorkOptions) {
     if (result.success) {
       // Save chat history so TicketDetailPanel picks it up
       const prompt = getWorkPrompt(ticket)
-      persistWorkChat(id, prompt, result.content)
+      const persisted = await persistWorkChat(id, prompt, result.content)
 
       // Move to review with result
       onUpdateTicket(id, {
         status: 'review' as TicketStatus,
         workState: 'done',
         workResult: result.content,
+        workError: persisted ? null : 'Saved work result, but chat history did not persist.',
       })
     } else {
       onUpdateTicket(id, {

@@ -219,10 +219,47 @@ export function TicketDetailPanel({
     let cancelled = false
     fetch(`/api/kanban/chat-history/${ticket.id}`)
       .then(res => res.ok ? res.json() : [])
-      .then((msgs: ChatMessage[]) => { if (!cancelled) setMessages(msgs) })
+      .then((msgs: ChatMessage[]) => {
+        if (cancelled) return
+        if (msgs.length > 0) {
+          setMessages(msgs)
+          return
+        }
+        if (ticket.workResult) {
+          setMessages([
+            {
+              id: `work-result-${ticket.id}`,
+              role: 'assistant',
+              content: ticket.workResult,
+              timestamp: ticket.updatedAt || Date.now(),
+            },
+          ])
+          return
+        }
+        setMessages([])
+      })
       .catch(() => { if (!cancelled) setMessages([]) })
     return () => { cancelled = true }
-  }, [ticket.id])
+  }, [ticket.id, ticket.workResult, ticket.updatedAt])
+
+  useEffect(() => {
+    const workResult = ticket.workResult
+    if (!workResult) return
+    setMessages(prev => {
+      if (prev.some(msg => msg.role === 'assistant' && msg.content.trim() === workResult.trim())) {
+        return prev
+      }
+      return [
+        ...prev,
+        {
+          id: `work-result-${ticket.id}`,
+          role: 'assistant',
+          content: workResult,
+          timestamp: ticket.updatedAt || Date.now(),
+        },
+      ]
+    })
+  }, [ticket.id, ticket.workResult, ticket.updatedAt])
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -242,6 +279,21 @@ export function TicketDetailPanel({
   useEffect(() => {
     closeRef.current?.focus()
   }, [])
+
+  const openWorkDocument = useCallback(() => {
+    if (!ticket.workResult) return
+    const blob = new Blob([ticket.workResult], { type: 'text/markdown;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const opened = window.open(url, '_blank', 'noopener,noreferrer')
+    if (!opened) {
+      const a = document.createElement('a')
+      a.href = url
+      a.target = '_blank'
+      a.rel = 'noopener noreferrer'
+      a.click()
+    }
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
+  }, [ticket.workResult])
 
   /* ── Send message + stream response ─────────────── */
 
@@ -583,14 +635,40 @@ export function TicketDetailPanel({
                 marginBottom: 'var(--space-3)',
               }} />
               <div style={{
-                fontSize: 'var(--text-caption1)',
-                fontWeight: 600,
-                color: 'var(--text-tertiary)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.5px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 'var(--space-2)',
                 marginBottom: 'var(--space-2)',
               }}>
-                Agent Work
+                <div style={{
+                  fontSize: 'var(--text-caption1)',
+                  fontWeight: 600,
+                  color: 'var(--text-tertiary)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                }}>
+                  Agent Work
+                </div>
+                <div style={{ display: 'flex', gap: 'var(--space-1)', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                  <button
+                    type="button"
+                    onClick={openWorkDocument}
+                    className="focus-ring"
+                    style={{
+                      fontSize: 'var(--text-caption2)',
+                      fontWeight: 600,
+                      padding: '3px var(--space-2)',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--separator)',
+                      background: 'var(--fill-secondary)',
+                      color: 'var(--text-secondary)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Open .md
+                  </button>
+                </div>
               </div>
               <div style={{
                 fontSize: 'var(--text-footnote)',

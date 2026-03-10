@@ -204,8 +204,10 @@ describe('persistWorkChat', () => {
     vi.stubGlobal('fetch', fetchMock)
   })
 
-  it('posts prompt and response to chat-history API', () => {
-    persistWorkChat('ticket-1', 'Do the work', 'Here is the result')
+  it('posts prompt and response to chat-history API', async () => {
+    await expect(
+      persistWorkChat('ticket-1', 'Do the work', 'Here is the result')
+    ).resolves.toBe(true)
 
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/kanban/chat-history/ticket-1',
@@ -223,23 +225,23 @@ describe('persistWorkChat', () => {
     expect(body.messages[1].content).toBe('Here is the result')
   })
 
-  it('generates unique IDs for messages', () => {
-    persistWorkChat('ticket-1', 'Prompt', 'Response')
+  it('generates unique IDs for messages', async () => {
+    await persistWorkChat('ticket-1', 'Prompt', 'Response')
 
     const body = JSON.parse(fetchMock.mock.calls[0][1].body)
     expect(body.messages[0].id).toBe('test-uuid-1')
     expect(body.messages[1].id).toBe('test-uuid-2')
   })
 
-  it('sets assistant timestamp 1ms after user timestamp', () => {
-    persistWorkChat('ticket-1', 'Prompt', 'Response')
+  it('sets assistant timestamp 1ms after user timestamp', async () => {
+    await persistWorkChat('ticket-1', 'Prompt', 'Response')
 
     const body = JSON.parse(fetchMock.mock.calls[0][1].body)
     expect(body.messages[1].timestamp).toBe(body.messages[0].timestamp + 1)
   })
 
-  it('does not throw when fetch fails', () => {
+  it('returns false when fetch fails', async () => {
     fetchMock.mockRejectedValue(new Error('Network error'))
-    expect(() => persistWorkChat('ticket-1', 'Prompt', 'Response')).not.toThrow()
+    await expect(persistWorkChat('ticket-1', 'Prompt', 'Response')).resolves.toBe(false)
   })
 })
