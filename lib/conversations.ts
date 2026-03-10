@@ -92,6 +92,53 @@ export function updateLastMessage(store: ConversationStore, agentId: string, msg
   return { ...store, [agentId]: { ...conv, messages: msgs } }
 }
 
+/* ── Server sync helpers ─────────────────────────────────── */
+
+/** Fetch a single agent's conversation from the server. */
+export async function loadConversationFromServer(agentId: string): Promise<Message[]> {
+  try {
+    const res = await fetch(`/api/conversations/${agentId}`)
+    if (!res.ok) return []
+    const messages: Message[] = await res.json()
+    return messages
+  } catch {
+    return []
+  }
+}
+
+/** Persist messages to the server (fire-and-forget safe). */
+export async function syncMessagesToServer(agentId: string, messages: Message[]): Promise<void> {
+  try {
+    await fetch(`/api/conversations/${agentId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: messages
+          .filter(m => m.role === 'user' || m.role === 'assistant')
+          .map(m => ({ id: m.id, role: m.role, content: m.content, timestamp: m.timestamp })),
+      }),
+    })
+  } catch { /* fire-and-forget */ }
+}
+
+/** Clear a conversation on the server. */
+export async function clearConversationOnServer(agentId: string): Promise<void> {
+  try {
+    await fetch(`/api/conversations/${agentId}`, { method: 'DELETE' })
+  } catch { /* fire-and-forget */ }
+}
+
+/** Fetch metadata for all conversations from the server. */
+export async function loadAllConversationMeta(): Promise<Array<{ agentId: string; lastActivity: number; messageCount: number }>> {
+  try {
+    const res = await fetch('/api/conversations')
+    if (!res.ok) return []
+    return await res.json()
+  } catch {
+    return []
+  }
+}
+
 export function parseMedia(content: string): MediaAttachment[] {
   const media: MediaAttachment[] = []
 

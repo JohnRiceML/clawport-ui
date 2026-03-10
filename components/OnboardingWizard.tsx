@@ -96,7 +96,7 @@ export function OnboardingWizard({ forceOpen, onClose }: OnboardingWizardProps) 
   const [agentsError, setAgentsError] = useState<string | null>(null)
   const [cronsError, setCronsError] = useState<string | null>(null)
 
-  // First-run detection
+  // First-run detection — check both localStorage and server
   useEffect(() => {
     if (forceOpen) {
       setLocalName(settings.portalName ?? '')
@@ -105,9 +105,20 @@ export function OnboardingWizard({ forceOpen, onClose }: OnboardingWizardProps) 
       setVisible(true)
       return
     }
-    if (typeof window !== 'undefined' && !localStorage.getItem('clawport-onboarded')) {
-      setVisible(true)
+    if (typeof window !== 'undefined' && localStorage.getItem('clawport-onboarded')) {
+      return // already onboarded locally
     }
+    // Check server-side flag (covers cross-device scenario)
+    fetch('/api/onboarded')
+      .then(r => r.json())
+      .then(data => {
+        if (data.onboarded) {
+          localStorage.setItem('clawport-onboarded', '1')
+        } else {
+          setVisible(true)
+        }
+      })
+      .catch(() => setVisible(true))
   }, [forceOpen]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Run system checks when we reach the system check step
@@ -181,6 +192,7 @@ export function OnboardingWizard({ forceOpen, onClose }: OnboardingWizardProps) 
     } else {
       if (!forceOpen) {
         localStorage.setItem('clawport-onboarded', '1')
+        fetch('/api/onboarded', { method: 'POST' }).catch(() => {})
       }
       setVisible(false)
       onClose?.()

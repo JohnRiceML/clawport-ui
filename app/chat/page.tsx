@@ -6,7 +6,8 @@ import { AgentList, AgentListMobile } from '@/components/chat/AgentList'
 import { ConversationView } from '@/components/chat/ConversationView'
 import {
   loadConversations, saveConversations, getOrCreateConversation,
-  markRead, type ConversationStore
+  markRead, loadConversationFromServer, loadAllConversationMeta,
+  type ConversationStore
 } from '@/lib/conversations'
 
 function MessengerApp() {
@@ -26,9 +27,46 @@ function MessengerApp() {
     })
   }, [])
 
-  // Load conversations from localStorage
+  // Load conversations: localStorage first (instant), then merge server data
   useEffect(() => {
-    setConversations(loadConversations())
+    const local = loadConversations()
+    setConversations(local)
+
+    // Fetch server-side conversation metadata, then load full conversations
+    loadAllConversationMeta().then(async (metas) => {
+      if (metas.length === 0) return
+      const serverStore: ConversationStore = {}
+      for (const meta of metas) {
+        const messages = await loadConversationFromServer(meta.agentId)
+        if (messages.length > 0) {
+          serverStore[meta.agentId] = {
+            agentId: meta.agentId,
+            messages,
+            unread: 0,
+            lastActivity: meta.lastActivity,
+          }
+        }
+      }
+      // Merge: server messages take priority, dedup by id
+      setConversations(prev => {
+        const merged = { ...prev }
+        for (const [agentId, serverConv] of Object.entries(serverStore)) {
+          const localConv = merged[agentId]
+          if (!localConv) {
+            merged[agentId] = serverConv
+          } else {
+            const existingIds = new Set(localConv.messages.map(m => m.id))
+            const newFromServer = serverConv.messages.filter(m => !existingIds.has(m.id))
+            if (newFromServer.length > 0) {
+              const allMessages = [...localConv.messages, ...newFromServer]
+                .sort((a, b) => a.timestamp - b.timestamp)
+              merged[agentId] = { ...localConv, messages: allMessages }
+            }
+          }
+        }
+        return merged
+      })
+    })
   }, [])
 
   // Save conversations whenever they change

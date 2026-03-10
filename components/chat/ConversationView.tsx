@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Agent } from '@/lib/types'
 import type { Conversation, ConversationStore, Message, MediaAttachment } from '@/lib/conversations'
-import { parseMedia, addMessage, updateLastMessage } from '@/lib/conversations'
+import { parseMedia, addMessage, updateLastMessage, syncMessagesToServer, clearConversationOnServer } from '@/lib/conversations'
 import { buildApiContent } from '@/lib/multimodal'
 import { generateId } from '@/lib/id'
 import { useSettings } from '@/app/settings-provider'
@@ -365,6 +365,9 @@ export function ConversationView({ agent, conversation, onUpdate, onBack }: Conv
       return next
     })
 
+    // Sync user message to server
+    syncMessagesToServer(agent.id, [userMsg])
+
     setIsStreaming(true)
 
     // Use ref to read latest messages (avoids stale closure)
@@ -411,6 +414,16 @@ export function ConversationView({ agent, conversation, onUpdate, onBack }: Conv
 
       const finalContent = fullContent
       onUpdate(agent.id, prev => updateLastMessage(prev, agent.id, assistantMsgId, finalContent, false))
+
+      // Sync assistant response to server
+      if (finalContent) {
+        syncMessagesToServer(agent.id, [{
+          id: assistantMsgId,
+          role: 'assistant',
+          content: finalContent,
+          timestamp: Date.now(),
+        }])
+      }
     } catch {
       onUpdate(agent.id, prev => updateLastMessage(prev, agent.id, assistantMsgId, 'Error getting response. Check API connection.', false))
     } finally {
@@ -647,6 +660,7 @@ export function ConversationView({ agent, conversation, onUpdate, onBack }: Conv
         lastActivity: Date.now(),
       }
     }))
+    clearConversationOnServer(agent.id)
   }
 
   const hasContent = input.trim().length > 0 || pendingAttachments.length > 0
