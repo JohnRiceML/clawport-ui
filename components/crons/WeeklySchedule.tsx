@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState, useRef, useEffect, useCallback } from "react"
+import { useSettings } from "@/app/settings-provider"
 import type { CronJob } from "@/lib/types"
 import { parseScheduleSlots } from "@/lib/cron-utils"
 
@@ -8,8 +9,6 @@ interface WeeklyScheduleProps {
   crons: CronJob[]
 }
 
-const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-const DAY_LABELS_FULL = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 // Map cron dow (0=Sun) to grid column (0=Mon)
 const DOW_TO_COL: Record<number, number> = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5, 0: 6 }
 
@@ -56,6 +55,8 @@ interface TooltipData {
 }
 
 function PillTooltip({ slot, rect, containerRect }: { slot: SlotInfo; rect: DOMRect; containerRect: DOMRect }) {
+  const { copy, resolvedLocale } = useSettings()
+  const cronsCopy = copy.crons
   const color = AGENT_COLORS[slot.cron.agentId || ""] || "var(--text-secondary)"
 
   // Position tooltip above the pill, centered horizontally
@@ -139,14 +140,15 @@ function PillTooltip({ slot, rect, containerRect }: { slot: SlotInfo; rect: DOMR
               : slot.cron.status === "error" ? "var(--system-red)"
               : "var(--text-tertiary)",
             fontWeight: "var(--weight-medium)",
-            textTransform: "capitalize",
           }}>
-            {slot.cron.status}
+            {cronsCopy.statusLabels[slot.cron.status]}
           </span>
         </span>
         {slot.cron.nextRun && (
           <span style={{ color: "var(--text-tertiary)" }}>
-            Next: {new Date(slot.cron.nextRun).toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })}
+            {cronsCopy.scheduleView.next(
+              new Date(slot.cron.nextRun).toLocaleString(resolvedLocale, { weekday: "short", hour: "numeric", minute: "2-digit" }),
+            )}
           </span>
         )}
       </div>
@@ -171,6 +173,8 @@ function PillTooltip({ slot, rect, containerRect }: { slot: SlotInfo; rect: DOMR
 }
 
 export function WeeklySchedule({ crons }: WeeklyScheduleProps) {
+  const { copy } = useSettings()
+  const cronsCopy = copy.crons
   const [tooltip, setTooltip] = useState<TooltipData | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [containerRect, setContainerRect] = useState<DOMRect | null>(null)
@@ -297,10 +301,10 @@ export function WeeklySchedule({ crons }: WeeklyScheduleProps) {
           <line x1="3" y1="10" x2="21" y2="10" />
         </svg>
         <span style={{ fontSize: "var(--text-subheadline)", fontWeight: "var(--weight-medium)" }}>
-          No scheduled jobs to display
+          {cronsCopy.scheduleView.noJobsTitle}
         </span>
         <span style={{ fontSize: "var(--text-footnote)", color: "var(--text-tertiary)" }}>
-          Enable some cron jobs to see the weekly schedule
+          {cronsCopy.scheduleView.noJobsBody}
         </span>
       </div>
     )
@@ -334,7 +338,7 @@ export function WeeklySchedule({ crons }: WeeklyScheduleProps) {
           }}
         />
         {/* Day headers */}
-        {DAY_LABELS.map((label, i) => {
+        {cronsCopy.scheduleView.dayLabels.map((label, i) => {
           const isToday = i === nowCol
           return (
             <div
@@ -351,7 +355,7 @@ export function WeeklySchedule({ crons }: WeeklyScheduleProps) {
               }}
             >
               <div
-                title={DAY_LABELS_FULL[i]}
+                title={cronsCopy.scheduleView.dayLabelsFull[i]}
                 style={{
                   fontSize: "var(--text-footnote)",
                   fontWeight: isToday ? "var(--weight-bold)" : "var(--weight-semibold)",

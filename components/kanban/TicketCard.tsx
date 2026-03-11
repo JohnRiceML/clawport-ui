@@ -5,26 +5,29 @@ import type { Agent } from '@/lib/types'
 import {
   KanbanTicket,
   PRIORITY_COLORS,
-  ROLE_LABELS,
 } from '@/lib/kanban/types'
 import { AgentAvatar } from '@/components/AgentAvatar'
+import { useSettings } from '@/app/settings-provider'
 
-const PRIORITY_LABELS: Record<string, string> = {
-  low: 'Low',
-  medium: 'Med',
-  high: 'High',
-}
-
-function relativeTime(ts: number): string {
+function relativeTime(
+  ts: number,
+  labels: {
+    justNow: string
+    minutesAgo: (count: number) => string
+    hoursAgo: (count: number) => string
+    daysAgo: (count: number) => string
+    monthsAgo: (count: number) => string
+  },
+): string {
   const diff = Date.now() - ts
   const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
+  if (mins < 1) return labels.justNow
+  if (mins < 60) return labels.minutesAgo(mins)
   const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h ago`
+  if (hrs < 24) return labels.hoursAgo(hrs)
   const days = Math.floor(hrs / 24)
-  if (days < 30) return `${days}d ago`
-  return `${Math.floor(days / 30)}mo ago`
+  if (days < 30) return labels.daysAgo(days)
+  return labels.monthsAgo(Math.floor(days / 30))
 }
 
 interface TicketCardProps {
@@ -35,6 +38,8 @@ interface TicketCardProps {
 }
 
 export function TicketCard({ ticket, agent, onClick, isWorking }: TicketCardProps) {
+  const { copy } = useSettings()
+  const kanbanCopy = copy.kanban
   const [isDragging, setIsDragging] = useState(false)
 
   function handleDragStart(e: React.DragEvent<HTMLDivElement>) {
@@ -128,7 +133,7 @@ export function TicketCard({ ticket, agent, onClick, isWorking }: TicketCardProp
               background: PRIORITY_COLORS[ticket.priority],
             }}
           />
-          {PRIORITY_LABELS[ticket.priority]}
+          {ticket.priority === 'medium' ? kanbanCopy.priorityLabels.mediumShort : kanbanCopy.priorityLabels[ticket.priority]}
         </span>
         <span
           style={{
@@ -186,7 +191,7 @@ export function TicketCard({ ticket, agent, onClick, isWorking }: TicketCardProp
               lineHeight: 1.5,
             }}
           >
-            {ROLE_LABELS[ticket.assigneeRole]}
+            {kanbanCopy.roleLabels[ticket.assigneeRole]}
           </span>
         )}
 
@@ -198,7 +203,7 @@ export function TicketCard({ ticket, agent, onClick, isWorking }: TicketCardProp
           }}
           title={new Date(ticket.createdAt).toLocaleString()}
         >
-          {relativeTime(ticket.createdAt)}
+          {relativeTime(ticket.createdAt, kanbanCopy.relative)}
         </span>
       </div>
 
@@ -222,7 +227,7 @@ export function TicketCard({ ticket, agent, onClick, isWorking }: TicketCardProp
             background: 'var(--system-orange)',
             animation: 'pulse 2s ease-in-out infinite',
           }} />
-          Working...
+          {kanbanCopy.working}
         </div>
       )}
 
@@ -237,7 +242,7 @@ export function TicketCard({ ticket, agent, onClick, isWorking }: TicketCardProp
             padding: '1px var(--space-2)',
           }}
         >
-          Failed
+          {kanbanCopy.failed}
         </div>
       )}
     </div>

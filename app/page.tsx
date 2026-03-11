@@ -10,6 +10,8 @@ import { ErrorState } from "@/components/ErrorState"
 import { AgentAvatar } from "@/components/AgentAvatar"
 import { GridView } from "@/components/GridView"
 import { FeedView } from "@/components/FeedView"
+import { useSettings } from "@/app/settings-provider"
+import { localizeAgentDescription } from "@/lib/i18n"
 
 const OrgMap = dynamic(
   () => import("@/components/OrgMap").then((m) => ({ default: m.OrgMap })),
@@ -106,16 +108,12 @@ const VIEW_ICONS: Record<View, React.ComponentType<{ size: number }>> = {
   feed: List,
 }
 
-const VIEW_OPTIONS: { key: View; label: string }[] = [
-  { key: "map", label: "Map" },
-  { key: "grid", label: "Grid" },
-  { key: "feed", label: "Feed" },
-]
-
 /* ──────────────────────────────────────────────
    Main page
    ────────────────────────────────────────────── */
 export default function HomePage() {
+  const { copy, resolvedLocale } = useSettings()
+  const homeCopy = copy.home
   const router = useRouter()
   const [agents, setAgents] = useState<Agent[]>([])
   const [crons, setCrons] = useState<CronJob[]>([])
@@ -130,11 +128,11 @@ export default function HomePage() {
     setError(null)
     Promise.all([
       fetch("/api/agents").then((r) => {
-        if (!r.ok) throw new Error("Failed to fetch agents")
+        if (!r.ok) throw new Error(homeCopy.errors.fetchAgents)
         return r.json()
       }),
       fetch("/api/crons").then((r) => {
-        if (!r.ok) throw new Error("Failed to fetch crons")
+        if (!r.ok) throw new Error(homeCopy.errors.fetchCrons)
         return r.json()
       }),
     ])
@@ -144,7 +142,13 @@ export default function HomePage() {
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
-  }, [])
+  }, [homeCopy.errors.fetchAgents, homeCopy.errors.fetchCrons])
+
+  const viewOptions: { key: View; label: string }[] = [
+    { key: "map", label: homeCopy.views.map },
+    { key: "grid", label: homeCopy.views.grid },
+    { key: "feed", label: homeCopy.views.feed },
+  ]
 
   useEffect(() => {
     loadData()
@@ -179,6 +183,9 @@ export default function HomePage() {
         .map((cid) => agents.find((a) => a.id === cid))
         .filter(Boolean) as Agent[]
     : []
+  const selectedDescription = selected
+    ? localizeAgentDescription(selected.id, selected.description, resolvedLocale)
+    : ""
 
   if (error) {
     return <ErrorState message={error} onRetry={loadData} />
@@ -232,7 +239,7 @@ export default function HomePage() {
             border: "1px solid var(--separator)",
           }}
         >
-          {VIEW_OPTIONS.map((opt) => {
+          {viewOptions.map((opt) => {
             const isActive = view === opt.key
             const ViewIcon = VIEW_ICONS[opt.key]
             return (
@@ -240,7 +247,7 @@ export default function HomePage() {
                 key={opt.key}
                 onClick={() => setView(opt.key)}
                 className="focus-ring"
-                aria-label={`${opt.label} view`}
+                aria-label={homeCopy.views.viewAria(opt.label)}
                 aria-pressed={isActive}
                 style={{
                   padding: "5px 14px",
@@ -304,7 +311,7 @@ export default function HomePage() {
                   display: "inline-block",
                 }}
               />
-              Healthy
+              {homeCopy.legend.healthy}
             </span>
             <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
               <span
@@ -316,7 +323,7 @@ export default function HomePage() {
                   display: "inline-block",
                 }}
               />
-              Errors
+              {homeCopy.legend.errors}
             </span>
             <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
               <span
@@ -328,7 +335,7 @@ export default function HomePage() {
                   display: "inline-block",
                 }}
               />
-              No crons
+              {homeCopy.legend.noCrons}
             </span>
           </div>
         )}
@@ -383,7 +390,7 @@ export default function HomePage() {
                 ref={closeRef}
                 onClick={() => setSelected(null)}
                 className="focus-ring"
-                aria-label="Close detail panel"
+                aria-label={homeCopy.detail.closePanel}
                 style={{
                   width: 30,
                   height: 30,
@@ -449,7 +456,7 @@ export default function HomePage() {
                 {selected.title}
               </p>
 
-              {selected.description && (
+              {selectedDescription && (
                 <p
                   style={{
                     fontSize: "var(--text-footnote)",
@@ -459,7 +466,7 @@ export default function HomePage() {
                     maxWidth: 280,
                   }}
                 >
-                  {selected.description}
+                  {selectedDescription}
                 </p>
               )}
 
@@ -476,7 +483,7 @@ export default function HomePage() {
                 <button
                   onClick={() => router.push(`/chat/${selected.id}`)}
                   className="focus-ring btn-scale"
-                  aria-label={`Open chat with ${selected.name}`}
+                  aria-label={homeCopy.detail.openChat(selected.name)}
                   style={{
                     flex: 1,
                     display: "flex",
@@ -495,12 +502,12 @@ export default function HomePage() {
                   }}
                 >
                   <MessageSquare size={16} />
-                  Message
+                  {homeCopy.detail.message}
                 </button>
                 <Link
                   href={`/agents/${selected.id}`}
                   className="focus-ring btn-scale"
-                  aria-label={`View full profile of ${selected.name}`}
+                  aria-label={homeCopy.detail.viewProfile(selected.name)}
                   style={{
                     flex: 1,
                     display: "flex",
@@ -520,7 +527,7 @@ export default function HomePage() {
                   }}
                 >
                   <User size={16} />
-                  Profile
+                  {homeCopy.detail.profile}
                 </Link>
               </div>
             </div>
@@ -546,7 +553,7 @@ export default function HomePage() {
                     padding: "0 var(--space-4) var(--space-2)",
                   }}
                 >
-                  Capabilities
+                  {homeCopy.detail.capabilities}
                 </div>
                 <div
                   style={{
@@ -609,7 +616,7 @@ export default function HomePage() {
                       padding: "0 var(--space-4) var(--space-2)",
                     }}
                   >
-                    Organization
+                    {homeCopy.detail.organization}
                   </div>
                   <div
                     style={{
@@ -656,7 +663,7 @@ export default function HomePage() {
                               color: "var(--text-tertiary)",
                             }}
                           >
-                            Reports to
+                            {homeCopy.detail.reportsTo}
                           </div>
                         </div>
                         <span
@@ -709,7 +716,7 @@ export default function HomePage() {
                               color: "var(--text-tertiary)",
                             }}
                           >
-                            Direct report
+                            {homeCopy.detail.directReport}
                           </div>
                         </div>
                         <span
@@ -740,7 +747,7 @@ export default function HomePage() {
                       padding: "0 var(--space-4) var(--space-2)",
                     }}
                   >
-                    Scheduled Tasks
+                    {homeCopy.detail.scheduledTasks}
                   </div>
                   <div
                     style={{

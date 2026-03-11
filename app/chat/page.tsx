@@ -4,6 +4,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import type { Agent } from '@/lib/types'
 import { AgentList, AgentListMobile } from '@/components/chat/AgentList'
 import { ConversationView } from '@/components/chat/ConversationView'
+import { useSettings } from '@/app/settings-provider'
 import {
   loadConversations, saveConversations, getOrCreateConversation,
   markRead, type ConversationStore, type Message,
@@ -208,6 +209,8 @@ function MessengerApp() {
 }
 
 function EmptyState() {
+  const { copy } = useSettings()
+
   return (
     <div style={{
       flex: 1,
@@ -230,7 +233,7 @@ function EmptyState() {
         color: 'var(--text-primary)',
         letterSpacing: '-0.3px',
       }}>
-        ClawPort Messages
+        {copy.nav.messages}
       </div>
       <div style={{
         fontSize: 'var(--text-subheadline)',
@@ -238,14 +241,14 @@ function EmptyState() {
         textAlign: 'center',
         lineHeight: 'var(--leading-relaxed)',
       }}>
-        Select an agent from the sidebar to start chatting
+        {copy.chat.emptyBody}
       </div>
       <div style={{
         fontSize: 'var(--text-caption1)',
         color: 'var(--text-quaternary)',
         marginTop: 'var(--space-2)',
       }}>
-        Press Cmd+K to search agents
+        {copy.chat.emptyHint}
       </div>
     </div>
   )

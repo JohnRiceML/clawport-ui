@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSettings } from "@/app/settings-provider";
 import type {
   Agent,
   MemoryFileInfo,
@@ -15,6 +16,7 @@ import type {
   ReindexStatus,
   EditingHint,
 } from "@/lib/types";
+import { localizeMemoryHealthCheck, type Copy as I18nCopy } from "@/lib/i18n";
 import {
   RefreshCw,
   Copy,
@@ -59,10 +61,18 @@ interface HealthChatMessage {
   isStreaming?: boolean;
 }
 
-const TABS: { key: Tab; label: string; Icon: typeof BarChart3 }[] = [
-  { key: "overview", label: "Overview", Icon: BarChart3 },
-  { key: "browser", label: "Browser", Icon: FolderOpen },
-  { key: "guide", label: "Guide", Icon: BookOpen },
+type MemoryCopy = I18nCopy["memory"];
+
+const TAB_ICONS: Record<Tab, typeof BarChart3> = {
+  overview: BarChart3,
+  browser: FolderOpen,
+  guide: BookOpen,
+};
+
+const TABS: { key: Tab }[] = [
+  { key: "overview" },
+  { key: "browser" },
+  { key: "guide" },
 ];
 
 /* ─── Helpers ────────────────────────────────────────────────── */
@@ -88,11 +98,24 @@ const CATEGORY_COLORS: Record<MemoryFileCategory, string> = {
   other: "var(--text-tertiary)",
 };
 
-const CATEGORY_LABELS: Record<MemoryFileCategory, string> = {
-  evergreen: "Evergreen",
-  daily: "Daily",
-  other: "Other",
-};
+function localizeRelativeLabel(value: string, copy: MemoryCopy): string {
+  if (value === "just now") return copy.relative.justNow;
+
+  const past = value.match(/^(\d+)([mhd]) ago$/);
+  if (past) {
+    const count = Number(past[1]);
+    const unit = past[2];
+    if (unit === "m") return copy.relative.minutesAgo(count);
+    if (unit === "h") return copy.relative.hoursAgo(count);
+    if (unit === "d") return copy.relative.daysAgo(count);
+  }
+
+  return value;
+}
+
+function categoryLabel(category: MemoryFileCategory, copy: MemoryCopy): string {
+  return copy.cards.categories[category];
+}
 
 /* ─── Icons ──────────────────────────────────────────────────── */
 
@@ -167,6 +190,9 @@ function BackArrow() {
 /* ─── Overview: Stat Cards ───────────────────────────────────── */
 
 function FilesCard({ stats }: { stats: MemoryStats }) {
+  const { copy } = useSettings();
+  const memoryCopy = copy.memory;
+
   return (
     <div
       style={{
@@ -184,7 +210,7 @@ function FilesCard({ stats }: { stats: MemoryStats }) {
           marginBottom: "var(--space-1)",
         }}
       >
-        Files
+        {memoryCopy.cards.files}
       </div>
       <div
         style={{
@@ -202,13 +228,16 @@ function FilesCard({ stats }: { stats: MemoryStats }) {
           marginTop: 2,
         }}
       >
-        {stats.evergreenCount} evergreen {"\u00b7"} {stats.dailyLogCount} daily
+        {memoryCopy.cards.evergreen(stats.evergreenCount)} {"\u00b7"} {memoryCopy.cards.daily(stats.dailyLogCount)}
       </div>
     </div>
   );
 }
 
 function SizeCard({ stats }: { stats: MemoryStats }) {
+  const { copy } = useSettings();
+  const memoryCopy = copy.memory;
+
   return (
     <div
       style={{
@@ -226,7 +255,7 @@ function SizeCard({ stats }: { stats: MemoryStats }) {
           marginBottom: "var(--space-1)",
         }}
       >
-        Size
+        {memoryCopy.cards.size}
       </div>
       <div
         style={{
@@ -245,7 +274,7 @@ function SizeCard({ stats }: { stats: MemoryStats }) {
             marginTop: 2,
           }}
         >
-          {stats.oldestDaily} to {stats.newestDaily}
+          {stats.oldestDaily} - {stats.newestDaily}
         </div>
       )}
     </div>
@@ -253,6 +282,8 @@ function SizeCard({ stats }: { stats: MemoryStats }) {
 }
 
 function IndexCard({ status }: { status: MemoryStatus }) {
+  const { copy } = useSettings();
+  const memoryCopy = copy.memory;
   const dotColor = status.indexed ? "var(--system-green)" : "var(--text-tertiary)";
   return (
     <div
@@ -271,7 +302,7 @@ function IndexCard({ status }: { status: MemoryStatus }) {
           marginBottom: "var(--space-1)",
         }}
       >
-        Index
+        {memoryCopy.cards.index}
       </div>
       <div className="flex items-center" style={{ gap: "var(--space-2)" }}>
         <span
@@ -290,7 +321,7 @@ function IndexCard({ status }: { status: MemoryStatus }) {
             color: "var(--text-primary)",
           }}
         >
-          {status.indexed ? "Indexed" : "Not indexed"}
+          {status.indexed ? memoryCopy.cards.indexed : memoryCopy.cards.notIndexed}
         </span>
       </div>
       <div
@@ -300,7 +331,9 @@ function IndexCard({ status }: { status: MemoryStatus }) {
           marginTop: 2,
         }}
       >
-        {status.lastIndexed ? `Last: ${timeAgo(status.lastIndexed)}` : "No index data"}
+        {status.lastIndexed
+          ? memoryCopy.cards.lastIndexed(localizeRelativeLabel(timeAgo(status.lastIndexed), memoryCopy))
+          : memoryCopy.cards.noIndexData}
         {status.embeddingProvider && ` \u00b7 ${status.embeddingProvider}`}
       </div>
     </div>
@@ -310,6 +343,8 @@ function IndexCard({ status }: { status: MemoryStatus }) {
 /* ─── Overview: Memory Timeline ──────────────────────────────── */
 
 function MemoryTimeline({ timeline }: { timeline: MemoryStats["dailyTimeline"] }) {
+  const { copy } = useSettings();
+  const memoryCopy = copy.memory;
   const maxSize = Math.max(...timeline.map((d) => d?.sizeBytes ?? 0), 1);
   const barWidth = 10;
   const gap = 3;
@@ -334,7 +369,7 @@ function MemoryTimeline({ timeline }: { timeline: MemoryStats["dailyTimeline"] }
           marginBottom: "var(--space-3)",
         }}
       >
-        Daily Log Timeline (30 days)
+        {memoryCopy.overview.timeline}
       </div>
       <svg
         width="100%"
@@ -427,6 +462,8 @@ function MemoryTimeline({ timeline }: { timeline: MemoryStats["dailyTimeline"] }
 /* ─── Overview: Config Panel ─────────────────────────────────── */
 
 function ConfigPanel({ config }: { config: MemoryConfig }) {
+  const { copy } = useSettings();
+  const memoryCopy = copy.memory;
   const { memorySearch: ms, memoryFlush: mf, configFound } = config;
   return (
     <div
@@ -445,7 +482,7 @@ function ConfigPanel({ config }: { config: MemoryConfig }) {
           marginBottom: "var(--space-3)",
         }}
       >
-        Configuration
+        {memoryCopy.cards.configuration}
       </div>
 
       {!configFound && (
@@ -459,7 +496,7 @@ function ConfigPanel({ config }: { config: MemoryConfig }) {
             marginBottom: "var(--space-3)",
           }}
         >
-          Using OpenClaw defaults (no explicit memorySearch config)
+          {memoryCopy.cards.usingDefaults}
         </div>
       )}
 
@@ -471,41 +508,43 @@ function ConfigPanel({ config }: { config: MemoryConfig }) {
           fontSize: "var(--text-caption1)",
         }}
       >
-        <span style={{ color: "var(--text-tertiary)" }}>Search</span>
+        <span style={{ color: "var(--text-tertiary)" }}>{memoryCopy.cards.search}</span>
         <span style={{ color: ms.enabled ? "var(--system-green)" : "var(--text-secondary)" }}>
-          {ms.enabled ? "Enabled" : "Disabled"}
+          {ms.enabled ? memoryCopy.cards.enabled : memoryCopy.cards.disabled}
         </span>
 
-        <span style={{ color: "var(--text-tertiary)" }}>Provider</span>
-        <span style={{ color: "var(--text-secondary)" }}>{ms.provider ?? "None"}</span>
+        <span style={{ color: "var(--text-tertiary)" }}>{memoryCopy.cards.provider}</span>
+        <span style={{ color: "var(--text-secondary)" }}>{ms.provider ?? memoryCopy.cards.none}</span>
 
-        <span style={{ color: "var(--text-tertiary)" }}>Model</span>
+        <span style={{ color: "var(--text-tertiary)" }}>{memoryCopy.cards.model}</span>
         <span className="font-mono" style={{ color: "var(--text-secondary)", fontSize: "var(--text-caption2)" }}>
-          {ms.model ?? "None"}
+          {ms.model ?? memoryCopy.cards.none}
         </span>
 
-        <span style={{ color: "var(--text-tertiary)" }}>Hybrid</span>
+        <span style={{ color: "var(--text-tertiary)" }}>{memoryCopy.cards.hybrid}</span>
         <span style={{ color: "var(--text-secondary)" }}>
           {ms.hybrid.enabled
-            ? `Vector ${ms.hybrid.vectorWeight} / Text ${ms.hybrid.textWeight}`
-            : "Disabled"}
+            ? memoryCopy.cards.hybridWeights(ms.hybrid.vectorWeight, ms.hybrid.textWeight)
+            : memoryCopy.cards.disabled}
         </span>
 
-        <span style={{ color: "var(--text-tertiary)" }}>Decay</span>
+        <span style={{ color: "var(--text-tertiary)" }}>{memoryCopy.cards.decay}</span>
         <span style={{ color: "var(--text-secondary)" }}>
           {ms.hybrid.temporalDecay.enabled
-            ? `Half-life: ${ms.hybrid.temporalDecay.halfLifeDays}d`
-            : "Disabled"}
+            ? memoryCopy.cards.halfLife(ms.hybrid.temporalDecay.halfLifeDays)
+            : memoryCopy.cards.disabled}
         </span>
 
-        <span style={{ color: "var(--text-tertiary)" }}>MMR</span>
+        <span style={{ color: "var(--text-tertiary)" }}>{memoryCopy.cards.mmr}</span>
         <span style={{ color: "var(--text-secondary)" }}>
-          {ms.hybrid.mmr.enabled ? `\u03bb = ${ms.hybrid.mmr.lambda}` : "Disabled"}
+          {ms.hybrid.mmr.enabled ? `\u03bb = ${ms.hybrid.mmr.lambda}` : memoryCopy.cards.disabled}
         </span>
 
-        <span style={{ color: "var(--text-tertiary)" }}>Flush</span>
+        <span style={{ color: "var(--text-tertiary)" }}>{memoryCopy.cards.flush}</span>
         <span style={{ color: "var(--text-secondary)" }}>
-          {mf.enabled ? `Threshold: ${(mf.softThresholdTokens / 1000).toFixed(0)}k tokens` : "Disabled"}
+          {mf.enabled
+            ? memoryCopy.cards.flushThreshold(Number((mf.softThresholdTokens / 1000).toFixed(0)))
+            : memoryCopy.cards.disabled}
         </span>
       </div>
     </div>
@@ -515,6 +554,8 @@ function ConfigPanel({ config }: { config: MemoryConfig }) {
 /* ─── Guide: Decay Visualizer ────────────────────────────────── */
 
 function DecayVisualizer({ config }: { config: MemoryConfig }) {
+  const { copy } = useSettings();
+  const memoryCopy = copy.memory;
   const decay = config.memorySearch.hybrid.temporalDecay;
   const halfLife = decay.halfLifeDays;
   const enabled = decay.enabled;
@@ -560,7 +601,7 @@ function DecayVisualizer({ config }: { config: MemoryConfig }) {
             fontWeight: "var(--weight-medium)",
           }}
         >
-          Temporal Decay Curve
+          {memoryCopy.guide.temporalDecayCurve}
         </span>
         {!enabled && (
           <span
@@ -573,7 +614,7 @@ function DecayVisualizer({ config }: { config: MemoryConfig }) {
               fontWeight: "var(--weight-medium)",
             }}
           >
-            Disabled
+            {memoryCopy.cards.disabled}
           </span>
         )}
       </div>
@@ -667,6 +708,8 @@ function DecayVisualizer({ config }: { config: MemoryConfig }) {
 /* ─── Guide: Hybrid Balance Bar ──────────────────────────────── */
 
 function HybridBalanceBar({ config }: { config: MemoryConfig }) {
+  const { copy } = useSettings();
+  const memoryCopy = copy.memory;
   const { vectorWeight, textWeight } = config.memorySearch.hybrid;
   const enabled = config.memorySearch.hybrid.enabled;
   const vPct = vectorWeight * 100;
@@ -689,7 +732,7 @@ function HybridBalanceBar({ config }: { config: MemoryConfig }) {
             fontWeight: "var(--weight-medium)",
           }}
         >
-          Hybrid Search Balance
+          {memoryCopy.guide.hybridSearchBalance}
         </span>
         {!enabled && (
           <span
@@ -702,7 +745,7 @@ function HybridBalanceBar({ config }: { config: MemoryConfig }) {
               fontWeight: "var(--weight-medium)",
             }}
           >
-            Disabled
+            {memoryCopy.cards.disabled}
           </span>
         )}
       </div>
@@ -724,11 +767,11 @@ function HybridBalanceBar({ config }: { config: MemoryConfig }) {
             alignItems: "center",
             justifyContent: "center",
           }}
-        >
-          <span style={{ fontSize: 10, fontWeight: 600, color: "white" }}>
-            Vector {vPct.toFixed(0)}%
-          </span>
-        </div>
+          >
+            <span style={{ fontSize: 10, fontWeight: 600, color: "white" }}>
+              {`${memoryCopy.guide.vectorLabel} ${vPct.toFixed(0)}%`}
+            </span>
+          </div>
         <div
           style={{
             width: `${tPct}%`,
@@ -737,11 +780,11 @@ function HybridBalanceBar({ config }: { config: MemoryConfig }) {
             alignItems: "center",
             justifyContent: "center",
           }}
-        >
-          <span style={{ fontSize: 10, fontWeight: 600, color: "white" }}>
-            Text {tPct.toFixed(0)}%
-          </span>
-        </div>
+          >
+            <span style={{ fontSize: 10, fontWeight: 600, color: "white" }}>
+              {`${memoryCopy.guide.textLabel} ${tPct.toFixed(0)}%`}
+            </span>
+          </div>
       </div>
     </div>
   );
@@ -749,43 +792,13 @@ function HybridBalanceBar({ config }: { config: MemoryConfig }) {
 
 /* ─── Guide: Best Practices ──────────────────────────────────── */
 
-const BEST_PRACTICE_SECTIONS = [
-  {
-    title: "Writing to Memory",
-    color: "var(--system-green)",
-    tips: [
-      { do: true, text: "Keep MEMORY.md concise -- curated facts, not running logs" },
-      { do: true, text: "Use daily logs (YYYY-MM-DD.md) for ephemeral session context" },
-      { do: false, text: "Don't dump raw conversation transcripts into memory files" },
-      { do: true, text: "Structure entries with clear headers so search can find them" },
-    ],
-  },
-  {
-    title: "Search & Retrieval",
-    color: "var(--system-blue)",
-    tips: [
-      { do: true, text: "Enable hybrid search -- combines semantic + keyword matching" },
-      { do: true, text: "Turn on MMR (Maximal Marginal Relevance) to reduce duplicate results" },
-      { do: true, text: "Configure temporal decay so stale daily logs rank lower over time" },
-      { do: false, text: "Don't set half-life too short -- important context needs time to be useful" },
-    ],
-  },
-  {
-    title: "Maintenance",
-    color: "var(--system-orange)",
-    tips: [
-      { do: true, text: "Review and prune old daily logs periodically" },
-      { do: true, text: "Promote recurring patterns from daily logs into evergreen files" },
-      { do: true, text: "Enable memory flush to auto-compact context before token limits" },
-      { do: false, text: "Don't let MEMORY.md grow past ~200 lines -- split into topic files" },
-    ],
-  },
-];
-
 function BestPractices() {
+  const { copy } = useSettings();
+  const memoryCopy = copy.memory;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-      {BEST_PRACTICE_SECTIONS.map((section) => (
+      {memoryCopy.guide.bestPractices.map((section) => (
         <div
           key={section.title}
           style={{
@@ -834,7 +847,7 @@ function BestPractices() {
                     color: tip.do ? "var(--system-green)" : "var(--system-red)",
                   }}
                 >
-                  {tip.do ? "DO" : "DON'T"}
+                  {tip.do ? memoryCopy.guide.doLabel : memoryCopy.guide.dontLabel}
                 </span>
                 <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-secondary)", lineHeight: "var(--leading-relaxed)" }}>
                   {tip.text}
@@ -850,14 +863,10 @@ function BestPractices() {
 
 /* ─── Guide: File Reference ──────────────────────────────────── */
 
-const FILE_REFERENCE = [
-  { path: "MEMORY.md", purpose: "Long-term curated facts", decay: "Low (evergreen)" },
-  { path: "memory/team-memory.md", purpose: "Shared team knowledge", decay: "Low (evergreen)" },
-  { path: "memory/team-intel.json", purpose: "Structured team data", decay: "Low (evergreen)" },
-  { path: "memory/YYYY-MM-DD.md", purpose: "Daily ephemeral context", decay: "High (temporal)" },
-];
-
 function FileReference() {
+  const { copy } = useSettings();
+  const memoryCopy = copy.memory;
+
   return (
     <div
       style={{
@@ -875,7 +884,7 @@ function FileReference() {
           marginBottom: "var(--space-3)",
         }}
       >
-        File Reference
+        {memoryCopy.guide.fileReference}
       </div>
       <div style={{ overflow: "auto" }}>
         <table
@@ -896,7 +905,7 @@ function FileReference() {
                   borderBottom: "1px solid var(--separator)",
                 }}
               >
-                Path
+                {memoryCopy.guide.columns.path}
               </th>
               <th
                 style={{
@@ -907,7 +916,7 @@ function FileReference() {
                   borderBottom: "1px solid var(--separator)",
                 }}
               >
-                Purpose
+                {memoryCopy.guide.columns.purpose}
               </th>
               <th
                 style={{
@@ -918,12 +927,12 @@ function FileReference() {
                   borderBottom: "1px solid var(--separator)",
                 }}
               >
-                Decay
+                {memoryCopy.guide.columns.decay}
               </th>
             </tr>
           </thead>
           <tbody>
-            {FILE_REFERENCE.map((row) => (
+            {memoryCopy.guide.fileReferenceRows.map((row) => (
               <tr key={row.path}>
                 <td
                   className="font-mono"
@@ -963,6 +972,8 @@ function FileReference() {
 /* ─── Guide: Flush Section ───────────────────────────────────── */
 
 function FlushSection({ config }: { config: MemoryConfig }) {
+  const { copy } = useSettings();
+  const memoryCopy = copy.memory;
   const mf = config.memoryFlush;
   return (
     <div
@@ -981,7 +992,7 @@ function FlushSection({ config }: { config: MemoryConfig }) {
             fontWeight: "var(--weight-medium)",
           }}
         >
-          Memory Flush
+          {memoryCopy.guide.memoryFlush}
         </span>
         <span
           style={{
@@ -993,7 +1004,7 @@ function FlushSection({ config }: { config: MemoryConfig }) {
             fontWeight: "var(--weight-medium)",
           }}
         >
-          {mf.enabled ? "Enabled" : "Disabled"}
+          {mf.enabled ? memoryCopy.cards.enabled : memoryCopy.cards.disabled}
         </span>
       </div>
       <p
@@ -1004,12 +1015,7 @@ function FlushSection({ config }: { config: MemoryConfig }) {
           margin: 0,
         }}
       >
-        When enabled, OpenClaw compacts conversation context by flushing
-        important facts to memory files when the context reaches{" "}
-        <strong style={{ color: "var(--text-primary)" }}>
-          {(mf.softThresholdTokens / 1000).toFixed(0)}k tokens
-        </strong>
-        . This prevents context window overflow while preserving key information.
+        {memoryCopy.guide.flushDescription(Number((mf.softThresholdTokens / 1000).toFixed(0)))}
       </p>
     </div>
   );
@@ -1018,6 +1024,9 @@ function FlushSection({ config }: { config: MemoryConfig }) {
 /* ─── Browser: Category Badge ────────────────────────────────── */
 
 function CategoryBadge({ category }: { category: MemoryFileCategory }) {
+  const { copy } = useSettings();
+  const memoryCopy = copy.memory;
+
   return (
     <span
       style={{
@@ -1030,7 +1039,7 @@ function CategoryBadge({ category }: { category: MemoryFileCategory }) {
         flexShrink: 0,
       }}
     >
-      {CATEGORY_LABELS[category]}
+      {categoryLabel(category, memoryCopy)}
     </span>
   );
 }
@@ -1052,6 +1061,8 @@ function HealthHero({
   stats: MemoryStats;
   status: MemoryStatus;
 }) {
+  const { copy, resolvedLocale } = useSettings();
+  const memoryCopy = copy.memory;
   const criticals = health.checks.filter((c) => c.severity === "critical").length;
   const warnings = health.checks.filter((c) => c.severity === "warning").length;
   const color = healthScoreColor(health.score);
@@ -1092,7 +1103,7 @@ function HealthHero({
               lineHeight: 1.2,
             }}
           >
-            Health Score
+            {memoryCopy.overview.healthScore}
           </div>
           <div
             style={{
@@ -1103,16 +1114,16 @@ function HealthHero({
           >
             {criticals > 0 && (
               <span style={{ color: "var(--system-red)" }}>
-                {criticals} critical
+                {memoryCopy.overview.critical(criticals)}
               </span>
             )}
             {criticals > 0 && warnings > 0 && " \u00b7 "}
             {warnings > 0 && (
               <span style={{ color: "var(--system-orange)" }}>
-                {warnings} warning{warnings !== 1 ? "s" : ""}
+                {memoryCopy.overview.warning(warnings)}
               </span>
             )}
-            {criticals === 0 && warnings === 0 && "All clear"}
+            {criticals === 0 && warnings === 0 && memoryCopy.overview.allClear}
           </div>
         </div>
       </div>
@@ -1128,7 +1139,7 @@ function HealthHero({
           flexWrap: "wrap",
         }}
       >
-        <span>{stats.totalFiles} files</span>
+        <span>{memoryCopy.summary.fileCount(stats.totalFiles)}</span>
         <span style={{ color: "var(--text-tertiary)" }}>{"\u00b7"}</span>
         <span>{formatBytes(stats.totalSizeBytes)}</span>
         <span style={{ color: "var(--text-tertiary)" }}>{"\u00b7"}</span>
@@ -1142,7 +1153,7 @@ function HealthHero({
               flexShrink: 0,
             }}
           />
-          {status.indexed ? "Indexed" : "Not indexed"}
+          {status.indexed ? memoryCopy.cards.indexed : memoryCopy.cards.notIndexed}
         </span>
       </div>
     </div>
@@ -1171,6 +1182,8 @@ function HealthChecksList({
   onViewFile?: (relativePath: string) => void;
   onReindex?: () => void;
 }) {
+  const { copy, resolvedLocale } = useSettings();
+  const memoryCopy = copy.memory;
   if (checks.length === 0) return null;
 
   return (
@@ -1190,10 +1203,11 @@ function HealthChecksList({
           marginBottom: "var(--space-3)",
         }}
       >
-        Health Checks
+        {memoryCopy.overview.healthChecks}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
         {checks.map((check) => {
+          const localizedCheck = localizeMemoryHealthCheck(check, resolvedLocale);
           const severity = check.severity === "ok" ? "info" : check.severity;
           const { Icon, color } = SEVERITY_ICON_MAP[severity];
           const isIndexCheck = check.id === "unindexed-vector" || check.id === "stale-index";
@@ -1208,7 +1222,7 @@ function HealthChecksList({
                     color: "var(--text-primary)",
                   }}
                 >
-                  {check.title}
+                  {localizedCheck.title}
                 </div>
                 <div
                   style={{
@@ -1218,7 +1232,7 @@ function HealthChecksList({
                     marginTop: 2,
                   }}
                 >
-                  {check.description}
+                  {localizedCheck.description}
                 </div>
                 <div
                   style={{
@@ -1248,7 +1262,7 @@ function HealthChecksList({
                       }}
                     >
                       <Zap size={10} />
-                      How to fix
+                      {memoryCopy.overview.howToFix}
                     </button>
                   )}
                   {check.affectedFiles && check.affectedFiles.length > 0 && onViewFile && (
@@ -1267,7 +1281,7 @@ function HealthChecksList({
                         whiteSpace: "nowrap",
                       }}
                     >
-                      View
+                      {memoryCopy.overview.view}
                     </button>
                   )}
                   {isIndexCheck && onReindex && (
@@ -1290,7 +1304,7 @@ function HealthChecksList({
                       }}
                     >
                       <RotateCw size={10} />
-                      Reindex now
+                      {memoryCopy.overview.reindexNow}
                     </button>
                   )}
                 </div>
@@ -1306,6 +1320,8 @@ function HealthChecksList({
 /* ─── Overview: Stale Daily Logs Card ───────────────────────── */
 
 function StaleDailyLogsCard({ health }: { health: MemoryHealthSummary }) {
+  const { copy } = useSettings();
+  const memoryCopy = copy.memory;
   const logs = health.staleDailyLogs;
   if (logs.length === 0) return null;
 
@@ -1328,7 +1344,7 @@ function StaleDailyLogsCard({ health }: { health: MemoryHealthSummary }) {
           marginBottom: "var(--space-3)",
         }}
       >
-        Stale Daily Logs ({logs.length})
+        {memoryCopy.overview.staleDailyLogs(logs.length)}
       </div>
       <div
         style={{
@@ -1338,8 +1354,7 @@ function StaleDailyLogsCard({ health }: { health: MemoryHealthSummary }) {
           lineHeight: "var(--leading-relaxed)",
         }}
       >
-        {logs.length} daily log{logs.length !== 1 ? "s" : ""} older than 30 days ({formatBytes(totalSize)} total).
-        Review for patterns worth promoting to evergreen files, then delete the rest.
+        {memoryCopy.overview.staleSummary(logs.length, formatBytes(totalSize))}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-1)" }}>
         {logs.slice(0, 10).map((log) => (
@@ -1356,7 +1371,7 @@ function StaleDailyLogsCard({ health }: { health: MemoryHealthSummary }) {
               {log.date}
             </span>
             <span style={{ color: "var(--text-tertiary)" }}>
-              {log.ageDays}d {"\u00b7"} {formatBytes(log.sizeBytes)}
+              {memoryCopy.relative.daysShort(log.ageDays)} {"\u00b7"} {formatBytes(log.sizeBytes)}
             </span>
           </div>
         ))}
@@ -1368,7 +1383,7 @@ function StaleDailyLogsCard({ health }: { health: MemoryHealthSummary }) {
               padding: "var(--space-1) var(--space-2)",
             }}
           >
-            +{logs.length - 10} more
+            {memoryCopy.overview.more(logs.length - 10)}
           </div>
         )}
       </div>
@@ -1386,6 +1401,8 @@ const HEALTH_BADGE_COLORS: Record<HealthSeverity, string | null> = {
 };
 
 function HealthBadge({ severity }: { severity: HealthSeverity }) {
+  const { copy } = useSettings();
+  const memoryCopy = copy.memory;
   const color = HEALTH_BADGE_COLORS[severity];
   if (!color) return null;
 
@@ -1398,7 +1415,7 @@ function HealthBadge({ severity }: { severity: HealthSeverity }) {
         background: color,
         flexShrink: 0,
       }}
-      title={`Health: ${severity}`}
+      title={memoryCopy.overview.healthBadge(severity)}
     />
   );
 }
@@ -1412,6 +1429,8 @@ function ReindexButton({
   status: ReindexStatus;
   onReindex: () => void;
 }) {
+  const { copy } = useSettings();
+  const memoryCopy = copy.memory;
   if (status === "unavailable") return null;
 
   const isRunning = status === "running";
@@ -1441,7 +1460,11 @@ function ReindexButton({
           animation: isRunning ? "spin 1s linear infinite" : undefined,
         }}
       />
-      {isRunning ? "Reindexing..." : isSuccess ? "Done" : "Reindex"}
+      {isRunning
+        ? memoryCopy.overview.reindexing
+        : isSuccess
+          ? memoryCopy.overview.reindexDone
+          : memoryCopy.overview.reindexNow}
     </button>
   );
 }
@@ -1488,6 +1511,8 @@ function EditingHintsPanel({ hints }: { hints: EditingHint[] }) {
 /* ─── Main Component ─────────────────────────────────────────── */
 
 export default function MemoryPage() {
+  const { copy } = useSettings();
+  const memoryCopy = copy.memory;
   const [files, setFiles] = useState<MemoryFileInfo[]>([]);
   const [config, setConfig] = useState<MemoryConfig | null>(null);
   const [status, setStatus] = useState<MemoryStatus | null>(null);
@@ -1540,7 +1565,7 @@ export default function MemoryPage() {
     setError(null);
     fetch("/api/memory")
       .then((r) => {
-        if (!r.ok) throw new Error("Failed to load memory files");
+        if (!r.ok) throw new Error(memoryCopy.errors.loading);
         return r.json();
       })
       .then((data: MemoryApiResponse | MemoryFileInfo[]) => {
@@ -1567,10 +1592,10 @@ export default function MemoryPage() {
         setLoading(false);
       })
       .catch((err) => {
-        setError(err instanceof Error ? err.message : "Unknown error");
+        setError(err instanceof Error ? err.message : memoryCopy.errors.unknown);
         setLoading(false);
       });
-  }, []);
+  }, [memoryCopy.errors.loading, memoryCopy.errors.unknown]);
 
   useEffect(() => {
     refresh();
@@ -1676,12 +1701,12 @@ export default function MemoryPage() {
       }
     } catch {
       setAnalysisContent(
-        (prev) => prev + "\n\n[Error: Failed to connect to agent]",
+        (prev) => prev + `\n\n${memoryCopy.advisor.connectError}`,
       );
     } finally {
       setAnalysisStreaming(false);
     }
-  }, [rootAgent, analysisStreaming, files, config, status, stats, health]);
+  }, [rootAgent, analysisStreaming, files, config, status, stats, health, memoryCopy.advisor.connectError]);
 
   const sendChatMessage = useCallback(
     async (overrideText?: string) => {
@@ -1770,7 +1795,7 @@ export default function MemoryPage() {
             m.id === assistantMsgId
               ? {
                   ...m,
-                  content: "Error getting response. Check API connection.",
+                  content: memoryCopy.advisor.responseError,
                   isStreaming: false,
                 }
               : m,
@@ -1781,7 +1806,19 @@ export default function MemoryPage() {
         chatTextareaRef.current?.focus();
       }
     },
-    [chatInput, chatStreaming, rootAgent, chatMessages, analysisContent, files, config, status, stats, health],
+    [
+      chatInput,
+      chatStreaming,
+      rootAgent,
+      chatMessages,
+      analysisContent,
+      files,
+      config,
+      status,
+      stats,
+      health,
+      memoryCopy.advisor.responseError,
+    ],
   );
 
   const handleCheckAction = useCallback(
@@ -1943,7 +1980,7 @@ export default function MemoryPage() {
       try {
         JSON.parse(editingContent);
       } catch {
-        setSaveError("Invalid JSON syntax");
+        setSaveError(memoryCopy.browser.invalidJson);
         return;
       }
     }
@@ -1963,8 +2000,8 @@ export default function MemoryPage() {
       });
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({ error: "Save failed" }));
-        setSaveError(data.error || `Save failed (${res.status})`);
+        const data = await res.json().catch(() => ({ error: memoryCopy.browser.saveFailed }));
+        setSaveError(data.error || `${memoryCopy.browser.saveFailed} (${res.status})`);
         return;
       }
 
@@ -1988,7 +2025,7 @@ export default function MemoryPage() {
         setReindexStatus("idle");
       }
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : "Save failed");
+      setSaveError(err instanceof Error ? err.message : memoryCopy.browser.saveFailed);
     } finally {
       setSaving(false);
     }
@@ -2170,7 +2207,7 @@ export default function MemoryPage() {
                 lineHeight: "var(--leading-tight)",
               }}
             >
-              Memory
+              {memoryCopy.summary.title}
             </h1>
             {!loading && stats && (
               <p
@@ -2180,13 +2217,13 @@ export default function MemoryPage() {
                   marginTop: "var(--space-1)",
                 }}
               >
-                {stats.totalFiles} file{stats.totalFiles !== 1 ? "s" : ""}
+                {memoryCopy.summary.fileCount(stats.totalFiles)}
                 {" \u00b7 "}
                 {formatBytes(stats.totalSizeBytes)}
                 {stats.dailyLogCount > 0 && (
                   <>
                     {" \u00b7 "}
-                    {stats.dailyLogCount} daily log{stats.dailyLogCount !== 1 ? "s" : ""}
+                    {memoryCopy.summary.dailyLogs(stats.dailyLogCount)}
                   </>
                 )}
               </p>
@@ -2195,7 +2232,7 @@ export default function MemoryPage() {
           <button
             onClick={refresh}
             className="focus-ring"
-            aria-label="Refresh memory data"
+            aria-label={memoryCopy.summary.refreshAria}
             style={{
               width: 32,
               height: 32,
@@ -2224,6 +2261,7 @@ export default function MemoryPage() {
         >
           {TABS.map((t) => {
             const isActive = tab === t.key;
+            const Icon = TAB_ICONS[t.key];
             return (
               <button
                 key={t.key}
@@ -2246,8 +2284,8 @@ export default function MemoryPage() {
                   gap: 6,
                 }}
               >
-                <t.Icon size={14} />
-                {t.label}
+                <Icon size={14} />
+                {memoryCopy.tabs[t.key]}
               </button>
             );
           })}
@@ -2333,10 +2371,10 @@ export default function MemoryPage() {
                       <Activity size={18} style={{ color: "var(--accent)", flexShrink: 0 }} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
-                          Memory Advisor
+                          {memoryCopy.advisor.title}
                         </div>
                         <div style={{ fontSize: 12, color: "var(--text-tertiary)", marginTop: 2 }}>
-                          AI-powered analysis of your memory system health
+                          {memoryCopy.advisor.subtitle}
                         </div>
                       </div>
                       {analysisStreaming && (
@@ -2348,7 +2386,7 @@ export default function MemoryPage() {
                             width: 6, height: 6, borderRadius: "50%", background: "var(--accent)",
                             animation: "pulse 1.2s infinite",
                           }} />
-                          Analyzing...
+                          {memoryCopy.advisor.analyzing}
                         </span>
                       )}
                       {!analysisOpen && !analysisContent && !analysisStreaming && (
@@ -2362,7 +2400,7 @@ export default function MemoryPage() {
                             border: "none", cursor: "pointer",
                           }}
                         >
-                          Analyze
+                          {memoryCopy.advisor.analyze}
                         </button>
                       )}
                       {(analysisOpen || analysisContent) && (
@@ -2418,15 +2456,10 @@ export default function MemoryPage() {
                         {!analysisContent && !analysisStreaming && (
                           <div style={{ padding: "12px 20px 16px" }}>
                             <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-tertiary)", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: 8 }}>
-                              Ask about
+                              {memoryCopy.advisor.askAbout}
                             </div>
                             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                              {[
-                                "What should I fix first and why?",
-                                "How do I reorganize MEMORY.md?",
-                                "Walk me through cleaning up old daily logs",
-                                "Is my memory system set up correctly?",
-                              ].map((q) => (
+                              {memoryCopy.advisor.starterQuestions.map((q) => (
                                 <button
                                   key={q}
                                   onClick={() => { setAnalysisOpen(true); runAnalysis(); }}
@@ -2479,7 +2512,7 @@ export default function MemoryPage() {
                                       {msg.role === "assistant" ? (
                                         <div
                                           className="markdown-body"
-                                          dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content || "...") }}
+                                          dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content || memoryCopy.advisor.streamingPlaceholder) }}
                                         />
                                       ) : (
                                         msg.content
@@ -2500,11 +2533,7 @@ export default function MemoryPage() {
                             {/* Follow-up suggestions */}
                             {chatMessages.length === 0 && (
                               <div style={{ padding: "8px 20px 4px", display: "flex", flexWrap: "wrap", gap: 6 }}>
-                                {[
-                                  "Show me the specific changes to make",
-                                  "What's the impact of not fixing this?",
-                                  "Help me write the new topic files",
-                                ].map((q) => (
+                                {memoryCopy.advisor.followUpQuestions.map((q) => (
                                   <button
                                     key={q}
                                     onClick={() => sendChatMessage(q)}
@@ -2539,7 +2568,7 @@ export default function MemoryPage() {
                                     sendChatMessage();
                                   }
                                 }}
-                                placeholder="Ask a follow-up..."
+                                placeholder={memoryCopy.advisor.inputPlaceholder}
                                 disabled={chatStreaming}
                                 rows={1}
                                 style={{
@@ -2571,7 +2600,7 @@ export default function MemoryPage() {
                                   opacity: chatStreaming || !chatInput.trim() ? 0.5 : 1,
                                 }}
                               >
-                                Send
+                                {memoryCopy.advisor.send}
                               </button>
                             </div>
                           </>
@@ -2634,11 +2663,11 @@ export default function MemoryPage() {
                     <input
                       ref={searchRef}
                       type="search"
-                      placeholder="Search files..."
+                      placeholder={memoryCopy.browser.searchPlaceholder}
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                       className="apple-input focus-ring"
-                      aria-label="Search memory files"
+                      aria-label={memoryCopy.browser.searchAria}
                       style={{
                         width: "100%",
                         height: 32,
@@ -2675,7 +2704,7 @@ export default function MemoryPage() {
                             textTransform: "capitalize",
                           }}
                         >
-                          {s}
+                          {memoryCopy.browser.sort[s]}
                         </button>
                       ))}
                     </div>
@@ -2685,7 +2714,7 @@ export default function MemoryPage() {
                   <div
                     ref={listRef}
                     role="listbox"
-                    aria-label="Memory files"
+                    aria-label={memoryCopy.browser.listAria}
                     onKeyDown={handleListKeyDown}
                     className="flex-1 overflow-y-auto browser-sidebar"
                   >
@@ -2698,7 +2727,7 @@ export default function MemoryPage() {
                           color: "var(--text-tertiary)",
                         }}
                       >
-                        No files match
+                        {memoryCopy.browser.noFilesMatch}
                       </div>
                     ) : (
                       sortedFiles.map((file) => {
@@ -2773,7 +2802,7 @@ export default function MemoryPage() {
                                       marginLeft: "var(--space-2)",
                                     }}
                                   >
-                                    {matches} match{matches !== 1 ? "es" : ""}
+                                    {memoryCopy.browser.matches(matches)}
                                   </span>
                                 )}
                               </div>
@@ -2809,7 +2838,7 @@ export default function MemoryPage() {
                         <button
                           onClick={() => setMobileShowContent(false)}
                           className="md:hidden btn-ghost focus-ring"
-                          aria-label="Back to file list"
+                          aria-label={memoryCopy.browser.backToFileList}
                           style={{
                             display: "inline-flex",
                             alignItems: "center",
@@ -2823,7 +2852,7 @@ export default function MemoryPage() {
                           }}
                         >
                           <BackArrow />
-                          Files
+                          {memoryCopy.browser.files}
                         </button>
 
                         <div className="flex items-center justify-between">
@@ -2873,7 +2902,7 @@ export default function MemoryPage() {
                                     background: "var(--system-orange)",
                                     flexShrink: 0,
                                   }}
-                                  title="Unsaved changes"
+                                  title={memoryCopy.browser.unsavedChanges}
                                 />
                               )}
                             </div>
@@ -2886,17 +2915,17 @@ export default function MemoryPage() {
                                 marginTop: 2,
                               }}
                             >
-                              {lineCount} line{lineCount !== 1 ? "s" : ""}
+                              {memoryCopy.browser.lines(lineCount)}
                               {!isJson && (
                                 <>
                                   {" "}
-                                  {"\u00b7"} {words.toLocaleString()} words
+                                  {"\u00b7"} {memoryCopy.browser.words(words)}
                                 </>
                               )}
                               {" \u00b7 "}
                               {formatBytes(selected.sizeBytes)}
                               {" \u00b7 "}
-                              {timeAgo(selected.lastModified)}
+                              {localizeRelativeLabel(timeAgo(selected.lastModified), memoryCopy)}
                             </div>
                           </div>
 
@@ -2921,7 +2950,7 @@ export default function MemoryPage() {
                                   }}
                                 >
                                   <X size={14} />
-                                  Cancel
+                                  {memoryCopy.browser.cancel}
                                 </button>
                                 <button
                                   onClick={saveContent}
@@ -2943,7 +2972,7 @@ export default function MemoryPage() {
                                   }}
                                 >
                                   <Save size={14} />
-                                  {saving ? "Saving..." : "Save"}
+                                  {saving ? memoryCopy.browser.saving : memoryCopy.browser.save}
                                 </button>
                               </>
                             ) : (
@@ -2951,7 +2980,7 @@ export default function MemoryPage() {
                                 <button
                                   onClick={copyContent}
                                   className="btn-ghost focus-ring"
-                                  aria-label="Copy file content"
+                                  aria-label={memoryCopy.browser.copyAria}
                                   style={{
                                     padding: "6px 12px",
                                     borderRadius: "var(--radius-sm)",
@@ -2963,12 +2992,12 @@ export default function MemoryPage() {
                                   }}
                                 >
                                   {copied ? <Check size={14} /> : <Copy size={14} />}
-                                  {copied ? "Copied" : "Copy"}
+                                  {copied ? memoryCopy.browser.copied : memoryCopy.browser.copy}
                                 </button>
                                 <button
                                   onClick={downloadContent}
                                   className="btn-ghost focus-ring"
-                                  aria-label="Download file"
+                                  aria-label={memoryCopy.browser.downloadAria}
                                   style={{
                                     padding: "6px 12px",
                                     borderRadius: "var(--radius-sm)",
@@ -2980,12 +3009,12 @@ export default function MemoryPage() {
                                   }}
                                 >
                                   <Download size={14} />
-                                  Download
+                                  {memoryCopy.browser.download}
                                 </button>
                                 <button
                                   onClick={startEditing}
                                   className="btn-ghost focus-ring"
-                                  aria-label="Edit file"
+                                  aria-label={memoryCopy.browser.editAria}
                                   style={{
                                     padding: "6px 12px",
                                     borderRadius: "var(--radius-sm)",
@@ -2997,7 +3026,7 @@ export default function MemoryPage() {
                                   }}
                                 >
                                   <Pencil size={14} />
-                                  Edit
+                                  {memoryCopy.browser.edit}
                                 </button>
                                 {showReindex && (
                                   <ReindexButton
@@ -3025,7 +3054,7 @@ export default function MemoryPage() {
                             gap: "var(--space-2)",
                           }}
                         >
-                          <span>Unsaved changes</span>
+                          <span>{memoryCopy.browser.unsavedChanges}</span>
                           <div className="flex items-center" style={{ gap: "var(--space-2)" }}>
                             <button
                               onClick={saveContent}
@@ -3040,7 +3069,7 @@ export default function MemoryPage() {
                                 cursor: "pointer",
                               }}
                             >
-                              {saving ? "Saving..." : "Save"}
+                              {saving ? memoryCopy.browser.saving : memoryCopy.browser.save}
                             </button>
                             <button
                               onClick={discardAndSwitch}
@@ -3054,7 +3083,7 @@ export default function MemoryPage() {
                                 cursor: "pointer",
                               }}
                             >
-                              Discard
+                              {memoryCopy.browser.discard}
                             </button>
                           </div>
                         </div>
@@ -3127,7 +3156,7 @@ export default function MemoryPage() {
                           marginTop: "var(--space-2)",
                         }}
                       >
-                        Select a file
+                        {memoryCopy.browser.selectFile}
                       </span>
                       <span
                         style={{
@@ -3137,7 +3166,7 @@ export default function MemoryPage() {
                           maxWidth: 240,
                         }}
                       >
-                        Choose a file from the sidebar to view its contents
+                        {memoryCopy.browser.chooseFile}
                       </span>
                     </div>
                   )}

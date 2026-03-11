@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useCallback, useRef, useEffect } from "react"
+import { useSettings } from "@/app/settings-provider"
+import type { Copy as I18nCopy } from "@/lib/i18n"
 import type { Agent, CronJob } from "@/lib/types"
 import type { Pipeline } from "@/lib/cron-pipelines"
 
@@ -35,30 +37,32 @@ function extractJson(text: string): string | null {
   return match ? match[1].trim() : null
 }
 
-function validatePipelines(json: string): { valid: boolean; error: string | null; data: Pipeline[] | null } {
+type PipelineWizardCopy = I18nCopy["crons"]["pipelines"]["wizard"]
+
+function validatePipelines(json: string, copy: PipelineWizardCopy): { valid: boolean; error: string | null; data: Pipeline[] | null } {
   let parsed: unknown
   try {
     parsed = JSON.parse(json)
   } catch {
-    return { valid: false, error: "Invalid JSON syntax", data: null }
+    return { valid: false, error: copy.errors.invalidJson, data: null }
   }
 
   if (!Array.isArray(parsed)) {
-    return { valid: false, error: "Must be an array", data: null }
+    return { valid: false, error: copy.errors.mustBeArray, data: null }
   }
 
   for (let i = 0; i < parsed.length; i++) {
     const p = parsed[i] as Record<string, unknown>
     if (typeof p.name !== "string") {
-      return { valid: false, error: `Pipeline ${i}: missing "name" string`, data: null }
+      return { valid: false, error: copy.errors.missingName(i), data: null }
     }
     if (!Array.isArray(p.edges)) {
-      return { valid: false, error: `Pipeline "${p.name}": missing "edges" array`, data: null }
+      return { valid: false, error: copy.errors.missingEdges(p.name), data: null }
     }
     for (let j = 0; j < (p.edges as unknown[]).length; j++) {
       const e = (p.edges as Record<string, unknown>[])[j]
       if (typeof e.from !== "string" || typeof e.to !== "string" || typeof e.artifact !== "string") {
-        return { valid: false, error: `Pipeline "${p.name}", edge ${j}: requires "from", "to", and "artifact" strings`, data: null }
+        return { valid: false, error: copy.errors.invalidEdge(p.name, j), data: null }
       }
     }
   }
@@ -86,6 +90,8 @@ function formatElapsed(s: number): string {
 }
 
 export function PipelineWizard({ open, onOpenChange, agents, crons, onSaved }: PipelineWizardProps) {
+  const { copy } = useSettings()
+  const wizardCopy = copy.crons.pipelines.wizard
   const [step, setStep] = useState(0)
   const [selectedAgentId, setSelectedAgentId] = useState("")
   const [isStreaming, setIsStreaming] = useState(false)
@@ -129,9 +135,9 @@ export function PipelineWizard({ open, onOpenChange, agents, crons, onSaved }: P
       setParseError(null)
       return
     }
-    const { valid, error } = validatePipelines(pipelineJson)
+    const { valid, error } = validatePipelines(pipelineJson, wizardCopy)
     setParseError(valid ? null : error)
-  }, [pipelineJson])
+  }, [pipelineJson, wizardCopy])
 
   const handleAnalyze = useCallback(async () => {
     setStep(1)
@@ -188,14 +194,14 @@ export function PipelineWizard({ open, onOpenChange, agents, crons, onSaved }: P
         setPipelineJson(extracted)
       }
     } catch {
-      setAgentResponse(prev => prev + "\n\n[Error: Failed to connect to agent]")
+      setAgentResponse(prev => prev + `\n\n${wizardCopy.errors.connectError}`)
     } finally {
       setIsStreaming(false)
     }
-  }, [crons, selectedAgentId])
+  }, [crons, selectedAgentId, wizardCopy.errors.connectError])
 
   const handleSave = useCallback(async () => {
-    const { valid, data } = validatePipelines(pipelineJson)
+    const { valid, data } = validatePipelines(pipelineJson, wizardCopy)
     if (!valid || !data) return
 
     setIsSaving(true)
@@ -208,16 +214,16 @@ export function PipelineWizard({ open, onOpenChange, agents, crons, onSaved }: P
 
       if (!res.ok) {
         const err = await res.json()
-        throw new Error(err.error || "Failed to save")
+        throw new Error(err.error || wizardCopy.errors.saveFailed)
       }
 
       setStep(2)
     } catch (err) {
-      setParseError(err instanceof Error ? err.message : "Failed to save pipelines")
+      setParseError(err instanceof Error ? err.message : wizardCopy.errors.saveFailed)
     } finally {
       setIsSaving(false)
     }
-  }, [pipelineJson])
+  }, [pipelineJson, wizardCopy])
 
   const handleClose = useCallback(() => {
     if (step === 2) {
@@ -270,7 +276,7 @@ export function PipelineWizard({ open, onOpenChange, agents, crons, onSaved }: P
           {!isStreaming && (
             <button
               onClick={() => onOpenChange(false)}
-              aria-label="Close"
+              aria-label={wizardCopy.closeAria}
               style={{
                 position: "absolute",
                 top: 16,
@@ -293,17 +299,17 @@ export function PipelineWizard({ open, onOpenChange, agents, crons, onSaved }: P
           )}
 
           <div style={{ fontSize: "var(--text-title3)", fontWeight: "var(--weight-bold)", color: "var(--text-primary)", marginBottom: "var(--space-1)" }}>
-            {step === 0 && "Set Up Pipelines"}
-            {step === 1 && "Pipeline Analysis"}
-            {step === 2 && "Pipelines Saved"}
+            {step === 0 && wizardCopy.titles.setup}
+            {step === 1 && wizardCopy.titles.analysis}
+            {step === 2 && wizardCopy.titles.saved}
           </div>
           <div style={{ fontSize: "var(--text-footnote)", color: "var(--text-secondary)", lineHeight: "var(--leading-relaxed)" }}>
-            {step === 0 && "An AI agent will analyze your cron jobs to detect file dependencies between them, then generate a pipeline config you can review and save."}
+            {step === 0 && wizardCopy.descriptions.setup}
             {step === 1 && (isStreaming
-              ? "Your agent is analyzing " + crons.length + " cron job" + (crons.length !== 1 ? "s" : "") + " to map out your system's data flow."
-              : "Review the suggested pipeline configuration below."
+              ? wizardCopy.cronJobsToAnalyze(crons.length)
+              : wizardCopy.descriptions.analysisReview
             )}
-            {step === 2 && "Your pipeline configuration has been saved successfully."}
+            {step === 2 && wizardCopy.descriptions.saved}
           </div>
 
           {/* Step indicator */}
@@ -355,22 +361,18 @@ export function PipelineWizard({ open, onOpenChange, agents, crons, onSaved }: P
                   </div>
                   <div>
                     <div style={{ fontSize: "var(--text-footnote)", fontWeight: 600, color: "var(--text-primary)" }}>
-                      {crons.length} cron job{crons.length !== 1 ? "s" : ""} to analyze
+                      {wizardCopy.cronJobsToAnalyze(crons.length)}
                     </div>
                     <div style={{ fontSize: "var(--text-caption2)", color: "var(--text-tertiary)", lineHeight: 1.4, marginTop: 2 }}>
-                      The agent will map file I/O dependencies between your jobs
+                      {wizardCopy.mapDependencies}
                     </div>
                   </div>
                 </div>
 
                 {/* How it works steps */}
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                  {[
-                    { icon: "1", text: "Reads job names, schedules, and descriptions" },
-                    { icon: "2", text: "Infers which jobs produce files others consume" },
-                    { icon: "3", text: "Generates a pipeline config for you to review" },
-                  ].map(item => (
-                    <div key={item.icon} style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+                  {wizardCopy.steps.map((text, index) => (
+                    <div key={index} style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
                       <div style={{
                         width: 18,
                         height: 18,
@@ -384,10 +386,10 @@ export function PipelineWizard({ open, onOpenChange, agents, crons, onSaved }: P
                         justifyContent: "center",
                         flexShrink: 0,
                       }}>
-                        {item.icon}
+                        {index + 1}
                       </div>
                       <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-secondary)" }}>
-                        {item.text}
+                        {text}
                       </span>
                     </div>
                   ))}
@@ -409,10 +411,10 @@ export function PipelineWizard({ open, onOpenChange, agents, crons, onSaved }: P
                 </svg>
                 <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-secondary)", lineHeight: 1.4 }}>
                   {crons.length <= 5
-                    ? "This usually takes 15\u201330 seconds."
+                    ? wizardCopy.timeExpectations.short
                     : crons.length <= 20
-                      ? "With " + crons.length + " jobs, this may take 30\u201360 seconds."
-                      : "With " + crons.length + " jobs, this may take a minute or more. Sit tight!"
+                      ? wizardCopy.timeExpectations.medium(crons.length)
+                      : wizardCopy.timeExpectations.long(crons.length)
                   }
                 </span>
               </div>
@@ -423,7 +425,7 @@ export function PipelineWizard({ open, onOpenChange, agents, crons, onSaved }: P
                   htmlFor="agent-select"
                   style={{ display: "block", fontSize: "var(--text-caption1)", color: "var(--text-tertiary)", fontWeight: "var(--weight-medium)", marginBottom: "var(--space-1)" }}
                 >
-                  Analyzing agent
+                  {wizardCopy.analyzingAgent}
                 </label>
                 <select
                   id="agent-select"
@@ -463,7 +465,7 @@ export function PipelineWizard({ open, onOpenChange, agents, crons, onSaved }: P
                     color: "var(--text-secondary)",
                   }}
                 >
-                  Cancel
+                  {wizardCopy.cancel}
                 </button>
                 <button
                   onClick={handleAnalyze}
@@ -483,12 +485,12 @@ export function PipelineWizard({ open, onOpenChange, agents, crons, onSaved }: P
                     alignItems: "center",
                     gap: 8,
                   }}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 2a4 4 0 0 0-4 4v2H6a2 2 0 0 0-2 2v1l2 9h12l2-9v-1a2 2 0 0 0-2-2h-2V6a4 4 0 0 0-4-4z" />
-                    <line x1="12" y1="12" x2="12" y2="16" /><line x1="10" y1="14" x2="14" y2="14" />
-                  </svg>
-                  Analyze My Crons
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 2a4 4 0 0 0-4 4v2H6a2 2 0 0 0-2 2v1l2 9h12l2-9v-1a2 2 0 0 0-2-2h-2V6a4 4 0 0 0-4-4z" />
+                      <line x1="12" y1="12" x2="12" y2="16" /><line x1="10" y1="14" x2="14" y2="14" />
+                    </svg>
+                  {wizardCopy.analyzeCrons}
                 </button>
               </div>
             </div>
@@ -520,15 +522,15 @@ export function PipelineWizard({ open, onOpenChange, agents, crons, onSaved }: P
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: "var(--text-footnote)", fontWeight: 600, color: "var(--text-primary)" }}>
                       {!agentResponse
-                        ? "Connecting to " + (selectedAgent?.name || "agent") + "..."
+                        ? wizardCopy.connectingTo(selectedAgent?.name || "agent")
                         : pipelineJson
-                          ? "Finalizing pipeline config..."
-                          : "Mapping job dependencies..."
+                          ? wizardCopy.finalizing
+                          : wizardCopy.mappingDependencies
                       }
                     </div>
                     <div style={{ fontSize: "var(--text-caption2)", color: "var(--text-tertiary)", marginTop: 2 }}>
-                      {formatElapsed(elapsed)} elapsed
-                      {crons.length > 10 && !agentResponse && " \u00b7 Larger workspaces take longer"}
+                      {formatElapsed(elapsed)} {wizardCopy.elapsedSuffix}
+                      {crons.length > 10 && !agentResponse && ` \u00b7 ${wizardCopy.largerWorkspaces}`}
                     </div>
                   </div>
                   {selectedAgent && (
@@ -564,10 +566,10 @@ export function PipelineWizard({ open, onOpenChange, agents, crons, onSaved }: P
                     <circle cx="12" cy="12" r="10" /><polyline points="8 12 11 15 16 9" />
                   </svg>
                   <span style={{ fontSize: "var(--text-caption1)", color: "var(--system-green, #22c55e)", fontWeight: 600 }}>
-                    Analysis complete
+                    {wizardCopy.analysisComplete}
                   </span>
                   <span style={{ fontSize: "var(--text-caption2)", color: "var(--text-tertiary)" }}>
-                    {pipelineJson ? "Review the config below and save when ready." : "No dependencies detected. You can edit the JSON manually."}
+                    {pipelineJson ? wizardCopy.reviewReady : wizardCopy.noDependencies}
                   </span>
                 </div>
               )}
@@ -575,7 +577,7 @@ export function PipelineWizard({ open, onOpenChange, agents, crons, onSaved }: P
               {/* Agent response area */}
               <div>
                 <div style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)", fontWeight: "var(--weight-medium)", marginBottom: "var(--space-1)" }}>
-                  {selectedAgent?.emoji} {selectedAgent?.name}&apos;s Analysis
+                  {selectedAgent?.emoji} {wizardCopy.analysisHeading(selectedAgent?.name || "Agent")}
                 </div>
                 {/* Skeleton while waiting for first chunk */}
                 {isStreaming && !agentResponse && (
@@ -643,12 +645,12 @@ export function PipelineWizard({ open, onOpenChange, agents, crons, onSaved }: P
               {/* Editable JSON textarea */}
               <div>
                 <div style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)", fontWeight: "var(--weight-medium)", marginBottom: "var(--space-1)" }}>
-                  Pipeline Configuration
+                  {wizardCopy.pipelineConfiguration}
                 </div>
                 <textarea
                   value={pipelineJson}
                   onChange={e => setPipelineJson(e.target.value)}
-                  placeholder="JSON will appear here once the agent responds..."
+                  placeholder={wizardCopy.jsonPlaceholder}
                   spellCheck={false}
                   style={{
                     width: "100%",
@@ -672,7 +674,7 @@ export function PipelineWizard({ open, onOpenChange, agents, crons, onSaved }: P
                 )}
                 {!parseError && pipelineJson.trim() && (
                   <div style={{ fontSize: "var(--text-caption2)", color: "var(--system-green)", marginTop: "var(--space-1)" }}>
-                    Valid pipeline configuration
+                    {wizardCopy.validConfig}
                   </div>
                 )}
               </div>
@@ -694,7 +696,7 @@ export function PipelineWizard({ open, onOpenChange, agents, crons, onSaved }: P
                     opacity: isStreaming ? 0.5 : 1,
                   }}
                 >
-                  Back
+                  {wizardCopy.back}
                 </button>
                 <button
                   onClick={handleSave}
@@ -712,7 +714,7 @@ export function PipelineWizard({ open, onOpenChange, agents, crons, onSaved }: P
                     opacity: (!jsonIsValid || isStreaming || isSaving) ? 0.5 : 1,
                   }}
                 >
-                  {isSaving ? "Saving..." : "Save Pipelines"}
+                  {isSaving ? wizardCopy.saving : wizardCopy.save}
                 </button>
               </div>
             </div>
@@ -728,7 +730,7 @@ export function PipelineWizard({ open, onOpenChange, agents, crons, onSaved }: P
               </div>
               <div style={{ textAlign: "center" }}>
                 <div style={{ fontSize: "var(--text-subheadline)", fontWeight: "var(--weight-semibold)", color: "var(--text-primary)", marginBottom: "var(--space-1)" }}>
-                  Pipelines saved
+                  {wizardCopy.savedTitle}
                 </div>
                 <div
                   style={{
@@ -743,7 +745,7 @@ export function PipelineWizard({ open, onOpenChange, agents, crons, onSaved }: P
                     marginTop: "var(--space-2)",
                   }}
                 >
-                  $WORKSPACE_PATH/clawport/pipelines.json
+                  {wizardCopy.savedPath}
                 </div>
               </div>
               <button
@@ -759,9 +761,9 @@ export function PipelineWizard({ open, onOpenChange, agents, crons, onSaved }: P
                   background: "var(--accent)",
                   color: "#fff",
                 }}
-              >
-                Close
-              </button>
+                >
+                  {wizardCopy.close}
+                </button>
             </div>
           )}
         </div>

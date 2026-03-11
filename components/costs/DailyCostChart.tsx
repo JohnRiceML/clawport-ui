@@ -1,10 +1,13 @@
 'use client'
 
 import { useState } from 'react'
+import { useSettings } from '@/app/settings-provider'
 import type { CostSummary } from '@/lib/types'
 import { fmtCost } from './formatters'
 
 export function DailyCostChart({ dailyCosts }: { dailyCosts: CostSummary['dailyCosts'] }) {
+  const { copy, resolvedLocale } = useSettings()
+  const chartsCopy = copy.costs.charts
   const [hover, setHover] = useState<number | null>(null)
   if (dailyCosts.length === 0) return null
 
@@ -23,6 +26,12 @@ export function DailyCostChart({ dailyCosts }: { dailyCosts: CostSummary['dailyC
     ? [0, maxCost * 0.25, maxCost * 0.5, maxCost * 0.75, maxCost]
     : [0]
 
+  const formatShortDate = (date: string) =>
+    new Date(`${date}T00:00:00`).toLocaleDateString(resolvedLocale, {
+      month: 'short',
+      day: 'numeric',
+    })
+
   return (
     <div style={{
       background: 'var(--material-regular)',
@@ -37,7 +46,7 @@ export function DailyCostChart({ dailyCosts }: { dailyCosts: CostSummary['dailyC
         fontWeight: 'var(--weight-medium)',
         marginBottom: 'var(--space-3)',
       }}>
-        Daily Estimated Cost
+        {chartsCopy.dailyEstimatedCost}
       </div>
       <svg
         viewBox={`0 0 ${W} ${H}`}
@@ -83,7 +92,7 @@ export function DailyCostChart({ dailyCosts }: { dailyCosts: CostSummary['dailyC
                   fontSize={8}
                   fill="var(--text-tertiary)"
                 >
-                  {d.date.slice(5)}
+                  {formatShortDate(d.date)}
                 </text>
               )}
               {isHovered && (
@@ -104,7 +113,7 @@ export function DailyCostChart({ dailyCosts }: { dailyCosts: CostSummary['dailyC
                     fill="var(--text-primary)"
                     fontWeight="600"
                   >
-                    {d.date.slice(5)} — {fmtCost(d.cost)}
+                    {chartsCopy.tooltip(formatShortDate(d.date), fmtCost(d.cost))}
                   </text>
                 </>
               )}

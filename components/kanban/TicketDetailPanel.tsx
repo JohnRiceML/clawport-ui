@@ -4,9 +4,10 @@ import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { Maximize2, Minimize2 } from 'lucide-react'
 import type { Agent } from '@/lib/types'
 import type { KanbanTicket, TicketStatus, TicketPriority } from '@/lib/kanban/types'
-import { PRIORITY_COLORS, ROLE_LABELS, COLUMNS } from '@/lib/kanban/types'
+import { PRIORITY_COLORS } from '@/lib/kanban/types'
 import { AgentAvatar } from '@/components/AgentAvatar'
 import { generateId } from '@/lib/id'
+import { useSettings } from '@/app/settings-provider'
 
 /* ── Chat message type (local to kanban) ─────────────── */
 
@@ -145,6 +146,8 @@ function formatContent(content: string): React.ReactNode {
 /* ── Priority badge ──────────────────────────────────── */
 
 function PriorityBadge({ priority }: { priority: TicketPriority }) {
+  const { copy } = useSettings()
+  const kanbanCopy = copy.kanban
   return (
     <span style={{
       display: 'inline-flex',
@@ -162,7 +165,7 @@ function PriorityBadge({ priority }: { priority: TicketPriority }) {
         borderRadius: '50%',
         background: PRIORITY_COLORS[priority],
       }} />
-      {priority}
+      {kanbanCopy.priorityLabels[priority]}
     </span>
   )
 }
@@ -170,7 +173,16 @@ function PriorityBadge({ priority }: { priority: TicketPriority }) {
 /* ── Status badge ────────────────────────────────────── */
 
 function StatusBadge({ status }: { status: TicketStatus }) {
-  const label = COLUMNS.find(c => c.id === status)?.title ?? status
+  const { copy } = useSettings()
+  const kanbanCopy = copy.kanban
+  const labelMap: Record<TicketStatus, string> = {
+    backlog: kanbanCopy.columns.backlog,
+    todo: kanbanCopy.columns.todo,
+    'in-progress': kanbanCopy.columns.inProgress,
+    review: kanbanCopy.columns.review,
+    done: kanbanCopy.columns.done,
+  }
+  const label = labelMap[status] ?? status
   return (
     <span style={{
       fontSize: 'var(--text-caption2)',
@@ -206,6 +218,9 @@ export function TicketDetailPanel({
   onDelete,
   onRetryWork,
 }: TicketDetailPanelProps) {
+  const { copy } = useSettings()
+  const kanbanCopy = copy.kanban
+  const detailCopy = kanbanCopy.detailPanel
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
@@ -290,7 +305,7 @@ export function TicketDetailPanel({
         }),
       })
 
-      if (!res.ok || !res.body) throw new Error('Stream failed')
+      if (!res.ok || !res.body) throw new Error(detailCopy.streamFailed)
 
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
@@ -338,7 +353,7 @@ export function TicketDetailPanel({
         body: JSON.stringify({ messages: [userMsg, completedAssistant] }),
       }).catch(() => { /* persist best-effort */ })
     } catch {
-      const errorContent = 'Error getting response. Check API connection.'
+      const errorContent = detailCopy.responseError
       setMessages(prev =>
         prev.map(m => m.id === assistantMsgId
           ? { ...m, content: errorContent, isStreaming: false }
@@ -357,7 +372,7 @@ export function TicketDetailPanel({
       setIsStreaming(false)
       textareaRef.current?.focus()
     }
-  }, [input, isStreaming, agent, messages, ticket])
+  }, [agent, detailCopy.responseError, detailCopy.streamFailed, input, isStreaming, messages, ticket])
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -367,7 +382,7 @@ export function TicketDetailPanel({
   }
 
   function handleDelete() {
-    if (window.confirm(`Delete ticket "${ticket.title}"? This cannot be undone.`)) {
+    if (window.confirm(detailCopy.confirmDelete(ticket.title))) {
       onDelete()
     }
   }
@@ -408,7 +423,7 @@ export function TicketDetailPanel({
             <button
               onClick={() => setExpanded(e => !e)}
               className="focus-ring"
-              aria-label={expanded ? 'Collapse panel' : 'Expand panel'}
+              aria-label={expanded ? detailCopy.collapsePanel : detailCopy.expandPanel}
               style={{
                 width: 28,
                 height: 28,
@@ -429,7 +444,7 @@ export function TicketDetailPanel({
               ref={closeRef}
               onClick={onClose}
               className="focus-ring"
-              aria-label="Close detail panel"
+              aria-label={detailCopy.closePanel}
               style={{
                 width: 28,
                 height: 28,
@@ -486,7 +501,7 @@ export function TicketDetailPanel({
                 <span>{agent.name}</span>
                 {ticket.assigneeRole && (
                   <span style={{ color: 'var(--text-tertiary)' }}>
-                    ({ROLE_LABELS[ticket.assigneeRole]})
+                    ({kanbanCopy.roleLabels[ticket.assigneeRole]})
                   </span>
                 )}
               </div>
@@ -497,7 +512,7 @@ export function TicketDetailPanel({
                 color: 'var(--text-tertiary)',
                 fontStyle: 'italic',
               }}>
-                Unassigned
+                {detailCopy.unassigned}
               </div>
             )}
           </div>
@@ -514,10 +529,18 @@ export function TicketDetailPanel({
               letterSpacing: '0.5px',
               marginBottom: 'var(--space-2)',
             }}>
-              Move to
+              {detailCopy.moveTo}
             </div>
             <div style={{ display: 'flex', gap: 'var(--space-1)', flexWrap: 'wrap' }}>
-              {COLUMNS.map(col => {
+              {(
+                [
+                  { id: 'backlog', title: kanbanCopy.columns.backlog },
+                  { id: 'todo', title: kanbanCopy.columns.todo },
+                  { id: 'in-progress', title: kanbanCopy.columns.inProgress },
+                  { id: 'review', title: kanbanCopy.columns.review },
+                  { id: 'done', title: kanbanCopy.columns.done },
+                ] as const
+              ).map(col => {
                 const isCurrent = col.id === ticket.status
                 return (
                   <button
@@ -561,7 +584,7 @@ export function TicketDetailPanel({
                 letterSpacing: '0.5px',
                 marginBottom: 'var(--space-2)',
               }}>
-                Description
+                {detailCopy.description}
               </div>
               <div style={{
                 fontSize: 'var(--text-footnote)',
@@ -590,7 +613,7 @@ export function TicketDetailPanel({
                 letterSpacing: '0.5px',
                 marginBottom: 'var(--space-2)',
               }}>
-                Agent Work
+                {detailCopy.agentWork}
               </div>
               <div style={{
                 fontSize: 'var(--text-footnote)',
@@ -623,7 +646,7 @@ export function TicketDetailPanel({
                   fontWeight: 600,
                   color: 'var(--system-red)',
                 }}>
-                  Agent work failed
+                  {detailCopy.workFailed}
                 </div>
                 {ticket.workError && (
                   <div style={{
@@ -649,7 +672,7 @@ export function TicketDetailPanel({
                       cursor: 'pointer',
                     }}
                   >
-                    Retry
+                    {detailCopy.retry}
                   </button>
                 )}
               </div>
@@ -682,7 +705,7 @@ export function TicketDetailPanel({
             marginBottom: 'var(--space-2)',
             flexShrink: 0,
           }}>
-            Agent Chat
+            {detailCopy.agentChat}
           </div>
 
           {!agent ? (
@@ -695,7 +718,7 @@ export function TicketDetailPanel({
               fontSize: 'var(--text-footnote)',
               fontStyle: 'italic',
             }}>
-              No agent assigned
+              {detailCopy.noAgentAssigned}
             </div>
           ) : (
             <>
@@ -717,7 +740,7 @@ export function TicketDetailPanel({
                     padding: 'var(--space-6) 0',
                     fontStyle: 'italic',
                   }}>
-                    Ask {agent.name} about this ticket...
+                    {detailCopy.askAbout(agent.name)}
                   </div>
                 )}
 
@@ -741,7 +764,7 @@ export function TicketDetailPanel({
                     }}>
                       {formatContent(msg.content)}
                       {msg.isStreaming && !msg.content && (
-                        <span style={{ opacity: 0.5 }}>Thinking...</span>
+                        <span style={{ opacity: 0.5 }}>{detailCopy.thinking}</span>
                       )}
                       {msg.isStreaming && msg.content && (
                         <span style={{
@@ -774,7 +797,7 @@ export function TicketDetailPanel({
                   value={input}
                   onChange={e => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder={`Message ${agent.name}...`}
+                  placeholder={detailCopy.messagePlaceholder(agent.name)}
                   rows={1}
                   disabled={isStreaming}
                   style={{
@@ -796,7 +819,7 @@ export function TicketDetailPanel({
                   onClick={sendMessage}
                   disabled={!input.trim() || isStreaming}
                   className="focus-ring"
-                  aria-label="Send message"
+                  aria-label={detailCopy.sendMessage}
                   style={{
                     width: 32,
                     height: 32,
@@ -842,7 +865,7 @@ export function TicketDetailPanel({
               transition: 'all 120ms ease',
             }}
           >
-            Delete Ticket
+            {detailCopy.deleteTicket}
           </button>
         </div>
       </div>

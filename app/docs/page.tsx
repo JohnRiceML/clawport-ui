@@ -10,6 +10,7 @@ import { ThemingSection } from "@/components/docs/ThemingSection";
 import { ComponentsSection } from "@/components/docs/ComponentsSection";
 import { TroubleshootingSection } from "@/components/docs/TroubleshootingSection";
 import { BestPracticesSection } from "@/components/docs/BestPracticesSection";
+import { useSettings } from "@/app/settings-provider";
 
 /* ─── Section Definitions ──────────────────────────────────────── */
 
@@ -18,6 +19,7 @@ interface DocSectionDef {
   label: string;
   emoji: string;
   description: string;
+  descriptionZh: string;
   component: React.ComponentType;
 }
 
@@ -27,6 +29,7 @@ const SECTIONS: DocSectionDef[] = [
     label: "Getting Started",
     emoji: "\u{1F680}",
     description: "Setup, prerequisites, env vars",
+    descriptionZh: "安装设置、前置条件与环境变量",
     component: GettingStartedSection,
   },
   {
@@ -34,6 +37,7 @@ const SECTIONS: DocSectionDef[] = [
     label: "Architecture",
     emoji: "\u{1F3D7}\u{FE0F}",
     description: "System overview, pipelines, data flows",
+    descriptionZh: "系统概览、流水线与数据流",
     component: ArchitectureSection,
   },
   {
@@ -41,6 +45,7 @@ const SECTIONS: DocSectionDef[] = [
     label: "Agents",
     emoji: "\u{1F916}",
     description: "Registry, hierarchy, customization",
+    descriptionZh: "注册表、层级关系与自定义",
     component: AgentsSection,
   },
   {
@@ -48,6 +53,7 @@ const SECTIONS: DocSectionDef[] = [
     label: "Best Practices",
     emoji: "\u{1F3AF}",
     description: "Hierarchy, memory, tools, naming",
+    descriptionZh: "层级、记忆、工具与命名建议",
     component: BestPracticesSection,
   },
   {
@@ -55,6 +61,7 @@ const SECTIONS: DocSectionDef[] = [
     label: "API Reference",
     emoji: "\u{1F50C}",
     description: "All endpoints, request/response",
+    descriptionZh: "全部接口、请求与响应说明",
     component: ApiReferenceSection,
   },
   {
@@ -62,6 +69,7 @@ const SECTIONS: DocSectionDef[] = [
     label: "Cron System",
     emoji: "\u{23F0}",
     description: "Schedules, monitoring, delivery",
+    descriptionZh: "计划调度、监控与投递",
     component: CronSystemSection,
   },
   {
@@ -69,6 +77,7 @@ const SECTIONS: DocSectionDef[] = [
     label: "Theming",
     emoji: "\u{1F3A8}",
     description: "Themes, CSS properties, customization",
+    descriptionZh: "主题、CSS 属性与样式定制",
     component: ThemingSection,
   },
   {
@@ -76,6 +85,7 @@ const SECTIONS: DocSectionDef[] = [
     label: "Components",
     emoji: "\u{1F9E9}",
     description: "Component tree, props, patterns",
+    descriptionZh: "组件结构、参数与模式",
     component: ComponentsSection,
   },
   {
@@ -83,6 +93,7 @@ const SECTIONS: DocSectionDef[] = [
     label: "Troubleshooting",
     emoji: "\u{1F527}",
     description: "Common issues and solutions",
+    descriptionZh: "常见问题与处理办法",
     component: TroubleshootingSection,
   },
 ];
@@ -109,6 +120,25 @@ function BackArrow() {
 /* ─── Component ────────────────────────────────────────────────── */
 
 export default function DocsPage() {
+  const { resolvedLocale } = useSettings();
+  const docsUi =
+    resolvedLocale === "zh-CN"
+      ? {
+          searchPlaceholder: "搜索章节...",
+          searchAria: "搜索文档章节",
+          sectionListAria: "文档章节列表",
+          noSectionsMatch: "没有匹配的章节",
+          backToSectionList: "返回章节列表",
+          sections: "章节",
+        }
+      : {
+          searchPlaceholder: "Search sections...",
+          searchAria: "Search documentation sections",
+          sectionListAria: "Documentation sections",
+          noSectionsMatch: "No sections match",
+          backToSectionList: "Back to section list",
+          sections: "Sections",
+        };
   const [activeSection, setActiveSection] = useState(SECTIONS[0].id);
   const [search, setSearch] = useState("");
   const [mobileShowContent, setMobileShowContent] = useState(false);
@@ -135,12 +165,16 @@ export default function DocsPage() {
   /* Filtered sections by search */
   const filteredSections = useMemo(
     () =>
-      SECTIONS.filter(
+      SECTIONS.map((section) => ({
+        ...section,
+        description:
+          resolvedLocale === "zh-CN" ? section.descriptionZh : section.description,
+      })).filter(
         (s) =>
           s.label.toLowerCase().includes(search.toLowerCase()) ||
           s.description.toLowerCase().includes(search.toLowerCase())
       ),
-    [search]
+    [resolvedLocale, search]
   );
 
   /* Keyboard navigation in section list */
@@ -180,7 +214,17 @@ export default function DocsPage() {
   }
 
   /* Active section definition */
-  const active = SECTIONS.find((s) => s.id === activeSection) ?? SECTIONS[0];
+  const active = filteredSections.find((s) => s.id === activeSection)
+    ?? SECTIONS.map((section) => ({
+      ...section,
+      description:
+        resolvedLocale === "zh-CN" ? section.descriptionZh : section.description,
+    })).find((s) => s.id === activeSection)
+    ?? {
+      ...SECTIONS[0],
+      description:
+        resolvedLocale === "zh-CN" ? SECTIONS[0].descriptionZh : SECTIONS[0].description,
+    };
   const ActiveComponent = active.component;
 
   return (
@@ -228,11 +272,11 @@ export default function DocsPage() {
           <input
             ref={searchRef}
             type="search"
-            placeholder="Search sections..."
+            placeholder={docsUi.searchPlaceholder}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="apple-input focus-ring"
-            aria-label="Search documentation sections"
+            aria-label={docsUi.searchAria}
             style={{
               width: "100%",
               height: 32,
@@ -247,7 +291,7 @@ export default function DocsPage() {
         <div
           ref={listRef}
           role="listbox"
-          aria-label="Documentation sections"
+          aria-label={docsUi.sectionListAria}
           onKeyDown={handleListKeyDown}
           className="flex-1 overflow-y-auto"
         >
@@ -260,7 +304,7 @@ export default function DocsPage() {
                 color: "var(--text-tertiary)",
               }}
             >
-              No sections match
+              {docsUi.noSectionsMatch}
             </div>
           ) : (
             filteredSections.map((section) => {
@@ -347,7 +391,7 @@ export default function DocsPage() {
           <button
             onClick={() => setMobileShowContent(false)}
             className="md:hidden btn-ghost focus-ring"
-            aria-label="Back to section list"
+            aria-label={docsUi.backToSectionList}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -361,7 +405,7 @@ export default function DocsPage() {
             }}
           >
             <BackArrow />
-            Sections
+            {docsUi.sections}
           </button>
 
           <div className="flex items-center gap-3">

@@ -7,10 +7,30 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { RefreshCw, Radio } from 'lucide-react'
 import { ErrorState } from '@/components/ErrorState'
 import { LogBrowser } from '@/components/activity/LogBrowser'
+import { useSettings } from '@/app/settings-provider'
 
 /* ── Summary Cards ─────────────────────────────────────────────── */
 
-function TotalCard({ count }: { count: number }) {
+function localizeRelativeLabel(
+  value: string,
+  labels: {
+    justNow: string
+    minutesAgo: (count: number) => string
+    hoursAgo: (count: number) => string
+    daysAgo: (count: number) => string
+  },
+): string {
+  if (value === 'just now') return labels.justNow
+  const minuteMatch = value.match(/^(\d+)m ago$/)
+  if (minuteMatch) return labels.minutesAgo(Number.parseInt(minuteMatch[1], 10))
+  const hourMatch = value.match(/^(\d+)h ago$/)
+  if (hourMatch) return labels.hoursAgo(Number.parseInt(hourMatch[1], 10))
+  const dayMatch = value.match(/^(\d+)d ago$/)
+  if (dayMatch) return labels.daysAgo(Number.parseInt(dayMatch[1], 10))
+  return value
+}
+
+function TotalCard({ count, label }: { count: number; label: string }) {
   return (
     <div style={{
       background: 'var(--material-regular)',
@@ -19,7 +39,7 @@ function TotalCard({ count }: { count: number }) {
       padding: 'var(--space-4)',
     }}>
       <div style={{ fontSize: 'var(--text-caption1)', color: 'var(--text-tertiary)', fontWeight: 'var(--weight-medium)', marginBottom: 'var(--space-1)' }}>
-        Total Events
+        {label}
       </div>
       <div style={{ fontSize: 'var(--text-title2)', color: 'var(--text-primary)', fontWeight: 'var(--weight-bold)' }}>
         {count}
@@ -28,7 +48,7 @@ function TotalCard({ count }: { count: number }) {
   )
 }
 
-function ErrorCard({ count }: { count: number }) {
+function ErrorCard({ count, label }: { count: number; label: string }) {
   const hasErrors = count > 0
   return (
     <div style={{
@@ -38,7 +58,7 @@ function ErrorCard({ count }: { count: number }) {
       padding: 'var(--space-4)',
     }}>
       <div style={{ fontSize: 'var(--text-caption1)', color: 'var(--text-tertiary)', fontWeight: 'var(--weight-medium)', marginBottom: 'var(--space-1)' }}>
-        Errors
+        {label}
       </div>
       <div className="flex items-center" style={{ gap: 'var(--space-2)' }}>
         {hasErrors && (
@@ -56,7 +76,19 @@ function ErrorCard({ count }: { count: number }) {
   )
 }
 
-function SourcesCard({ cron, config }: { cron: number; config: number }) {
+function SourcesCard({
+  cron,
+  config,
+  title,
+  cronLabel,
+  configLabel,
+}: {
+  cron: number
+  config: number
+  title: string
+  cronLabel: string
+  configLabel: string
+}) {
   return (
     <div style={{
       background: 'var(--material-regular)',
@@ -65,16 +97,16 @@ function SourcesCard({ cron, config }: { cron: number; config: number }) {
       padding: 'var(--space-4)',
     }}>
       <div style={{ fontSize: 'var(--text-caption1)', color: 'var(--text-tertiary)', fontWeight: 'var(--weight-medium)', marginBottom: 'var(--space-1)' }}>
-        Sources
+        {title}
       </div>
       <div className="flex items-center" style={{ gap: 'var(--space-3)' }}>
         <div>
           <span style={{ fontSize: 'var(--text-footnote)', fontWeight: 'var(--weight-semibold)', color: 'var(--system-blue)' }}>{cron}</span>
-          <span style={{ fontSize: 'var(--text-caption1)', color: 'var(--text-tertiary)', marginLeft: 4 }}>cron</span>
+          <span style={{ fontSize: 'var(--text-caption1)', color: 'var(--text-tertiary)', marginLeft: 4 }}>{cronLabel}</span>
         </div>
         <div>
           <span style={{ fontSize: 'var(--text-footnote)', fontWeight: 'var(--weight-semibold)', color: 'var(--system-purple)' }}>{config}</span>
-          <span style={{ fontSize: 'var(--text-caption1)', color: 'var(--text-tertiary)', marginLeft: 4 }}>config</span>
+          <span style={{ fontSize: 'var(--text-caption1)', color: 'var(--text-tertiary)', marginLeft: 4 }}>{configLabel}</span>
         </div>
       </div>
     </div>
@@ -84,6 +116,8 @@ function SourcesCard({ cron, config }: { cron: number; config: number }) {
 /* ── Page ──────────────────────────────────────────────────────── */
 
 export default function ActivityPage() {
+  const { copy } = useSettings()
+  const activityCopy = copy.activity
   const [entries, setEntries] = useState<LogEntry[]>([])
   const [summary, setSummary] = useState<LogSummary | null>(null)
   const [filter, setFilter] = useState<LogFilter>('all')
@@ -91,7 +125,7 @@ export default function ActivityPage() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [updatedAgo, setUpdatedAgo] = useState('just now')
+  const [updatedAgo, setUpdatedAgo] = useState<string>(activityCopy.relative.justNow)
 
   const refresh = useCallback(() => {
     setRefreshing(true)
@@ -124,11 +158,12 @@ export default function ActivityPage() {
 
   // Updated ago ticker
   useEffect(() => {
-    const tick = () => setUpdatedAgo(timeAgo(lastRefresh.toISOString()))
+    const tick = () =>
+      setUpdatedAgo(localizeRelativeLabel(timeAgo(lastRefresh.toISOString()), activityCopy.relative))
     tick()
     const interval = setInterval(tick, 30000)
     return () => clearInterval(interval)
-  }, [lastRefresh])
+  }, [activityCopy.relative, lastRefresh])
 
   if (error && entries.length === 0) {
     return <ErrorState message={error} onRetry={refresh} />
@@ -155,14 +190,14 @@ export default function ActivityPage() {
               letterSpacing: '-0.5px',
               lineHeight: 'var(--leading-tight)',
             }}>
-              Activity Console
+              {activityCopy.pageTitle}
             </h1>
             {!loading && summary && (
               <p style={{ fontSize: 'var(--text-footnote)', color: 'var(--text-secondary)', marginTop: 'var(--space-1)' }}>
-                {summary.totalEntries} event{summary.totalEntries !== 1 ? 's' : ''}
+                {activityCopy.summary.events(summary.totalEntries)}
                 {summary.errorCount > 0 && (
                   <span style={{ color: 'var(--system-red)' }}>
-                    {' \u00b7 '}{summary.errorCount} error{summary.errorCount !== 1 ? 's' : ''}
+                    {' \u00b7 '}{activityCopy.summary.errorCount(summary.errorCount)}
                   </span>
                 )}
               </p>
@@ -187,16 +222,16 @@ export default function ActivityPage() {
               }}
             >
               <Radio size={14} />
-              Open Live Logs
+              {activityCopy.openLiveLogs}
             </button>
 
             <span style={{ fontSize: 'var(--text-caption1)', color: 'var(--text-tertiary)' }}>
-              Updated {updatedAgo}
+              {activityCopy.updated(updatedAgo)}
             </span>
             <button
               onClick={refresh}
               className="focus-ring"
-              aria-label="Refresh activity data"
+              aria-label={activityCopy.refreshAria}
               style={{
                 width: 32,
                 height: 32,
@@ -244,9 +279,15 @@ export default function ActivityPage() {
           <>
             {/* Summary cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--space-3)', marginBottom: 'var(--space-4)' }} className="summary-cards-grid">
-              <TotalCard count={summary?.totalEntries ?? 0} />
-              <ErrorCard count={summary?.errorCount ?? 0} />
-              <SourcesCard cron={summary?.sources.cron ?? 0} config={summary?.sources.config ?? 0} />
+              <TotalCard count={summary?.totalEntries ?? 0} label={activityCopy.summary.totalEvents} />
+              <ErrorCard count={summary?.errorCount ?? 0} label={activityCopy.summary.errors} />
+              <SourcesCard
+                cron={summary?.sources.cron ?? 0}
+                config={summary?.sources.config ?? 0}
+                title={activityCopy.summary.sources}
+                cronLabel={activityCopy.summary.cron}
+                configLabel={activityCopy.summary.config}
+              />
             </div>
 
             {/* Log browser */}

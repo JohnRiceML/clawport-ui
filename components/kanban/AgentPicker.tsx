@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import type { Agent } from '@/lib/types'
 import { AgentAvatar } from '@/components/AgentAvatar'
+import { useSettings } from '@/app/settings-provider'
 
 interface AgentPickerProps {
   agents: Agent[]
@@ -11,6 +12,8 @@ interface AgentPickerProps {
 }
 
 export function AgentPicker({ agents, value, onChange }: AgentPickerProps) {
+  const { copy } = useSettings()
+  const pickerCopy = copy.agentPicker
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [highlightIdx, setHighlightIdx] = useState(0)
@@ -33,8 +36,9 @@ export function AgentPicker({ agents, value, onChange }: AgentPickerProps) {
       })
     : agents
 
-  // Include "Unassigned" option at the top
-  const hasUnassigned = !search.trim() || 'unassigned'.includes(search.toLowerCase())
+  // Keep the unassigned option searchable in the current locale.
+  const hasUnassigned =
+    !search.trim() || pickerCopy.unassigned.toLowerCase().includes(search.toLowerCase())
 
   // Reset highlight when filter changes
   useEffect(() => {
@@ -148,7 +152,7 @@ export function AgentPicker({ agents, value, onChange }: AgentPickerProps) {
             </span>
           </>
         ) : (
-          <span>Unassigned</span>
+          <span>{pickerCopy.unassigned}</span>
         )}
       </button>
 
@@ -174,7 +178,7 @@ export function AgentPicker({ agents, value, onChange }: AgentPickerProps) {
             <input
               ref={searchRef}
               type="text"
-              placeholder="Search agents..."
+              placeholder={pickerCopy.searchPlaceholder}
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="focus-ring"
@@ -236,10 +240,10 @@ export function AgentPicker({ agents, value, onChange }: AgentPickerProps) {
                 </div>
                 <div>
                   <div style={{ fontSize: 'var(--text-footnote)', fontWeight: 'var(--weight-medium)', color: 'var(--text-secondary)' }}>
-                    Unassigned
+                    {pickerCopy.unassigned}
                   </div>
                   <div style={{ fontSize: 'var(--text-caption2)', color: 'var(--text-tertiary)' }}>
-                    No agent assigned
+                    {pickerCopy.noAgentAssigned}
                   </div>
                 </div>
                 {value === '' && (
@@ -310,7 +314,7 @@ export function AgentPicker({ agents, value, onChange }: AgentPickerProps) {
                 fontSize: 'var(--text-footnote)',
                 color: 'var(--text-tertiary)',
               }}>
-                No agents match &ldquo;{search}&rdquo;
+                {pickerCopy.noAgentsMatch(search)}
               </div>
             )}
           </div>

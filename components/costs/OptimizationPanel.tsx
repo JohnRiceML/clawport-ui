@@ -1,4 +1,5 @@
 import type { OptimizationInsight, OptimizationScore } from '@/lib/types'
+import { useSettings } from '@/app/settings-provider'
 import { Zap, ChevronDown, ChevronUp } from 'lucide-react'
 import { useState } from 'react'
 import { fmtCost } from './formatters'
@@ -51,6 +52,8 @@ function InsightRow({ insight, jobName, onAction }: {
   jobName: (id: string) => string
   onAction: (prompt: string) => void
 }) {
+  const { copy } = useSettings()
+  const optimizationCopy = copy.costs.optimization
   const color = SEV_COLORS[insight.severity]
   return (
     <div style={{
@@ -76,7 +79,7 @@ function InsightRow({ insight, jobName, onAction }: {
               fontSize: 11, fontWeight: 600, color: 'var(--system-green)',
               background: 'rgba(48,209,88,0.10)', padding: '1px 8px', borderRadius: 10,
             }}>
-              Save ~{fmtCost(insight.projectedSavings)}/period
+              {optimizationCopy.savePerPeriod(fmtCost(insight.projectedSavings))}
             </span>
           )}
         </div>
@@ -100,7 +103,7 @@ function InsightRow({ insight, jobName, onAction }: {
         }}
       >
         <Zap size={10} />
-        How to fix
+        {optimizationCopy.howToFix}
       </button>
     </div>
   )
@@ -114,12 +117,14 @@ export function OptimizationCard({ score, insights, totalSavings, jobName, onAct
   jobName: (id: string) => string
   onAction: (prompt: string) => void
 }) {
+  const { copy } = useSettings()
+  const optimizationCopy = copy.costs.optimization
   const [expanded, setExpanded] = useState(false)
   const dims = [
-    ['Cache', score.cacheScore],
-    ['Tiering', score.tieringScore],
-    ['Anomaly', score.anomalyScore],
-    ['Efficiency', score.efficiencyScore],
+    [optimizationCopy.dimensions.cache, score.cacheScore],
+    [optimizationCopy.dimensions.tiering, score.tieringScore],
+    [optimizationCopy.dimensions.anomaly, score.anomalyScore],
+    [optimizationCopy.dimensions.efficiency, score.efficiencyScore],
   ] as [string, number][]
 
   return (
@@ -138,7 +143,7 @@ export function OptimizationCard({ score, insights, totalSavings, jobName, onAct
             fontSize: 11, fontWeight: 600, letterSpacing: '0.04em',
             color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 10,
           }}>
-            Optimization Score
+            {optimizationCopy.score}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '6px 16px' }}>
             {dims.map(([label, val]) => (
@@ -166,8 +171,8 @@ export function OptimizationCard({ score, insights, totalSavings, jobName, onAct
             fontSize: 12, fontWeight: 600, color: 'var(--system-green)',
             whiteSpace: 'nowrap', textAlign: 'center',
           }}>
-            <div style={{ fontSize: 10, fontWeight: 500, opacity: 0.7, marginBottom: 2 }}>Potential</div>
-            {fmtCost(totalSavings)}/period
+            <div style={{ fontSize: 10, fontWeight: 500, opacity: 0.7, marginBottom: 2 }}>{optimizationCopy.potential}</div>
+            {optimizationCopy.savePerPeriod(fmtCost(totalSavings))}
           </div>
         )}
       </div>
@@ -180,7 +185,7 @@ export function OptimizationCard({ score, insights, totalSavings, jobName, onAct
             padding: '10px 20px 4px', fontSize: 11, fontWeight: 600,
             letterSpacing: '0.04em', color: 'var(--text-tertiary)', textTransform: 'uppercase',
           }}>
-            Insights
+            {optimizationCopy.insights}
           </div>
           {(expanded ? insights : insights.slice(0, 2)).map(insight => (
             <InsightRow key={insight.id} insight={insight} jobName={jobName} onAction={onAction} />
@@ -197,8 +202,8 @@ export function OptimizationCard({ score, insights, totalSavings, jobName, onAct
                 }}
               >
                 {expanded
-                  ? <><ChevronUp size={12} /> Show less</>
-                  : <><ChevronDown size={12} /> Show all {insights.length} insights</>}
+                  ? <><ChevronUp size={12} /> {optimizationCopy.showLess}</>
+                  : <><ChevronDown size={12} /> {optimizationCopy.showAllInsights(insights.length)}</>}
               </button>
             </div>
           )}
@@ -211,7 +216,7 @@ export function OptimizationCard({ score, insights, totalSavings, jobName, onAct
             padding: '16px 20px', textAlign: 'center',
             fontSize: 13, color: 'var(--system-green)',
           }}>
-            All clear -- no optimization issues detected
+            {optimizationCopy.allClear}
           </div>
         </>
       )}

@@ -2,11 +2,16 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react"
 import type { Agent, CronJob } from "@/lib/types"
 import { AgentAvatar } from "@/components/AgentAvatar"
+import { useSettings } from "@/app/settings-provider"
+import { localizeAgentDescription } from "@/lib/i18n"
 
 type AgentNodeData = Agent & { crons: CronJob[] } & Record<string, unknown>
 
 export function AgentNode({ data, selected }: NodeProps) {
+  const { copy, resolvedLocale } = useSettings()
+  const orgMapCopy = copy.orgMap
   const agent = data as AgentNodeData
+  const localizedDescription = localizeAgentDescription(agent.id, agent.description, resolvedLocale)
   const hasCrons = agent.crons && agent.crons.length > 0
   const hasErrors = hasCrons && agent.crons.some((c: CronJob) => c.status === "error")
   const cronCount = hasCrons ? agent.crons.length : 0
@@ -74,7 +79,7 @@ export function AgentNode({ data, selected }: NodeProps) {
       </div>
 
       {/* Description — allow 2 lines */}
-      {agent.description && (
+      {localizedDescription && (
         <div
           style={{
             fontSize: "var(--text-caption2)",
@@ -87,7 +92,7 @@ export function AgentNode({ data, selected }: NodeProps) {
             overflow: "hidden",
           }}
         >
-          {agent.description}
+          {localizedDescription}
         </div>
       )}
 
@@ -112,7 +117,7 @@ export function AgentNode({ data, selected }: NodeProps) {
               borderRadius: 10,
             }}
           >
-            {toolCount} tools
+            {orgMapCopy.badges.tools(toolCount)}
           </span>
         )}
         {reportCount > 0 && (
@@ -126,7 +131,7 @@ export function AgentNode({ data, selected }: NodeProps) {
               borderRadius: 10,
             }}
           >
-            {reportCount} reports
+            {orgMapCopy.badges.reports(reportCount)}
           </span>
         )}
         {agent.model && (
@@ -170,7 +175,7 @@ export function AgentNode({ data, selected }: NodeProps) {
                 background: hasErrors ? "var(--system-red)" : "var(--system-green)",
               }}
             />
-            {cronCount} cron{cronCount !== 1 ? "s" : ""}
+            {orgMapCopy.badges.crons(cronCount)}
           </span>
         )}
       </div>

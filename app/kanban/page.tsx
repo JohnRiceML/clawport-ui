@@ -20,8 +20,11 @@ import { TicketDetailPanel } from '@/components/kanban/TicketDetailPanel'
 import { AgentAvatar } from '@/components/AgentAvatar'
 import { ErrorState } from '@/components/ErrorState'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useSettings } from '@/app/settings-provider'
 
 export default function KanbanPage() {
+  const { copy } = useSettings()
+  const kanbanCopy = copy.kanban
   const [tickets, setTickets] = useState<KanbanStore>({})
   const [agents, setAgents] = useState<Agent[]>([])
   const [loading, setLoading] = useState(true)
@@ -41,13 +44,13 @@ export default function KanbanPage() {
     // Load agents from API
     fetch('/api/agents')
       .then((r) => {
-        if (!r.ok) throw new Error('Failed to fetch agents')
+        if (!r.ok) throw new Error(kanbanCopy.errors.fetchAgents)
         return r.json()
       })
       .then((a: Agent[]) => setAgents(a))
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
-  }, [])
+  }, [kanbanCopy.errors.fetchAgents])
 
   useEffect(() => {
     loadData()
@@ -169,7 +172,7 @@ export default function KanbanPage() {
                 letterSpacing: '-0.3px',
               }}
             >
-              Kanban Board
+              {kanbanCopy.pageTitle}
             </h1>
             <p
               style={{
@@ -178,7 +181,7 @@ export default function KanbanPage() {
                 margin: '2px 0 0',
               }}
             >
-              {ticketCount} ticket{ticketCount !== 1 ? 's' : ''}
+              {kanbanCopy.ticketCount(ticketCount)}
             </p>
           </div>
 
@@ -197,7 +200,7 @@ export default function KanbanPage() {
             }}
           >
             <Plus size={16} />
-            New Ticket
+            {kanbanCopy.newTicket}
           </button>
         </div>
 
@@ -231,7 +234,7 @@ export default function KanbanPage() {
                 flexShrink: 0,
               }}
             >
-              All
+              {kanbanCopy.allAgents}
             </button>
             {assignedAgents.map((agent) => (
               <button

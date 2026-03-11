@@ -3,6 +3,8 @@
 import type { Agent, CronJob } from "@/lib/types"
 import { buildTeams } from "@/lib/teams"
 import { AgentAvatar } from "@/components/AgentAvatar"
+import { useSettings } from "@/app/settings-provider"
+import { localizeAgentDescription } from "@/lib/i18n"
 
 interface GridViewProps {
   agents: Agent[]
@@ -29,6 +31,9 @@ function AgentCard({
   selected: boolean
   onSelect: () => void
 }) {
+  const { copy, resolvedLocale } = useSettings()
+  const gridCopy = copy.grid
+  const localizedDescription = localizeAgentDescription(agent.id, agent.description, resolvedLocale)
   const agentCrons = crons.filter((c) => c.agentId === agent.id)
   const cronStatus = worstStatus(agentCrons.map((c) => c.status))
   const cronColor =
@@ -97,7 +102,7 @@ function AgentCard({
         >
           {agent.title}
         </div>
-        {agent.description && (
+        {localizedDescription && (
           <div
             style={{
               fontSize: "var(--text-caption2)",
@@ -108,7 +113,7 @@ function AgentCard({
               marginTop: 2,
             }}
           >
-            {agent.description}
+            {localizedDescription}
           </div>
         )}
       </div>
@@ -142,7 +147,7 @@ function AgentCard({
                 display: "inline-block",
               }}
             />
-            {agentCrons.length} cron{agentCrons.length !== 1 ? "s" : ""}
+            {gridCopy.counts.crons(agentCrons.length)}
           </span>
         )}
         {agent.tools.length > 0 && (
@@ -156,7 +161,7 @@ function AgentCard({
               borderRadius: 10,
             }}
           >
-            {agent.tools.length} tools
+            {gridCopy.counts.tools(agent.tools.length)}
           </span>
         )}
       </div>
@@ -177,6 +182,8 @@ function TeamSection({
   errorCount: number
   children: React.ReactNode
 }) {
+  const { copy } = useSettings()
+  const gridCopy = copy.grid
   return (
     <div
       style={{
@@ -217,10 +224,10 @@ function TeamSection({
             marginLeft: "auto",
           }}
         >
-          {count} agent{count !== 1 ? "s" : ""}
+          {gridCopy.counts.agents(count)}
           {errorCount > 0 && (
             <span style={{ color: "var(--system-red)", marginLeft: 6 }}>
-              {errorCount} err
+              {gridCopy.counts.teamErrors(errorCount)}
             </span>
           )}
         </span>
@@ -231,6 +238,8 @@ function TeamSection({
 }
 
 export function GridView({ agents, crons, selectedId, onSelect }: GridViewProps) {
+  const { copy, resolvedLocale } = useSettings()
+  const gridCopy = copy.grid
   const { root, teams, soloOps } = buildTeams(agents)
 
   const totalCrons = crons.length
@@ -305,7 +314,7 @@ export function GridView({ agents, crons, selectedId, onSelect }: GridViewProps)
             >
               {root.title}
             </div>
-            {root.description && (
+            {localizeAgentDescription(root.id, root.description, resolvedLocale) && (
               <div
                 style={{
                   fontSize: "var(--text-caption1)",
@@ -313,7 +322,7 @@ export function GridView({ agents, crons, selectedId, onSelect }: GridViewProps)
                   marginTop: "var(--space-1)",
                 }}
               >
-                {root.description}
+                {localizeAgentDescription(root.id, root.description, resolvedLocale)}
               </div>
             )}
           </div>
@@ -344,7 +353,7 @@ export function GridView({ agents, crons, selectedId, onSelect }: GridViewProps)
                   marginTop: 2,
                 }}
               >
-                agents
+                {gridCopy.stats.agents}
               </div>
             </div>
             <div
@@ -372,7 +381,7 @@ export function GridView({ agents, crons, selectedId, onSelect }: GridViewProps)
                   marginTop: 2,
                 }}
               >
-                crons
+                {gridCopy.stats.crons}
               </div>
             </div>
             <div
@@ -400,7 +409,7 @@ export function GridView({ agents, crons, selectedId, onSelect }: GridViewProps)
                   marginTop: 2,
                 }}
               >
-                health
+                {gridCopy.stats.health}
               </div>
             </div>
           </div>
@@ -425,7 +434,7 @@ export function GridView({ agents, crons, selectedId, onSelect }: GridViewProps)
           return (
             <TeamSection
               key={team.manager.id}
-              label={`Team ${team.manager.name}`}
+              label={gridCopy.team(team.manager.name)}
               icon={<AgentAvatar agent={team.manager} size={22} borderRadius={6} />}
               count={1 + team.members.length}
               errorCount={teamErrors}
@@ -452,7 +461,7 @@ export function GridView({ agents, crons, selectedId, onSelect }: GridViewProps)
         {/* Solo Ops column */}
         {soloOps.length > 0 && (
           <TeamSection
-            label="Solo Ops"
+            label={gridCopy.soloOps}
             icon={
               <span
                 style={{

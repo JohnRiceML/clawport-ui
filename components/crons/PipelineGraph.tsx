@@ -13,6 +13,7 @@ import {
   ConnectionLineType,
 } from "@xyflow/react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useSettings } from "@/app/settings-provider"
 import { RefreshCw, Activity, ChevronDown, MessageSquare, Trash2 } from "lucide-react"
 import type { Agent, CronJob } from "@/lib/types"
 import type { Pipeline } from "@/lib/cron-pipelines"
@@ -43,6 +44,7 @@ interface PipelineGraphProps {
 /* ─── Custom node ─────────────────────────────────────────────── */
 
 function CronPipelineNode({ data }: NodeProps) {
+  const { copy } = useSettings()
   const d = data as { name: string; schedule: string; status: string; deliveryTo: string | null; color: string; selected?: boolean } & Record<string, unknown>
   const statusColor = d.status === "ok" ? "#22c55e" : d.status === "error" ? "#ef4444" : "#a1a1aa"
   const hasDelivery = d.deliveryTo !== null
@@ -103,7 +105,7 @@ function CronPipelineNode({ data }: NodeProps) {
             marginTop: 2,
           }}
         >
-          delivered
+          {copy.crons.deliveryStatus.delivered}
         </div>
       )}
 
@@ -118,6 +120,8 @@ const pipelineNodeTypes = { cronPipelineNode: CronPipelineNode }
 /* ─── Empty state ────────────────────────────────────────────── */
 
 function PipelinesEmptyState({ onSetupClick }: { onSetupClick?: () => void }) {
+  const { copy } = useSettings()
+  const pipelinesCopy = copy.crons.pipelines
   return (
     <div
       style={{
@@ -129,10 +133,10 @@ function PipelinesEmptyState({ onSetupClick }: { onSetupClick?: () => void }) {
       }}
     >
       <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-primary)", marginBottom: 8 }}>
-        No pipelines configured
+        {pipelinesCopy.empty.title}
       </div>
       <div style={{ fontSize: 12, color: "var(--text-secondary)", maxWidth: 480, margin: "0 auto", lineHeight: 1.6 }}>
-        Pipelines visualize file I/O dependencies between cron jobs.
+        {pipelinesCopy.empty.body}
       </div>
 
       {onSetupClick && (
@@ -158,16 +162,16 @@ function PipelinesEmptyState({ onSetupClick }: { onSetupClick?: () => void }) {
               <line x1="12" y1="12" x2="12" y2="16" />
               <line x1="10" y1="14" x2="14" y2="14" />
             </svg>
-            Auto-Detect Pipelines with AI
+            {pipelinesCopy.empty.autoDetect}
           </button>
           <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 8, maxWidth: 360, margin: "8px auto 0", lineHeight: 1.5 }}>
-            Sends your cron job list to an AI agent to analyze file dependencies and generate a pipeline config.
+            {pipelinesCopy.empty.autoDetectHint}
           </div>
         </div>
       )}
 
       <div style={{ fontSize: 11, color: "var(--text-tertiary)", marginTop: 16, maxWidth: 480, margin: "16px auto 0" }}>
-        Or manually create:
+        {pipelinesCopy.empty.manualCreate}
       </div>
       <div
         style={{
@@ -283,6 +287,8 @@ function CronsCardGrid({
 /* ─── Main component ──────────────────────────────────────────── */
 
 export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditClick, onClearClick, onJobSelect, selectedJob }: PipelineGraphProps) {
+  const { copy } = useSettings()
+  const pipelinesCopy = copy.crons.pipelines
   const [healthCheckOpen, setHealthCheckOpen] = useState(false)
   const [healthCheckStreaming, setHealthCheckStreaming] = useState(false)
   const [healthCheckContent, setHealthCheckContent] = useState("")
@@ -337,7 +343,7 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
     if (errorJobs.length > 0) {
       const names = errorJobs.map(c => c.name).join(", ")
       actions.push({
-        label: `Fix ${errorJobs.length} errored job${errorJobs.length > 1 ? "s" : ""}`,
+        label: pipelinesCopy.healthCheck.quickActions.fixErroredJobs(errorJobs.length),
         prompt: `The following jobs are in error state: ${names}. Diagnose the root cause for each and suggest specific fixes.`,
         color: "var(--system-red)",
       })
@@ -347,7 +353,7 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
     if (unownedJobs.length > 0) {
       const names = unownedJobs.map(c => c.name).join(", ")
       actions.push({
-        label: `Assign ${unownedJobs.length} unowned job${unownedJobs.length > 1 ? "s" : ""}`,
+        label: pipelinesCopy.healthCheck.quickActions.assignUnownedJobs(unownedJobs.length),
         prompt: `These jobs have no agent owner: ${names}. Based on each job's purpose and the available agents, recommend which agent should own each one and explain why.`,
         color: "var(--system-orange)",
       })
@@ -357,7 +363,7 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
     if (missingDelivery.length > 0) {
       const names = missingDelivery.map(c => c.name).join(", ")
       actions.push({
-        label: `Fix ${missingDelivery.length} missing delivery target${missingDelivery.length > 1 ? "s" : ""}`,
+        label: pipelinesCopy.healthCheck.quickActions.fixMissingDeliveryTargets(missingDelivery.length),
         prompt: `These jobs have delivery configured but no target: ${names}. What should the delivery targets be for each? Suggest the right channel and destination.`,
         color: "var(--system-orange)",
       })
@@ -370,7 +376,7 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
     if (overdue.length > 0) {
       const names = overdue.map(c => c.name).join(", ")
       actions.push({
-        label: `Investigate ${overdue.length} overdue job${overdue.length > 1 ? "s" : ""}`,
+        label: pipelinesCopy.healthCheck.quickActions.investigateOverdueJobs(overdue.length),
         prompt: `These jobs are overdue (past their next scheduled run): ${names}. What could be preventing them from running? How do I get them back on schedule?`,
         color: "var(--system-orange)",
       })
@@ -378,14 +384,14 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
 
     if (actions.length === 0) {
       actions.push({
-        label: "How can I improve reliability?",
+        label: pipelinesCopy.healthCheck.quickActions.improveReliability,
         prompt: "Based on the health check results, what are the top 3 things I should do to improve the reliability and observability of this pipeline system?",
         color: "var(--accent)",
       })
     }
 
     return actions
-  }, [crons])
+  }, [crons, pipelinesCopy.healthCheck.quickActions])
 
   // Auto-scroll health check panel
   useEffect(() => {
@@ -452,11 +458,11 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
         }
       }
     } catch {
-      setHealthCheckContent(prev => prev + "\n\n[Error: Failed to connect to agent]")
+      setHealthCheckContent(prev => prev + `\n\n${pipelinesCopy.healthCheck.connectError}`)
     } finally {
       setHealthCheckStreaming(false)
     }
-  }, [rootAgent, healthCheckStreaming, crons, pipelines, agents])
+  }, [rootAgent, healthCheckStreaming, crons, pipelines, agents, pipelinesCopy.healthCheck.connectError])
 
   // Send a follow-up message in the health check chat
   const sendHealthChatMessage = useCallback(async (overrideText?: string) => {
@@ -529,7 +535,7 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
     } catch {
       setHealthChatMessages(prev =>
         prev.map(m => m.id === assistantMsgId
-          ? { ...m, content: "Error getting response. Check API connection.", isStreaming: false }
+          ? { ...m, content: pipelinesCopy.healthCheck.responseError, isStreaming: false }
           : m
         )
       )
@@ -537,13 +543,13 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
       setHealthChatStreaming(false)
       healthChatTextareaRef.current?.focus()
     }
-  }, [healthChatInput, healthChatStreaming, rootAgent, healthChatMessages, healthCheckContent, crons, pipelines, agents])
+  }, [healthChatInput, healthChatStreaming, rootAgent, healthChatMessages, healthCheckContent, crons, pipelines, agents, pipelinesCopy.healthCheck.responseError])
 
   if (!hasPipelines) {
     return (
       <div>
         <PipelinesEmptyState onSetupClick={onSetupClick} />
-        <CronsCardGrid crons={crons} agentColorMap={agentColorMap} label="All Crons" />
+        <CronsCardGrid crons={crons} agentColorMap={agentColorMap} label={pipelinesCopy.cardGrid.allCrons} />
       </div>
     )
   }
@@ -572,7 +578,7 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
             }}
           >
             <Activity size={13} className={healthCheckStreaming ? "animate-pulse" : ""} />
-            Pipeline Health Check
+            {pipelinesCopy.toolbar.healthCheck}
           </button>
         )}
         {onEditClick && (
@@ -594,7 +600,7 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
             }}
           >
             <RefreshCw size={13} />
-            Regenerate Pipelines
+            {pipelinesCopy.toolbar.regenerate}
           </button>
         )}
         {onClearClick && (
@@ -616,7 +622,7 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
             }}
           >
             <Trash2 size={13} />
-            Clear Pipelines
+            {pipelinesCopy.toolbar.clear}
           </button>
         )}
       </div>
@@ -645,7 +651,7 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
           >
             <Activity size={14} style={{ color: healthCheckStreaming ? "var(--accent)" : healthCheckContent ? "var(--system-green)" : "var(--accent)" }} />
             <span style={{ fontSize: "var(--text-footnote)", fontWeight: 600, color: "var(--text-primary)", flex: 1, textAlign: "left" }}>
-              Pipeline Health Check
+              {pipelinesCopy.healthCheck.title}
             </span>
             {healthCheckStreaming && (
               <span style={{
@@ -663,12 +669,12 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
                   background: "var(--accent)",
                   animation: "blink 1s infinite",
                 }} />
-                Analyzing pipelines...
+                {pipelinesCopy.healthCheck.analyzingPipelines}
               </span>
             )}
             {!healthCheckStreaming && healthCheckContent && (
               <span style={{ fontSize: "var(--text-caption2)", color: "var(--system-green)" }}>
-                Complete
+                {pipelinesCopy.healthCheck.complete}
               </span>
             )}
             <ChevronDown size={14} style={{ color: "var(--text-tertiary)", transition: "transform 200ms ease" }} />
@@ -702,10 +708,10 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
                     color: "var(--text-primary)",
                     marginBottom: 4,
                   }}>
-                    Analyzing system health...
+                    {pipelinesCopy.healthCheck.analyzingSystem}
                   </div>
                   <div style={{ fontSize: "var(--text-caption2)", color: "var(--text-tertiary)", lineHeight: 1.4 }}>
-                    Checking agent ownership, pipeline edges, schedules, and deliveries
+                    {pipelinesCopy.healthCheck.checking}
                   </div>
                 </div>
               </div>
@@ -848,7 +854,7 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
                     >
                       {msg.content}
                       {msg.isStreaming && !msg.content && (
-                        <span style={{ opacity: 0.5 }}>Thinking...</span>
+                        <span style={{ opacity: 0.5 }}>{pipelinesCopy.healthCheck.thinking}</span>
                       )}
                       {msg.isStreaming && msg.content && (
                         <span style={{
@@ -885,7 +891,7 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
                       sendHealthChatMessage()
                     }
                   }}
-                  placeholder="Ask about the health check..."
+                  placeholder={pipelinesCopy.healthCheck.inputPlaceholder}
                   disabled={healthChatStreaming}
                   rows={1}
                   style={{
@@ -956,10 +962,10 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
         marginTop: "var(--space-2)",
         textAlign: "right",
       }}>
-        Pipeline config does not auto-update. Regenerate to re-analyze with AI.
+        {pipelinesCopy.healthCheck.callout}
       </div>
 
-      <CronsCardGrid crons={standaloneCrons} agentColorMap={agentColorMap} label="Standalone Crons" />
+      <CronsCardGrid crons={standaloneCrons} agentColorMap={agentColorMap} label={pipelinesCopy.cardGrid.standaloneCrons} />
     </div>
   )
 }

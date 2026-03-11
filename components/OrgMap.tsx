@@ -14,6 +14,7 @@ import dagre from "@dagrejs/dagre"
 import type { Agent, CronJob } from "@/lib/types"
 import { buildTeams } from "@/lib/teams"
 import { nodeTypes } from "@/components/AgentNode"
+import { useSettings } from "@/app/settings-provider"
 
 interface OrgMapProps {
   agents: Agent[]
@@ -121,6 +122,11 @@ function buildTeamLayout(
   agents: Agent[],
   crons: CronJob[],
   selectedId: string | null,
+  labels: {
+    team: (name: string) => string
+    soloOps: string
+    unlinked: string
+  },
 ): { nodes: Node[]; edges: Edge[] } {
   const agentMapWithCrons = mergeAgentsWithCrons(agents, crons)
   const { root, teams, soloOps } = buildTeams(agents)
@@ -150,13 +156,18 @@ function buildTeamLayout(
         if (ids.includes(cid)) colEdges.push([id, cid])
       }
     }
-    columns.push({ label: `Team ${t.manager.name}`, color: t.manager.color, agentIds: ids, edges: colEdges })
+    columns.push({
+      label: labels.team(t.manager.name),
+      color: t.manager.color,
+      agentIds: ids,
+      edges: colEdges,
+    })
   }
   if (soloOps.length > 0) {
-    columns.push({ label: "Solo Ops", agentIds: soloOps.map((a) => a.id), edges: [] })
+    columns.push({ label: labels.soloOps, agentIds: soloOps.map((a) => a.id), edges: [] })
   }
   if (disconnected.length > 0) {
-    columns.push({ label: "Unlinked", agentIds: disconnected.map((a) => a.id), edges: [] })
+    columns.push({ label: labels.unlinked, agentIds: disconnected.map((a) => a.id), edges: [] })
   }
 
   // Layout each column with dagre independently, then offset horizontally
@@ -287,9 +298,17 @@ function buildHierarchyLayout(
 // ── Component ──────────────────────────────────────────────────
 
 export function OrgMap({ agents, crons, selectedId, onNodeClick }: OrgMapProps) {
+  const { copy } = useSettings()
+  const orgMapCopy = copy.orgMap
   const [layout, setLayout] = useState<MapLayout>("hierarchy")
 
-  const build = layout === "teams" ? buildTeamLayout : buildHierarchyLayout
+  const build = useCallback(
+    (nextAgents: Agent[], nextCrons: CronJob[], nextSelectedId: string | null) =>
+      layout === "teams"
+        ? buildTeamLayout(nextAgents, nextCrons, nextSelectedId, orgMapCopy.columns)
+        : buildHierarchyLayout(nextAgents, nextCrons, nextSelectedId),
+    [layout, orgMapCopy.columns],
+  )
   const { nodes: initialNodes, edges: initialEdges } = build(agents, crons, selectedId)
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
@@ -370,7 +389,7 @@ export function OrgMap({ agents, crons, selectedId, onNodeClick }: OrgMapProps) 
                     }),
               }}
             >
-              {opt === "teams" ? "Teams" : "Hierarchy"}
+              {opt === "teams" ? orgMapCopy.layouts.teams : orgMapCopy.layouts.hierarchy}
             </button>
           )
         })}

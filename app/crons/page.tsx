@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { Agent, CronJob, CronRun } from "@/lib/types";
 import type { Pipeline } from "@/lib/cron-pipelines";
+import type { Copy as I18nCopy } from "@/lib/i18n";
 import { formatDuration, timeAgo, nextRunLabel } from "@/lib/cron-utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RefreshCw, BarChart3, Calendar, GitBranch, Copy, Check } from "lucide-react";
@@ -12,6 +13,7 @@ import { WeeklySchedule } from "@/components/crons/WeeklySchedule";
 import { PipelineGraph } from "@/components/crons/PipelineGraph";
 import { PipelineDetailPanel } from "@/components/crons/PipelineDetailPanel";
 import { PipelineWizard } from "@/components/crons/PipelineWizard";
+import { useSettings } from "@/app/settings-provider";
 
 /* ─── Types ─────────────────────────────────────────────────────── */
 
@@ -24,11 +26,13 @@ const STATUS_DOT: Record<string, string> = {
   idle: "var(--text-tertiary)",
 };
 
-const PILLS: { key: Filter; label: string; dotColor: string }[] = [
-  { key: "all", label: "All", dotColor: "var(--text-primary)" },
-  { key: "ok", label: "OK", dotColor: "var(--system-green)" },
-  { key: "error", label: "Errors", dotColor: "var(--system-red)" },
-  { key: "idle", label: "Idle", dotColor: "var(--text-tertiary)" },
+type CronCopy = I18nCopy["crons"];
+
+const PILLS: { key: Filter; dotColor: string }[] = [
+  { key: "all", dotColor: "var(--text-primary)" },
+  { key: "ok", dotColor: "var(--system-green)" },
+  { key: "error", dotColor: "var(--system-red)" },
+  { key: "idle", dotColor: "var(--text-tertiary)" },
 ];
 
 const TAB_ICONS: Record<Tab, React.ComponentType<{ size: number; className?: string }>> = {
@@ -37,19 +41,65 @@ const TAB_ICONS: Record<Tab, React.ComponentType<{ size: number; className?: str
   pipelines: GitBranch,
 };
 
-const TABS: { key: Tab; label: string }[] = [
-  { key: "overview", label: "Overview" },
-  { key: "schedule", label: "Schedule" },
-  { key: "pipelines", label: "Pipelines" },
+const TABS: { key: Tab }[] = [
+  { key: "overview" },
+  { key: "schedule" },
+  { key: "pipelines" },
 ];
+
+function localizeRelativeLabel(value: string, copy: CronCopy): string {
+  if (value === "just now") return copy.relative.justNow;
+  if (value === "never") return copy.relative.never;
+  if (value === "not scheduled") return copy.relative.notScheduled;
+  if (value === "overdue") return copy.relative.overdue;
+  if (value === "\u2014") return copy.relative.noValue;
+
+  const future = value.match(/^in (\d+)([mhd])$/);
+  if (future) {
+    const count = Number(future[1]);
+    const unit = future[2];
+    if (unit === "m") return copy.relative.inMinutes(count);
+    if (unit === "h") return copy.relative.inHours(count);
+    if (unit === "d") return copy.relative.inDays(count);
+  }
+
+  const past = value.match(/^(\d+)([mhd]) ago$/);
+  if (past) {
+    const count = Number(past[1]);
+    const unit = past[2];
+    if (unit === "m") return copy.relative.minutesAgo(count);
+    if (unit === "h") return copy.relative.hoursAgo(count);
+    if (unit === "d") return copy.relative.daysAgo(count);
+  }
+
+  return value;
+}
+
+function localizeDurationLabel(value: string, copy: CronCopy): string {
+  if (value === "\u2014") return copy.relative.noValue;
+  return value
+    .replace(/(\d+)h/g, (_, count: string) => copy.relative.hours(Number(count)))
+    .replace(/(\d+)m/g, (_, count: string) => copy.relative.minutes(Number(count)))
+    .replace(/(\d+)s/g, (_, count: string) => copy.relative.seconds(Number(count)));
+}
+
+function localizeDeliveryStatus(value: string | null | undefined, copy: CronCopy): string {
+  if (!value) return copy.relative.noValue;
+  if (value === "delivered") return copy.deliveryStatus.delivered;
+  if (value === "unknown") return copy.deliveryStatus.unknown;
+  return value;
+}
 
 /* ─── Delivery helpers ─────────────────────────────────────────── */
 
 function DeliveryBadge({ cron }: { cron: CronJob }) {
+  const { copy } = useSettings();
+  const cronsCopy = copy.crons;
+
   if (!cron.delivery) {
     return (
       <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>
-        No delivery configured
+        {cronsCopy.noDeliveryConfigured}
       </span>
     );
   }
@@ -60,7 +110,7 @@ function DeliveryBadge({ cron }: { cron: CronJob }) {
   if (hasMissingTarget) {
     return (
       <span style={{ fontSize: "var(--text-caption1)", color: "var(--system-red)" }}>
-        Target missing — add &apos;to&apos; field to delivery config
+        {cronsCopy.targetMissing}
       </span>
     );
   }
@@ -68,7 +118,7 @@ function DeliveryBadge({ cron }: { cron: CronJob }) {
   const isDelivered = lastDeliveryStatus === "delivered";
   const isUnknown = !lastDeliveryStatus || lastDeliveryStatus === "unknown";
   const color = isDelivered ? "var(--system-green)" : isUnknown ? "var(--system-orange)" : "var(--system-orange)";
-  const statusText = isDelivered ? "Delivered" : isUnknown ? "Unknown" : lastDeliveryStatus;
+  const statusText = localizeDeliveryStatus(lastDeliveryStatus, cronsCopy);
 
   // Truncate the "to" field for display
   const toDisplay = delivery.to && delivery.to.length > 20
@@ -98,6 +148,8 @@ function DeliveryBadge({ cron }: { cron: CronJob }) {
 /* ─── Summary Cards ──────────────────────────────────────────── */
 
 function HealthCard({ ok, total }: { ok: number; total: number }) {
+  const { copy } = useSettings();
+  const cronsCopy = copy.crons;
   const pct = total === 0 ? 100 : Math.round((ok / total) * 100);
   const r = 20;
   const circumference = 2 * Math.PI * r;
@@ -127,10 +179,10 @@ function HealthCard({ ok, total }: { ok: number; total: number }) {
         </svg>
         <div>
           <div style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)", fontWeight: "var(--weight-medium)" }}>
-            Health
+            {cronsCopy.cards.health}
           </div>
           <div style={{ fontSize: "var(--text-footnote)", color: "var(--text-primary)", fontWeight: "var(--weight-semibold)" }}>
-            {ok}/{total} healthy
+            {cronsCopy.cards.healthSummary(ok, total)}
           </div>
         </div>
       </div>
@@ -139,6 +191,8 @@ function HealthCard({ ok, total }: { ok: number; total: number }) {
 }
 
 function AttentionCard({ errors }: { errors: CronJob[] }) {
+  const { copy } = useSettings();
+  const cronsCopy = copy.crons;
   const hasErrors = errors.length > 0;
   return (
     <div
@@ -150,12 +204,12 @@ function AttentionCard({ errors }: { errors: CronJob[] }) {
       }}
     >
       <div style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)", fontWeight: "var(--weight-medium)", marginBottom: "var(--space-1)" }}>
-        Attention
+        {cronsCopy.cards.attention}
       </div>
       {hasErrors ? (
         <>
           <div style={{ fontSize: "var(--text-footnote)", color: "var(--system-red)", fontWeight: "var(--weight-semibold)" }}>
-            {errors.length} need{errors.length === 1 ? "s" : ""} fix
+            {cronsCopy.cards.needsFix(errors.length)}
           </div>
           <div className="truncate" style={{ fontSize: "var(--text-caption2)", color: "var(--text-tertiary)", marginTop: 2 }}>
             {errors[0].name}
@@ -168,7 +222,7 @@ function AttentionCard({ errors }: { errors: CronJob[] }) {
             <polyline points="5 8 7 10 11 6" stroke="var(--system-green)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
           </svg>
           <span style={{ fontSize: "var(--text-footnote)", color: "var(--system-green)", fontWeight: "var(--weight-semibold)" }}>
-            All clear
+            {cronsCopy.cards.allClear}
           </span>
         </div>
       )}
@@ -177,6 +231,8 @@ function AttentionCard({ errors }: { errors: CronJob[] }) {
 }
 
 function DeliveryCard({ crons }: { crons: CronJob[] }) {
+  const { copy } = useSettings();
+  const cronsCopy = copy.crons;
   const withDelivery = crons.filter(c => c.delivery);
   const configured = withDelivery.filter(c => c.delivery?.to);
   const missing = withDelivery.filter(c => !c.delivery?.to);
@@ -191,14 +247,14 @@ function DeliveryCard({ crons }: { crons: CronJob[] }) {
       }}
     >
       <div style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)", fontWeight: "var(--weight-medium)", marginBottom: "var(--space-1)" }}>
-        Delivery
+        {cronsCopy.cards.delivery}
       </div>
       <div style={{ fontSize: "var(--text-footnote)", color: "var(--text-primary)", fontWeight: "var(--weight-semibold)" }}>
-        {configured.length} configured
+        {cronsCopy.cards.configured(configured.length)}
       </div>
       {missing.length > 0 && (
         <div style={{ fontSize: "var(--text-caption2)", color: "var(--system-orange)", marginTop: 2 }}>
-          {missing.length} missing target
+          {cronsCopy.cards.missingTarget(missing.length)}
         </div>
       )}
     </div>
@@ -218,6 +274,8 @@ function ErrorsBanners({
   onCopy: (id: string, text: string) => void;
   copiedId: string | null;
 }) {
+  const { copy } = useSettings();
+  const cronsCopy = copy.crons;
   // Execution errors: status=error with actual error messages (not delivery target issues)
   const execErrors = crons.filter(c => c.status === "error" && c.lastError && !c.lastError.includes("delivery target is missing"));
   // Config issues: delivery target missing
@@ -238,7 +296,7 @@ function ErrorsBanners({
           }}
         >
           <div style={{ fontSize: "var(--text-footnote)", color: "var(--system-red)", fontWeight: "var(--weight-semibold)", marginBottom: "var(--space-2)" }}>
-            {execErrors.length} execution error{execErrors.length !== 1 ? "s" : ""}
+            {cronsCopy.banners.executionErrors(execErrors.length)}
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
             {execErrors.map((cron) => {
@@ -259,11 +317,11 @@ function ErrorsBanners({
                     <button
                       onClick={() => onCopy(cron.id, cron.lastError!)}
                       className="btn-ghost focus-ring flex-shrink-0"
-                      aria-label={`Copy error for ${cron.name}`}
+                      aria-label={cronsCopy.banners.copyErrorFor(cron.name)}
                       style={{ padding: "2px 8px", borderRadius: "var(--radius-sm)", fontSize: "var(--text-caption2)", fontWeight: "var(--weight-medium)", display: "inline-flex", alignItems: "center", gap: 3 }}
                     >
                       {copiedId === cron.id ? <Check size={12} /> : <Copy size={12} />}
-                      {copiedId === cron.id ? "Copied" : "Copy"}
+                      {copiedId === cron.id ? cronsCopy.banners.copied : cronsCopy.banners.copy}
                     </button>
                   )}
                   {agent && (
@@ -289,7 +347,7 @@ function ErrorsBanners({
           }}
         >
           <div style={{ fontSize: "var(--text-footnote)", color: "var(--system-orange)", fontWeight: "var(--weight-semibold)", marginBottom: "var(--space-2)" }}>
-            {configIssues.length} delivery target{configIssues.length !== 1 ? "s" : ""} missing
+            {cronsCopy.banners.deliveryTargetsMissing(configIssues.length)}
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-1)" }}>
             {configIssues.map((cron) => (
@@ -297,7 +355,7 @@ function ErrorsBanners({
                 <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--system-orange)", flexShrink: 0 }} />
                 <span style={{ color: "var(--text-primary)", fontWeight: "var(--weight-medium)" }}>{cron.name}</span>
                 <span style={{ color: "var(--text-tertiary)" }}>
-                  {cron.delivery?.channel} — no &apos;to&apos; field
+                  {cronsCopy.banners.noToField(cron.delivery?.channel ?? "")}
                 </span>
               </div>
             ))}
@@ -311,6 +369,8 @@ function ErrorsBanners({
 /* ─── Recent Runs (lazy-loaded) ──────────────────────────────── */
 
 function RecentRuns({ jobId }: { jobId: string }) {
+  const { copy } = useSettings();
+  const cronsCopy = copy.crons;
   const [runs, setRuns] = useState<CronRun[] | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -325,7 +385,7 @@ function RecentRuns({ jobId }: { jobId: string }) {
     return (
       <div style={{ marginTop: "var(--space-3)" }}>
         <div style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)", fontWeight: "var(--weight-semibold)", marginBottom: "var(--space-2)" }}>
-          Recent Runs
+          {cronsCopy.recentRuns}
         </div>
         {[1, 2, 3].map(i => (
           <Skeleton key={i} style={{ height: 16, marginBottom: 4, width: "80%" }} />
@@ -338,9 +398,9 @@ function RecentRuns({ jobId }: { jobId: string }) {
     return (
       <div style={{ marginTop: "var(--space-3)" }}>
         <div style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)", fontWeight: "var(--weight-semibold)", marginBottom: "var(--space-2)" }}>
-          Recent Runs
+          {cronsCopy.recentRuns}
         </div>
-        <div style={{ fontSize: "var(--text-caption2)", color: "var(--text-tertiary)" }}>No run history</div>
+        <div style={{ fontSize: "var(--text-caption2)", color: "var(--text-tertiary)" }}>{cronsCopy.noRunHistory}</div>
       </div>
     );
   }
@@ -348,15 +408,15 @@ function RecentRuns({ jobId }: { jobId: string }) {
   return (
     <div style={{ marginTop: "var(--space-3)" }}>
       <div style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)", fontWeight: "var(--weight-semibold)", marginBottom: "var(--space-2)" }}>
-        Recent Runs
+        {cronsCopy.recentRuns}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         {runs.map((run, i) => {
           const statusDot = run.status === "ok" ? "var(--system-green)" : "var(--system-red)";
-          const ago = timeAgo(new Date(run.ts).toISOString());
-          const duration = formatDuration(run.durationMs);
-          const deliveryStat = run.deliveryStatus === "delivered" ? "Delivered" : run.deliveryStatus === "unknown" ? "Unknown" : run.deliveryStatus || "—";
-          const summaryText = run.status === "error" ? (run.error || "Error") : (run.summary || "—");
+          const ago = localizeRelativeLabel(timeAgo(new Date(run.ts).toISOString()), cronsCopy);
+          const duration = localizeDurationLabel(formatDuration(run.durationMs), cronsCopy);
+          const deliveryStat = localizeDeliveryStatus(run.deliveryStatus, cronsCopy);
+          const summaryText = run.status === "error" ? (run.error || cronsCopy.statusLabels.error) : (run.summary || cronsCopy.relative.noValue);
           const truncatedSummary = summaryText.length > 60 ? summaryText.slice(0, 57) + "..." : summaryText;
 
           return (
@@ -390,6 +450,8 @@ function RecentRuns({ jobId }: { jobId: string }) {
 /* ─── Component ─────────────────────────────────────────────────── */
 
 export default function CronsPage() {
+  const { copy } = useSettings();
+  const cronsCopy = copy.crons;
   const [crons, setCrons] = useState<CronJob[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
@@ -400,7 +462,7 @@ export default function CronsPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [updatedAgo, setUpdatedAgo] = useState("just now");
+  const [updatedAgo, setUpdatedAgo] = useState<string>(cronsCopy.relative.justNow);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [selectedPipelineJob, setSelectedPipelineJob] = useState<string | null>(null);
@@ -412,11 +474,11 @@ export default function CronsPage() {
     setError(null);
     Promise.all([
       fetch("/api/crons").then((r) => {
-        if (!r.ok) throw new Error("Failed to load crons");
+        if (!r.ok) throw new Error(cronsCopy.errorsLoadingCrons);
         return r.json();
       }),
       fetch("/api/agents").then((r) => {
-        if (!r.ok) throw new Error("Failed to load agents");
+        if (!r.ok) throw new Error(cronsCopy.errorsLoadingAgents);
         return r.json();
       }),
     ])
@@ -435,11 +497,11 @@ export default function CronsPage() {
         setRefreshing(false);
       })
       .catch((err) => {
-        setError(err instanceof Error ? err.message : "Unknown error");
+        setError(err instanceof Error ? err.message : cronsCopy.unknownError);
         setLoading(false);
         setRefreshing(false);
       });
-  }, []);
+  }, [cronsCopy.errorsLoadingAgents, cronsCopy.errorsLoadingCrons, cronsCopy.unknownError]);
 
   useEffect(() => {
     refresh();
@@ -448,11 +510,11 @@ export default function CronsPage() {
   }, [refresh]);
 
   useEffect(() => {
-    const tick = () => setUpdatedAgo(timeAgo(lastRefresh.toISOString()));
+    const tick = () => setUpdatedAgo(localizeRelativeLabel(timeAgo(lastRefresh.toISOString()), cronsCopy));
     tick();
     const interval = setInterval(tick, 30000);
     return () => clearInterval(interval);
-  }, [lastRefresh]);
+  }, [lastRefresh, cronsCopy]);
 
   /* Derived data */
   const agentMap = new Map(agents.map((a) => [a.id, a]));
@@ -505,24 +567,24 @@ export default function CronsPage() {
         <div className="flex items-center justify-between" style={{ padding: "var(--space-4) var(--space-6)" }}>
           <div>
             <h1 style={{ fontSize: "var(--text-title1)", fontWeight: "var(--weight-bold)", color: "var(--text-primary)", letterSpacing: "-0.5px", lineHeight: "var(--leading-tight)" }}>
-              Cron Monitor
+              {cronsCopy.title}
             </h1>
             {!loading && (
               <p style={{ fontSize: "var(--text-footnote)", color: "var(--text-secondary)", marginTop: "var(--space-1)" }}>
-                {counts.all} job{counts.all !== 1 ? "s" : ""}
+                {cronsCopy.summary.jobs(counts.all)}
                 {counts.error > 0 && (
-                  <span style={{ color: "var(--system-red)" }}>{" \u00b7 "}{counts.error} error{counts.error !== 1 ? "s" : ""}</span>
+                  <span style={{ color: "var(--system-red)" }}>{" \u00b7 "}{cronsCopy.summary.errors(counts.error)}</span>
                 )}
-                {" \u00b7 "}{counts.ok} ok
+                {" \u00b7 "}{cronsCopy.summary.ok(counts.ok)}
               </p>
             )}
           </div>
           <div className="flex items-center" style={{ gap: "var(--space-3)" }}>
-            <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>Updated {updatedAgo}</span>
+            <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>{cronsCopy.summary.updated(updatedAgo)}</span>
             <button
               onClick={refresh}
               className="focus-ring"
-              aria-label="Refresh cron data"
+              aria-label={cronsCopy.refreshAria}
               style={{ width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "var(--radius-sm)", border: "none", background: "transparent", color: "var(--text-tertiary)", cursor: "pointer", transition: "color 150ms var(--ease-smooth)" }}
             >
               <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
@@ -556,7 +618,7 @@ export default function CronsPage() {
                 }}
               >
                 <TabIcon size={14} />
-                {t.label}
+                {cronsCopy.tabs[t.key]}
               </button>
             );
           })}
@@ -607,7 +669,7 @@ export default function CronsPage() {
                 <div
                   ref={pillsRef}
                   role="tablist"
-                  aria-label="Filter cron jobs by status"
+                  aria-label={cronsCopy.filterAria}
                   onKeyDown={handlePillKeyDown}
                   className="flex items-center overflow-x-auto flex-shrink-0"
                   style={{ marginBottom: "var(--space-3)", gap: "var(--space-2)" }}
@@ -637,7 +699,7 @@ export default function CronsPage() {
                         }}
                       >
                         <span className={`flex-shrink-0 rounded-full ${pill.key === "error" && counts.error > 0 ? "animate-error-pulse" : ""}`} style={{ width: 6, height: 6, background: pill.dotColor }} />
-                        <span>{pill.label}</span>
+                        <span>{cronsCopy.filters[pill.key]}</span>
                         <span style={{ fontWeight: "var(--weight-semibold)", color: isActive ? "var(--accent)" : "var(--text-secondary)" }}>{counts[pill.key]}</span>
                       </button>
                     );
@@ -651,10 +713,10 @@ export default function CronsPage() {
                       <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
                     </svg>
                     <span style={{ fontSize: "var(--text-subheadline)", fontWeight: "var(--weight-medium)" }}>
-                      {crons.length === 0 ? "No scheduled tasks yet" : "No crons match this filter"}
+                      {crons.length === 0 ? cronsCopy.noScheduledTasksYet : cronsCopy.noCronsMatchFilter}
                     </span>
                     <span style={{ fontSize: "var(--text-footnote)", color: "var(--text-tertiary)", textAlign: "center", maxWidth: 360, lineHeight: "var(--leading-relaxed)" }}>
-                      {crons.length === 0 ? "Cron jobs are automated tasks that run on a schedule. They will appear here once your agents have scheduled tasks configured." : "Try selecting a different status filter"}
+                      {crons.length === 0 ? cronsCopy.noScheduledTasksBody : cronsCopy.tryDifferentFilter}
                     </span>
                   </div>
                 ) : (
@@ -663,7 +725,9 @@ export default function CronsPage() {
                       const agent = cron.agentId ? agentMap.get(cron.agentId) : null;
                       const isExpanded = expanded === cron.id;
                       const isError = cron.status === "error";
-                      const isOverdue = cron.nextRun && nextRunLabel(cron.nextRun) === "overdue";
+                      const nextRunText = localizeRelativeLabel(nextRunLabel(cron.nextRun), cronsCopy);
+                      const isOverdue = nextRunText === cronsCopy.relative.overdue;
+                      const statusLabel = cronsCopy.statusLabels[cron.status as keyof typeof cronsCopy.statusLabels] ?? cron.status;
 
                       return (
                         <div key={cron.id}>
@@ -676,7 +740,7 @@ export default function CronsPage() {
                             role="button"
                             tabIndex={0}
                             aria-expanded={isExpanded}
-                            aria-label={`${cron.name}, status ${cron.status}${agent ? `, agent ${agent.name}` : ""}`}
+                            aria-label={cronsCopy.rowAria(cron.name, statusLabel, agent?.name)}
                             onClick={() => setExpanded(isExpanded ? null : cron.id)}
                             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setExpanded(isExpanded ? null : cron.id); } }}
                             className="flex items-center cursor-pointer hover-bg focus-ring"
@@ -691,14 +755,14 @@ export default function CronsPage() {
                             <div className="ml-3 min-w-0 flex-1" style={{ display: "flex", flexDirection: "column" }}>
                               <span className="truncate" style={{ fontSize: "var(--text-footnote)", fontWeight: "var(--weight-semibold)", color: "var(--text-primary)" }}>{cron.name}</span>
                               {agent && (
-                                <Link href={`/chat/${agent.id}`} onClick={(e) => e.stopPropagation()} className="md:hidden focus-ring" aria-label={`Chat with ${agent.name}`} style={{ fontSize: "var(--text-caption1)", color: "var(--system-blue)", textDecoration: "none", lineHeight: "var(--leading-snug)" }}>
+                                <Link href={`/chat/${agent.id}`} onClick={(e) => e.stopPropagation()} className="md:hidden focus-ring" aria-label={cronsCopy.details.chatWith(agent.name)} style={{ fontSize: "var(--text-caption1)", color: "var(--system-blue)", textDecoration: "none", lineHeight: "var(--leading-snug)" }}>
                                   {agent.name}
                                 </Link>
                               )}
                             </div>
                             <div className="ml-auto flex items-center flex-shrink-0" style={{ gap: "var(--space-3)" }}>
                               {agent ? (
-                                <Link href={`/chat/${agent.id}`} onClick={(e) => e.stopPropagation()} className="hidden md:inline focus-ring" aria-label={`Chat with ${agent.name}`} style={{ fontSize: "var(--text-caption1)", color: "var(--system-blue)", textDecoration: "none" }}>
+                                <Link href={`/chat/${agent.id}`} onClick={(e) => e.stopPropagation()} className="hidden md:inline focus-ring" aria-label={cronsCopy.details.chatWith(agent.name)} style={{ fontSize: "var(--text-caption1)", color: "var(--system-blue)", textDecoration: "none" }}>
                                   {agent.name}
                                 </Link>
                               ) : (
@@ -720,37 +784,37 @@ export default function CronsPage() {
                                 {/* Description */}
                                 {cron.description && (
                                   <>
-                                    <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>Description</span>
+                                    <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>{cronsCopy.details.description}</span>
                                     <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-secondary)" }}>{cron.description}</span>
                                   </>
                                 )}
 
                                 {/* Last run */}
-                                <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>Last run</span>
-                                <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-secondary)" }}>{timeAgo(cron.lastRun)}</span>
+                                <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>{cronsCopy.details.lastRun}</span>
+                                <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-secondary)" }}>{localizeRelativeLabel(timeAgo(cron.lastRun), cronsCopy)}</span>
 
                                 {/* Next run */}
-                                <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>Next run</span>
+                                <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>{cronsCopy.details.nextRun}</span>
                                 <span style={{ fontSize: "var(--text-caption1)", color: isOverdue ? "var(--system-orange)" : "var(--text-secondary)", fontWeight: isOverdue ? "var(--weight-semibold)" : undefined }}>
-                                  {nextRunLabel(cron.nextRun)}
+                                  {nextRunText}
                                 </span>
 
                                 {/* Duration */}
                                 {cron.lastDurationMs != null && (
                                   <>
-                                    <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>Duration</span>
-                                    <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-secondary)" }}>{formatDuration(cron.lastDurationMs)}</span>
+                                    <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>{cronsCopy.details.duration}</span>
+                                    <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-secondary)" }}>{localizeDurationLabel(formatDuration(cron.lastDurationMs), cronsCopy)}</span>
                                   </>
                                 )}
 
                                 {/* Status */}
-                                <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>Status</span>
+                                <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>{cronsCopy.details.status}</span>
                                 <span style={{ fontSize: "var(--text-caption1)", color: cron.status === "error" ? "var(--system-red)" : cron.status === "ok" ? "var(--system-green)" : "var(--text-secondary)", fontWeight: "var(--weight-medium)", textTransform: "capitalize" }}>
-                                  {cron.status}
+                                  {statusLabel}
                                 </span>
 
                                 {/* Schedule */}
-                                <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>Schedule</span>
+                                <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>{cronsCopy.details.schedule}</span>
                                 <div>
                                   {cron.scheduleDescription && (
                                     <div style={{ fontSize: "var(--text-caption1)", color: "var(--text-secondary)" }}>{cron.scheduleDescription}</div>
@@ -762,15 +826,15 @@ export default function CronsPage() {
                                 </div>
 
                                 {/* Delivery */}
-                                <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>Delivery</span>
+                                <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>{cronsCopy.details.delivery}</span>
                                 <DeliveryBadge cron={cron} />
 
                                 {/* Consecutive errors */}
                                 {cron.consecutiveErrors > 0 && (
                                   <>
-                                    <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>Errors</span>
+                                    <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>{cronsCopy.details.errors}</span>
                                     <span style={{ fontSize: "var(--text-caption1)", color: "var(--system-orange)", fontWeight: "var(--weight-medium)" }}>
-                                      {cron.consecutiveErrors} consecutive
+                                      {cronsCopy.details.consecutive(cron.consecutiveErrors)}
                                     </span>
                                   </>
                                 )}
@@ -786,11 +850,11 @@ export default function CronsPage() {
                                     <button
                                       onClick={(e) => { e.stopPropagation(); copyError(cron.id, cron.lastError!); }}
                                       className="btn-ghost focus-ring flex-shrink-0"
-                                      aria-label="Copy error text"
+                                      aria-label={cronsCopy.details.copyErrorText}
                                       style={{ padding: "4px 10px", borderRadius: "var(--radius-sm)", fontSize: "var(--text-caption2)", fontWeight: "var(--weight-medium)", display: "inline-flex", alignItems: "center", gap: 3 }}
                                     >
                                       {copiedId === cron.id ? <Check size={12} /> : <Copy size={12} />}
-                                      {copiedId === cron.id ? "Copied" : "Copy"}
+                                      {copiedId === cron.id ? cronsCopy.banners.copied : cronsCopy.banners.copy}
                                     </button>
                                   </div>
                                 </div>
@@ -805,10 +869,10 @@ export default function CronsPage() {
                                   <Link
                                     href={`/chat/${agent.id}`}
                                     className="btn-ghost focus-ring"
-                                    aria-label={`Chat with ${agent.name}`}
+                                    aria-label={cronsCopy.details.chatWith(agent.name)}
                                     style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-1)", padding: "6px 12px", borderRadius: "var(--radius-sm)", fontSize: "var(--text-caption1)", fontWeight: "var(--weight-medium)", textDecoration: "none", color: "var(--system-blue)" }}
                                   >
-                                    Chat with {agent.name}
+                                    {cronsCopy.details.chatWith(agent.name)}
                                     <span aria-hidden="true" style={{ fontSize: "var(--text-caption1)" }}>{"\u2192"}</span>
                                   </Link>
                                 )}

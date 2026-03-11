@@ -1,9 +1,14 @@
+'use client'
+
+import { useSettings } from '@/app/settings-provider'
 import type { CostSummary } from '@/lib/types'
 import { fmtTokens } from './formatters'
 
 export const DONUT_COLORS = ['var(--system-blue)', 'var(--system-green)', 'var(--accent)']
 
 export function TokenDonut({ data }: { data: CostSummary }) {
+  const { copy } = useSettings()
+  const chartsCopy = copy.costs.charts
   const totalInput = data.runCosts.reduce((s, r) => s + r.inputTokens, 0)
   const totalOutput = data.runCosts.reduce((s, r) => s + r.outputTokens, 0)
   const totalCache = data.runCosts.reduce((s, r) => s + r.cacheTokens, 0)
@@ -11,9 +16,9 @@ export function TokenDonut({ data }: { data: CostSummary }) {
   if (total === 0) return null
 
   const segments = [
-    { label: 'Input', tokens: totalInput, color: DONUT_COLORS[0] },
-    { label: 'Output', tokens: totalOutput, color: DONUT_COLORS[1] },
-    { label: 'Cache', tokens: totalCache, color: DONUT_COLORS[2] },
+    { label: chartsCopy.input, tokens: totalInput, color: DONUT_COLORS[0] },
+    { label: chartsCopy.output, tokens: totalOutput, color: DONUT_COLORS[1] },
+    { label: chartsCopy.cache, tokens: totalCache, color: DONUT_COLORS[2] },
   ].filter(s => s.tokens > 0)
 
   const R = 60
@@ -37,7 +42,7 @@ export function TokenDonut({ data }: { data: CostSummary }) {
         fontWeight: 'var(--weight-medium)',
         marginBottom: 'var(--space-3)',
       }}>
-        Token Breakdown
+        {chartsCopy.tokenBreakdown}
       </div>
       <div className="flex items-center" style={{ gap: 'var(--space-6)', flexWrap: 'wrap' }}>
         <svg viewBox="0 0 160 160" style={{ width: 140, height: 140, flexShrink: 0 }}>
@@ -67,7 +72,7 @@ export function TokenDonut({ data }: { data: CostSummary }) {
             {fmtTokens(total)}
           </text>
           <text x={cx} y={cy + 10} textAnchor="middle" fontSize={9} fill="var(--text-tertiary)">
-            total
+            {chartsCopy.total}
           </text>
         </svg>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>

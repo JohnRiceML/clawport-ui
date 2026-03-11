@@ -4,8 +4,9 @@ import { useState, useCallback } from 'react'
 import { Plus } from 'lucide-react'
 import type { Agent } from '@/lib/types'
 import type { TicketPriority, TeamRole } from '@/lib/kanban/types'
-import { PRIORITY_COLORS, ROLE_LABELS } from '@/lib/kanban/types'
+import { PRIORITY_COLORS } from '@/lib/kanban/types'
 import { AgentPicker } from '@/components/kanban/AgentPicker'
+import { useSettings } from '@/app/settings-provider'
 import {
   Dialog,
   DialogContent,
@@ -28,12 +29,6 @@ interface CreateTicketModalProps {
 }
 
 const PRIORITIES: TicketPriority[] = ['low', 'medium', 'high']
-const PRIORITY_LABELS: Record<TicketPriority, string> = {
-  low: 'Low',
-  medium: 'Medium',
-  high: 'High',
-}
-
 const ROLES: TeamRole[] = ['lead-dev', 'ux-ui', 'qa']
 
 const initialState = {
@@ -50,6 +45,8 @@ export function CreateTicketModal({
   agents,
   onSubmit,
 }: CreateTicketModalProps) {
+  const { copy } = useSettings()
+  const kanbanCopy = copy.kanban
   const [form, setForm] = useState(initialState)
 
   const resetForm = useCallback(() => {
@@ -99,7 +96,7 @@ export function CreateTicketModal({
               color: 'var(--text-primary)',
             }}
           >
-            Create Ticket
+            {kanbanCopy.createModal.title}
           </DialogTitle>
           <DialogDescription
             style={{
@@ -107,7 +104,7 @@ export function CreateTicketModal({
               color: 'var(--text-tertiary)',
             }}
           >
-            Add a new ticket to the backlog.
+            {kanbanCopy.createModal.description}
           </DialogDescription>
         </DialogHeader>
 
@@ -129,13 +126,13 @@ export function CreateTicketModal({
                 color: 'var(--text-secondary)',
               }}
             >
-              Title
+              {kanbanCopy.createModal.fields.title}
             </label>
             <input
               id="ticket-title"
               type="text"
               className="apple-input focus-ring"
-              placeholder="What needs to be done?"
+              placeholder={kanbanCopy.createModal.fields.titlePlaceholder}
               value={form.title}
               onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
               required
@@ -157,12 +154,12 @@ export function CreateTicketModal({
                 color: 'var(--text-secondary)',
               }}
             >
-              Description
+              {kanbanCopy.createModal.fields.description}
             </label>
             <textarea
               id="ticket-description"
               className="apple-input focus-ring"
-              placeholder="Add details..."
+              placeholder={kanbanCopy.createModal.fields.descriptionPlaceholder}
               rows={3}
               value={form.description}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
@@ -184,7 +181,7 @@ export function CreateTicketModal({
                 color: 'var(--text-secondary)',
               }}
             >
-              Priority
+              {kanbanCopy.createModal.fields.priority}
             </span>
             <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
               {PRIORITIES.map((p) => {
@@ -223,7 +220,7 @@ export function CreateTicketModal({
                         flexShrink: 0,
                       }}
                     />
-                    {PRIORITY_LABELS[p]}
+                    {kanbanCopy.priorityLabels[p]}
                   </button>
                 )
               })}
@@ -239,7 +236,7 @@ export function CreateTicketModal({
                 color: 'var(--text-secondary)',
               }}
             >
-              Assignee
+              {kanbanCopy.createModal.fields.assignee}
             </label>
             <AgentPicker
               agents={agents}
@@ -264,7 +261,7 @@ export function CreateTicketModal({
                   color: 'var(--text-secondary)',
                 }}
               >
-                Role
+                {kanbanCopy.createModal.fields.role}
               </span>
               <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
                 {ROLES.map((r) => {
@@ -296,7 +293,7 @@ export function CreateTicketModal({
                         textAlign: 'center',
                       }}
                     >
-                      {ROLE_LABELS[r]}
+                      {kanbanCopy.roleLabels[r]}
                     </button>
                   )
                 })}
@@ -324,7 +321,7 @@ export function CreateTicketModal({
             }}
           >
             <Plus size={16} />
-            Create Ticket
+            {kanbanCopy.createModal.submit}
           </button>
         </form>
       </DialogContent>

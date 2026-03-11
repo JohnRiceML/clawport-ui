@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import type { LogEntry, LogFilter, LogSummary } from '@/lib/types'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useSettings } from '@/app/settings-provider'
 
 /* ── Helpers ───────────────────────────────────────────────────── */
 
@@ -31,17 +32,10 @@ const LEVEL_DOT: Record<string, string> = {
   error: 'var(--system-red)',
 }
 
-const SOURCE_BADGE: Record<string, { bg: string; color: string; label: string }> = {
-  cron: { bg: 'rgba(0,122,255,0.1)', color: 'var(--system-blue)', label: 'CRON' },
-  config: { bg: 'rgba(175,82,222,0.1)', color: 'var(--system-purple)', label: 'CONFIG' },
+const SOURCE_BADGE: Record<string, { bg: string; color: string }> = {
+  cron: { bg: 'rgba(0,122,255,0.1)', color: 'var(--system-blue)' },
+  config: { bg: 'rgba(175,82,222,0.1)', color: 'var(--system-purple)' },
 }
-
-const PILLS: { key: LogFilter; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'error', label: 'Errors' },
-  { key: 'cron', label: 'Cron' },
-  { key: 'config', label: 'Config' },
-]
 
 /* ── Component ─────────────────────────────────────────────────── */
 
@@ -54,14 +48,22 @@ interface LogBrowserProps {
 }
 
 export function LogBrowser({ entries, summary, loading, filter, onFilterChange }: LogBrowserProps) {
+  const { copy } = useSettings()
+  const activityCopy = copy.activity
   const [search, setSearch] = useState('')
   const [expanded, setExpanded] = useState<string | null>(null)
+  const pills: { key: LogFilter; label: string }[] = [
+    { key: 'all', label: activityCopy.logBrowser.pills.all },
+    { key: 'error', label: activityCopy.logBrowser.pills.error },
+    { key: 'cron', label: activityCopy.logBrowser.pills.cron },
+    { key: 'config', label: activityCopy.logBrowser.pills.config },
+  ]
 
   if (loading) {
     return (
       <div>
         <div className="flex items-center" style={{ gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
-          {PILLS.map(p => <Skeleton key={p.key} style={{ width: 64, height: 32, borderRadius: 20 }} />)}
+          {pills.map(p => <Skeleton key={p.key} style={{ width: 64, height: 32, borderRadius: 20 }} />)}
         </div>
         <div style={{ borderRadius: 'var(--radius-md)', overflow: 'hidden', background: 'var(--material-regular)' }}>
           {[1, 2, 3, 4, 5].map(i => (
@@ -97,7 +99,7 @@ export function LogBrowser({ entries, summary, loading, filter, onFilterChange }
     <div>
       {/* Filter pills */}
       <div className="flex items-center flex-wrap" style={{ gap: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
-        {PILLS.map(pill => {
+        {pills.map(pill => {
           const isActive = filter === pill.key
           return (
             <button
@@ -129,7 +131,7 @@ export function LogBrowser({ entries, summary, loading, filter, onFilterChange }
         {/* Search input */}
         <input
           type="text"
-          placeholder="Search logs..."
+          placeholder={activityCopy.logBrowser.searchPlaceholder}
           value={search}
           onChange={e => setSearch(e.target.value)}
           className="focus-ring"
@@ -152,10 +154,10 @@ export function LogBrowser({ entries, summary, loading, filter, onFilterChange }
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center" style={{ height: 200, color: 'var(--text-secondary)', gap: 'var(--space-2)' }}>
           <span style={{ fontSize: 'var(--text-subheadline)', fontWeight: 'var(--weight-medium)' }}>
-            {entries.length === 0 ? 'No log entries found' : 'No entries match this filter'}
+            {entries.length === 0 ? activityCopy.logBrowser.emptyTitle : activityCopy.logBrowser.noMatchesTitle}
           </span>
           <span style={{ fontSize: 'var(--text-footnote)', color: 'var(--text-tertiary)' }}>
-            {entries.length === 0 ? 'Log entries from cron runs and config changes will appear here' : 'Try adjusting your filter or search'}
+            {entries.length === 0 ? activityCopy.logBrowser.emptyBody : activityCopy.logBrowser.noMatchesBody}
           </span>
         </div>
       ) : (
@@ -204,7 +206,7 @@ export function LogBrowser({ entries, summary, loading, filter, onFilterChange }
                       marginLeft: 'var(--space-2)',
                       letterSpacing: '0.04em',
                     }}>
-                      {badge.label}
+                      {entry.source === 'cron' ? activityCopy.summary.cron.toUpperCase() : activityCopy.summary.config.toUpperCase()}
                     </span>
                   )}
 
@@ -235,10 +237,12 @@ export function LogBrowser({ entries, summary, loading, filter, onFilterChange }
                 {isExpanded && (
                   <div className="animate-slide-down" style={{ padding: '0 var(--space-4) var(--space-4) var(--space-4)' }}>
                     <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 'var(--space-1) var(--space-4)', marginTop: 'var(--space-2)', marginBottom: 'var(--space-3)' }}>
-                      <span style={{ fontSize: 'var(--text-caption1)', color: 'var(--text-tertiary)' }}>Source</span>
-                      <span style={{ fontSize: 'var(--text-caption1)', color: 'var(--text-secondary)', textTransform: 'capitalize' }}>{entry.source}</span>
+                      <span style={{ fontSize: 'var(--text-caption1)', color: 'var(--text-tertiary)' }}>{activityCopy.logBrowser.details.source}</span>
+                      <span style={{ fontSize: 'var(--text-caption1)', color: 'var(--text-secondary)', textTransform: 'capitalize' }}>
+                        {entry.source === 'cron' ? activityCopy.summary.cron : entry.source === 'config' ? activityCopy.summary.config : entry.source}
+                      </span>
 
-                      <span style={{ fontSize: 'var(--text-caption1)', color: 'var(--text-tertiary)' }}>Level</span>
+                      <span style={{ fontSize: 'var(--text-caption1)', color: 'var(--text-tertiary)' }}>{activityCopy.logBrowser.details.level}</span>
                       <span style={{
                         fontSize: 'var(--text-caption1)',
                         color: entry.level === 'error' ? 'var(--system-red)' : entry.level === 'warn' ? 'var(--system-orange)' : 'var(--text-secondary)',
@@ -246,24 +250,24 @@ export function LogBrowser({ entries, summary, loading, filter, onFilterChange }
                         textTransform: 'capitalize',
                       }}>{entry.level}</span>
 
-                      <span style={{ fontSize: 'var(--text-caption1)', color: 'var(--text-tertiary)' }}>Category</span>
+                      <span style={{ fontSize: 'var(--text-caption1)', color: 'var(--text-tertiary)' }}>{activityCopy.logBrowser.details.category}</span>
                       <span className="font-mono" style={{ fontSize: 'var(--text-caption1)', color: 'var(--text-secondary)' }}>{entry.category}</span>
 
                       {entry.jobId && (
                         <>
-                          <span style={{ fontSize: 'var(--text-caption1)', color: 'var(--text-tertiary)' }}>Job ID</span>
+                          <span style={{ fontSize: 'var(--text-caption1)', color: 'var(--text-tertiary)' }}>{activityCopy.logBrowser.details.jobId}</span>
                           <span className="font-mono" style={{ fontSize: 'var(--text-caption2)', color: 'var(--text-secondary)' }}>{entry.jobId}</span>
                         </>
                       )}
 
                       {entry.durationMs != null && (
                         <>
-                          <span style={{ fontSize: 'var(--text-caption1)', color: 'var(--text-tertiary)' }}>Duration</span>
+                          <span style={{ fontSize: 'var(--text-caption1)', color: 'var(--text-tertiary)' }}>{activityCopy.logBrowser.details.duration}</span>
                           <span style={{ fontSize: 'var(--text-caption1)', color: 'var(--text-secondary)' }}>{formatDuration(entry.durationMs)}</span>
                         </>
                       )}
 
-                      <span style={{ fontSize: 'var(--text-caption1)', color: 'var(--text-tertiary)' }}>Timestamp</span>
+                      <span style={{ fontSize: 'var(--text-caption1)', color: 'var(--text-tertiary)' }}>{activityCopy.logBrowser.details.timestamp}</span>
                       <span className="font-mono" style={{ fontSize: 'var(--text-caption2)', color: 'var(--text-secondary)' }}>
                         {new Date(entry.ts).toISOString()}
                       </span>

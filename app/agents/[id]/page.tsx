@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { ErrorState } from "@/components/ErrorState"
 import { AgentAvatar } from "@/components/AgentAvatar"
 import { useSettings } from "@/app/settings-provider"
+import { localizeAgentDescription } from "@/lib/i18n"
 
 function resizeImage(file: File, maxSize: number): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -67,7 +68,17 @@ function StatusDot({ status }: { status: CronJob["status"] }) {
   )
 }
 
-function SoulViewer({ content }: { content: string }) {
+function SoulViewer({
+  content,
+  copyLabel,
+  copiedLabel,
+  copyAriaLabel,
+}: {
+  content: string
+  copyLabel: string
+  copiedLabel: string
+  copyAriaLabel: string
+}) {
   const [copied, setCopied] = useState(false)
 
   const handleCopy = useCallback(() => {
@@ -113,7 +124,7 @@ function SoulViewer({ content }: { content: string }) {
         <button
           onClick={handleCopy}
           className="focus-ring"
-          aria-label="Copy SOUL.md content"
+          aria-label={copyAriaLabel}
           style={{
             background: "var(--fill-tertiary)",
             color: "var(--text-secondary)",
@@ -126,14 +137,24 @@ function SoulViewer({ content }: { content: string }) {
             transition: "all 150ms var(--ease-spring)",
           }}
         >
-          {copied ? "Copied" : "Copy"}
+          {copied ? copiedLabel : copyLabel}
         </button>
       </div>
     </div>
   )
 }
 
-function CopyButton({ text, label }: { text: string; label: string }) {
+function CopyButton({
+  text,
+  label,
+  copyLabel,
+  copiedLabel,
+}: {
+  text: string
+  label: string
+  copyLabel: string
+  copiedLabel: string
+}) {
   const [copied, setCopied] = useState(false)
 
   const handleCopy = useCallback(() => {
@@ -161,7 +182,7 @@ function CopyButton({ text, label }: { text: string; label: string }) {
         flexShrink: 0,
       }}
     >
-      {copied ? "Copied" : "Copy"}
+      {copied ? copiedLabel : copyLabel}
     </button>
   )
 }
@@ -257,7 +278,8 @@ export default function AgentDetailPage({
 }) {
   const { id } = use(params)
   const router = useRouter()
-  const { settings, setAgentOverride, clearAgentOverride } = useSettings()
+  const { settings, setAgentOverride, copy, resolvedLocale } = useSettings()
+  const detailCopy = copy.agentDetail
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [agent, setAgent] = useState<Agent | null>(null)
   const [allAgents, setAllAgents] = useState<Agent[]>([])
@@ -270,11 +292,11 @@ export default function AgentDetailPage({
     setError(null)
     Promise.all([
       fetch("/api/agents").then((r) => {
-        if (!r.ok) throw new Error("Failed to fetch agents")
+        if (!r.ok) throw new Error(detailCopy.errors.fetchAgents)
         return r.json()
       }),
       fetch("/api/crons").then((r) => {
-        if (!r.ok) throw new Error("Failed to fetch crons")
+        if (!r.ok) throw new Error(detailCopy.errors.fetchCrons)
         return r.json()
       }),
     ])
@@ -286,7 +308,7 @@ export default function AgentDetailPage({
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
-  }, [id])
+  }, [detailCopy.errors.fetchAgents, detailCopy.errors.fetchCrons, id])
 
   useEffect(() => {
     loadData()
@@ -315,7 +337,7 @@ export default function AgentDetailPage({
             color: "var(--text-secondary)",
           }}
         >
-          Agent not found
+          {detailCopy.agentNotFound}
         </div>
         <Link
           href="/"
@@ -325,7 +347,7 @@ export default function AgentDetailPage({
             fontSize: "var(--text-body)",
           }}
         >
-          &larr; Back to Map
+          &larr; {detailCopy.backToMap}
         </Link>
       </div>
     )
@@ -337,6 +359,7 @@ export default function AgentDetailPage({
   const children = agent.directReports
     .map((cid) => allAgents.find((a) => a.id === cid))
     .filter(Boolean) as Agent[]
+  const localizedDescription = localizeAgentDescription(agent.id, agent.description, resolvedLocale)
 
   return (
     <div className="h-full overflow-y-auto" style={{ background: "var(--bg)" }}>
@@ -367,12 +390,12 @@ export default function AgentDetailPage({
               textDecoration: "none",
             }}
           >
-            &larr; Back to Map
+            &larr; {detailCopy.backToMap}
           </Link>
           <button
             onClick={() => router.push(`/chat/${agent.id}`)}
             className="focus-ring"
-            aria-label={`Open chat with ${agent.name}`}
+            aria-label={detailCopy.openChatAria(agent.name)}
             style={{
               background: "var(--accent)",
               color: "var(--accent-contrast)",
@@ -385,7 +408,7 @@ export default function AgentDetailPage({
               transition: "all 150ms var(--ease-spring)",
             }}
           >
-            Open Chat &rarr;
+            {detailCopy.openChat} &rarr;
           </button>
         </div>
       </div>
@@ -416,7 +439,7 @@ export default function AgentDetailPage({
             >
               <button
                 onClick={() => fileInputRef.current?.click()}
-                title="Upload profile image"
+                title={detailCopy.uploadProfileImage}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -432,12 +455,12 @@ export default function AgentDetailPage({
                 }}
               >
                 <Upload size={10} />
-                Photo
+                {detailCopy.photo}
               </button>
               {settings.agentOverrides[agent.id]?.profileImage && (
                 <button
                   onClick={() => setAgentOverride(agent.id, { profileImage: undefined })}
-                  title="Remove photo"
+                  title={detailCopy.removePhoto}
                   style={{
                     width: 18,
                     height: 18,
@@ -523,7 +546,7 @@ export default function AgentDetailPage({
         {/* ── About card ── */}
         <Card>
           <div className="section-header" style={{ marginBottom: "var(--space-3)" }}>
-            About
+            {detailCopy.about}
           </div>
           <p
             style={{
@@ -533,7 +556,7 @@ export default function AgentDetailPage({
               margin: 0,
             }}
           >
-            {agent.description}
+            {localizedDescription}
           </p>
         </Card>
 
@@ -542,7 +565,7 @@ export default function AgentDetailPage({
           {/* Tools card */}
           <Card>
             <div className="section-header" style={{ marginBottom: "var(--space-3)" }}>
-              Tools
+              {detailCopy.tools}
             </div>
             <div className="flex flex-wrap gap-2">
               {agent.tools.map((t) => (
@@ -574,7 +597,7 @@ export default function AgentDetailPage({
           {/* Hierarchy card */}
           <Card>
             <div className="section-header" style={{ marginBottom: "var(--space-3)" }}>
-              Hierarchy
+              {detailCopy.hierarchy}
             </div>
             {parent && (
               <div style={{ marginBottom: "var(--space-3)" }}>
@@ -585,7 +608,7 @@ export default function AgentDetailPage({
                     marginBottom: 2,
                   }}
                 >
-                  Reports to
+                  {detailCopy.reportsTo}
                 </div>
                 <Link
                   href={`/agents/${parent.id}`}
@@ -615,7 +638,7 @@ export default function AgentDetailPage({
                     marginBottom: 2,
                   }}
                 >
-                  Direct reports ({children.length})
+                  {detailCopy.directReports(children.length)}
                 </div>
                 <div
                   style={{
@@ -655,7 +678,7 @@ export default function AgentDetailPage({
                   color: "var(--text-tertiary)",
                 }}
               >
-                No hierarchy connections
+                {detailCopy.noHierarchyConnections}
               </div>
             )}
           </Card>
@@ -665,9 +688,14 @@ export default function AgentDetailPage({
         {agent.soul && (
           <Card>
             <div className="section-header" style={{ marginBottom: "var(--space-3)" }}>
-              SOUL.md
+              {detailCopy.soul}
             </div>
-            <SoulViewer content={agent.soul} />
+            <SoulViewer
+              content={agent.soul}
+              copyLabel={detailCopy.copy}
+              copiedLabel={detailCopy.copied}
+              copyAriaLabel={detailCopy.copySoulAria}
+            />
           </Card>
         )}
 
@@ -682,7 +710,7 @@ export default function AgentDetailPage({
               justifyContent: "space-between",
             }}
           >
-            <span>Crons {crons.length > 0 && `(${crons.length})`}</span>
+            <span>{detailCopy.crons(crons.length)}</span>
           </div>
           {crons.length === 0 ? (
             <div
@@ -691,7 +719,7 @@ export default function AgentDetailPage({
                 color: "var(--text-tertiary)",
               }}
             >
-              No crons associated with this agent
+              {detailCopy.noCrons}
             </div>
           ) : (
             <div
@@ -760,11 +788,11 @@ export default function AgentDetailPage({
                             ? "var(--system-red)"
                             : "var(--text-secondary)",
                     }}
-                  >
-                    {c.status}
-                  </span>
-                </div>
-              ))}
+                    >
+                      {detailCopy.statusLabels[c.status]}
+                    </span>
+                  </div>
+                ))}
             </div>
           )}
           {crons.length > 0 && (
@@ -779,7 +807,7 @@ export default function AgentDetailPage({
                   fontWeight: "var(--weight-medium)",
                 }}
               >
-                View all crons &rarr;
+                {detailCopy.viewAllCrons} &rarr;
               </Link>
             </div>
           )}
@@ -788,7 +816,7 @@ export default function AgentDetailPage({
         {/* ── Voice card ── */}
         <Card>
           <div className="section-header" style={{ marginBottom: "var(--space-3)" }}>
-            Voice
+            {detailCopy.voice}
           </div>
           {agent.voiceId ? (
             <div
@@ -826,7 +854,12 @@ export default function AgentDetailPage({
               >
                 {agent.voiceId}
               </span>
-              <CopyButton text={agent.voiceId} label="Copy voice ID" />
+              <CopyButton
+                text={agent.voiceId}
+                label={detailCopy.copyVoiceId}
+                copyLabel={detailCopy.copy}
+                copiedLabel={detailCopy.copied}
+              />
             </div>
           ) : (
             <div
@@ -835,7 +868,7 @@ export default function AgentDetailPage({
                 color: "var(--text-tertiary)",
               }}
             >
-              No voice configured
+              {detailCopy.noVoiceConfigured}
             </div>
           )}
         </Card>

@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { Copy, Check } from "lucide-react"
+import { useSettings } from "@/app/settings-provider"
+import type { Copy as I18nCopy } from "@/lib/i18n"
 import type { Agent, CronJob, CronRun } from "@/lib/types"
 import type { Pipeline } from "@/lib/cron-pipelines"
 import { formatDuration, timeAgo, nextRunLabel } from "@/lib/cron-utils"
@@ -19,9 +21,56 @@ interface ChatMessage {
   isStreaming?: boolean
 }
 
+type CronCopy = I18nCopy["crons"]
+
+function localizeRelativeLabel(value: string, copy: CronCopy): string {
+  if (value === "just now") return copy.relative.justNow
+  if (value === "never") return copy.relative.never
+  if (value === "not scheduled") return copy.relative.notScheduled
+  if (value === "overdue") return copy.relative.overdue
+  if (value === "\u2014") return copy.relative.noValue
+
+  const future = value.match(/^in (\d+)([mhd])$/)
+  if (future) {
+    const count = Number(future[1])
+    const unit = future[2]
+    if (unit === "m") return copy.relative.inMinutes(count)
+    if (unit === "h") return copy.relative.inHours(count)
+    if (unit === "d") return copy.relative.inDays(count)
+  }
+
+  const past = value.match(/^(\d+)([mhd]) ago$/)
+  if (past) {
+    const count = Number(past[1])
+    const unit = past[2]
+    if (unit === "m") return copy.relative.minutesAgo(count)
+    if (unit === "h") return copy.relative.hoursAgo(count)
+    if (unit === "d") return copy.relative.daysAgo(count)
+  }
+
+  return value
+}
+
+function localizeDurationLabel(value: string, copy: CronCopy): string {
+  if (value === "\u2014") return copy.relative.noValue
+  return value
+    .replace(/(\d+)h/g, (_, count: string) => copy.relative.hours(Number(count)))
+    .replace(/(\d+)m/g, (_, count: string) => copy.relative.minutes(Number(count)))
+    .replace(/(\d+)s/g, (_, count: string) => copy.relative.seconds(Number(count)))
+}
+
+function localizeDeliveryStatus(value: string | null | undefined, copy: CronCopy): string {
+  if (!value) return copy.relative.noValue
+  if (value === "delivered") return copy.deliveryStatus.delivered
+  if (value === "unknown") return copy.deliveryStatus.unknown
+  return value
+}
+
 /* ─── Recent Runs (lazy-loaded) ────────────────────────────────── */
 
 function RecentRuns({ jobId }: { jobId: string }) {
+  const { copy } = useSettings()
+  const cronsCopy = copy.crons
   const [runs, setRuns] = useState<CronRun[] | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -36,7 +85,7 @@ function RecentRuns({ jobId }: { jobId: string }) {
     return (
       <div>
         <div style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "var(--space-2)" }}>
-          Recent Runs
+          {cronsCopy.recentRuns}
         </div>
         {[1, 2, 3].map(i => (
           <Skeleton key={i} style={{ height: 16, marginBottom: 4, width: "80%" }} />
@@ -49,9 +98,9 @@ function RecentRuns({ jobId }: { jobId: string }) {
     return (
       <div>
         <div style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "var(--space-2)" }}>
-          Recent Runs
+          {cronsCopy.recentRuns}
         </div>
-        <div style={{ fontSize: "var(--text-caption2)", color: "var(--text-tertiary)" }}>No run history</div>
+        <div style={{ fontSize: "var(--text-caption2)", color: "var(--text-tertiary)" }}>{cronsCopy.noRunHistory}</div>
       </div>
     )
   }
@@ -59,15 +108,15 @@ function RecentRuns({ jobId }: { jobId: string }) {
   return (
     <div>
       <div style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "var(--space-2)" }}>
-        Recent Runs
+        {cronsCopy.recentRuns}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
         {runs.map((run, i) => {
           const statusDot = run.status === "ok" ? "var(--system-green)" : "var(--system-red)"
-          const ago = timeAgo(new Date(run.ts).toISOString())
-          const duration = formatDuration(run.durationMs)
-          const deliveryStat = run.deliveryStatus === "delivered" ? "Delivered" : run.deliveryStatus === "unknown" ? "Unknown" : run.deliveryStatus || "\u2014"
-          const summaryText = run.status === "error" ? (run.error || "Error") : (run.summary || "\u2014")
+          const ago = localizeRelativeLabel(timeAgo(new Date(run.ts).toISOString()), cronsCopy)
+          const duration = localizeDurationLabel(formatDuration(run.durationMs), cronsCopy)
+          const deliveryStat = localizeDeliveryStatus(run.deliveryStatus, cronsCopy)
+          const summaryText = run.status === "error" ? (run.error || cronsCopy.statusLabels.error) : (run.summary || "\u2014")
           const truncatedSummary = summaryText.length > 60 ? summaryText.slice(0, 57) + "..." : summaryText
 
           return (
@@ -104,6 +153,9 @@ interface PipelineDetailPanelProps {
 }
 
 export function PipelineDetailPanel({ jobName, crons, agents, pipelines, onClose }: PipelineDetailPanelProps) {
+  const { copy } = useSettings()
+  const cronsCopy = copy.crons
+  const detailCopy = copy.crons.pipelines.detailPanel
   const closeRef = useRef<HTMLButtonElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -119,7 +171,7 @@ export function PipelineDetailPanel({ jobName, crons, agents, pipelines, onClose
   const { inputs, outputs } = computePipelineContext(jobName, pipelines)
 
   const statusColor = cron?.status === "ok" ? "var(--system-green)" : cron?.status === "error" ? "var(--system-red)" : "var(--text-tertiary)"
-  const statusLabel = cron?.status || "unknown"
+  const statusLabel = cron ? cronsCopy.statusLabels[cron.status] : copy.crons.deliveryStatus.unknown
   const isOverdue = cron?.nextRun && nextRunLabel(cron.nextRun) === "overdue"
 
   // Build context string for the agent (memoize-ish via ref to avoid rebuilding)
@@ -230,7 +282,7 @@ export function PipelineDetailPanel({ jobName, crons, agents, pipelines, onClose
     } catch {
       setMessages(prev =>
         prev.map(m => m.id === assistantMsgId
-          ? { ...m, content: "Error getting response. Check API connection.", isStreaming: false }
+          ? { ...m, content: copy.chat.responseError, isStreaming: false }
           : m
         )
       )
@@ -282,7 +334,7 @@ export function PipelineDetailPanel({ jobName, crons, agents, pipelines, onClose
               ref={closeRef}
               onClick={onClose}
               className="focus-ring"
-              aria-label="Close detail panel"
+              aria-label={detailCopy.closeAria}
               style={{
                 width: 28,
                 height: 28,
@@ -354,7 +406,7 @@ export function PipelineDetailPanel({ jobName, crons, agents, pipelines, onClose
 
             <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: "var(--space-1) var(--space-4)" }}>
               {/* Schedule */}
-              <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>Schedule</span>
+              <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>{cronsCopy.details.schedule}</span>
               <div>
                 {cron?.scheduleDescription && (
                   <div style={{ fontSize: "var(--text-caption1)", color: "var(--text-secondary)" }}>{cron.scheduleDescription}</div>
@@ -366,31 +418,31 @@ export function PipelineDetailPanel({ jobName, crons, agents, pipelines, onClose
               </div>
 
               {/* Last run */}
-              <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>Last run</span>
-              <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-secondary)" }}>{timeAgo(cron?.lastRun || null)}</span>
+              <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>{cronsCopy.details.lastRun}</span>
+              <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-secondary)" }}>{localizeRelativeLabel(timeAgo(cron?.lastRun || null), cronsCopy)}</span>
 
               {/* Next run */}
-              <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>Next run</span>
+              <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>{cronsCopy.details.nextRun}</span>
               <span style={{
                 fontSize: "var(--text-caption1)",
                 color: isOverdue ? "var(--system-orange)" : "var(--text-secondary)",
                 fontWeight: isOverdue ? 600 : undefined,
               }}>
-                {nextRunLabel(cron?.nextRun || null)}
+                {localizeRelativeLabel(nextRunLabel(cron?.nextRun || null), cronsCopy)}
               </span>
 
               {/* Duration */}
               {cron?.lastDurationMs != null && (
                 <>
-                  <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>Duration</span>
-                  <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-secondary)" }}>{formatDuration(cron.lastDurationMs)}</span>
+                  <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>{cronsCopy.details.duration}</span>
+                  <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-secondary)" }}>{localizeDurationLabel(formatDuration(cron.lastDurationMs), cronsCopy)}</span>
                 </>
               )}
 
               {/* Delivery */}
               {cron?.delivery && (
                 <>
-                  <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>Delivery</span>
+                  <span style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)" }}>{cronsCopy.details.delivery}</span>
                   <span style={{ fontSize: "var(--text-caption1)" }}>
                     <span style={{ color: "var(--text-secondary)" }}>{cron.delivery.channel}</span>
                     {cron.delivery.to && (
@@ -404,7 +456,7 @@ export function PipelineDetailPanel({ jobName, crons, agents, pipelines, onClose
                         marginLeft: 8,
                         fontWeight: 500,
                       }}>
-                        {cron.lastDeliveryStatus === "delivered" ? "Delivered" : cron.lastDeliveryStatus}
+                        {localizeDeliveryStatus(cron.lastDeliveryStatus, cronsCopy)}
                       </span>
                     )}
                   </span>
@@ -437,7 +489,7 @@ export function PipelineDetailPanel({ jobName, crons, agents, pipelines, onClose
                   <button
                     onClick={copyError}
                     className="btn-ghost focus-ring flex-shrink-0"
-                    aria-label="Copy error text"
+                    aria-label={cronsCopy.details.copyErrorText}
                     style={{
                       padding: "4px 10px",
                       borderRadius: "var(--radius-sm)",
@@ -449,7 +501,7 @@ export function PipelineDetailPanel({ jobName, crons, agents, pipelines, onClose
                     }}
                   >
                     {copiedError ? <Check size={12} /> : <Copy size={12} />}
-                    {copiedError ? "Copied" : "Copy"}
+                    {copiedError ? cronsCopy.banners.copied : cronsCopy.banners.copy}
                   </button>
                 </div>
               </div>
@@ -462,19 +514,19 @@ export function PipelineDetailPanel({ jobName, crons, agents, pipelines, onClose
               <div style={{ height: 1, background: "var(--separator)", marginBottom: "var(--space-3)" }} />
 
               <div style={{ fontSize: "var(--text-caption1)", color: "var(--text-tertiary)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "var(--space-2)" }}>
-                Pipeline Context
+                {detailCopy.pipelineContext}
               </div>
 
               {inputs.length > 0 && (
                 <div style={{ marginBottom: inputs.length > 0 && outputs.length > 0 ? "var(--space-3)" : 0 }}>
                   <div style={{ fontSize: "var(--text-caption2)", color: "var(--text-tertiary)", marginBottom: "var(--space-1)" }}>
-                    Inputs
+                    {detailCopy.inputs}
                   </div>
                   {inputs.map((inp, i) => (
                     <div key={i} className="flex items-center" style={{ gap: "var(--space-2)", fontSize: "var(--text-caption1)", marginBottom: 2 }}>
                       <span style={{ color: "var(--system-green)" }}>&larr;</span>
                       <span className="font-mono" style={{ color: "var(--accent)", fontSize: "var(--text-caption2)" }}>{inp.artifact}</span>
-                      <span style={{ color: "var(--text-tertiary)" }}>from</span>
+                      <span style={{ color: "var(--text-tertiary)" }}>{detailCopy.from}</span>
                       <span style={{ color: "var(--text-secondary)", fontWeight: 500 }}>{inp.from}</span>
                     </div>
                   ))}
@@ -484,13 +536,13 @@ export function PipelineDetailPanel({ jobName, crons, agents, pipelines, onClose
               {outputs.length > 0 && (
                 <div>
                   <div style={{ fontSize: "var(--text-caption2)", color: "var(--text-tertiary)", marginBottom: "var(--space-1)" }}>
-                    Outputs
+                    {detailCopy.outputs}
                   </div>
                   {outputs.map((out, i) => (
                     <div key={i} className="flex items-center" style={{ gap: "var(--space-2)", fontSize: "var(--text-caption1)", marginBottom: 2 }}>
                       <span style={{ color: "var(--system-blue)" }}>&rarr;</span>
                       <span className="font-mono" style={{ color: "var(--accent)", fontSize: "var(--text-caption2)" }}>{out.artifact}</span>
-                      <span style={{ color: "var(--text-tertiary)" }}>to</span>
+                      <span style={{ color: "var(--text-tertiary)" }}>{detailCopy.to}</span>
                       <span style={{ color: "var(--text-secondary)", fontWeight: 500 }}>{out.to}</span>
                     </div>
                   ))}
@@ -533,7 +585,7 @@ export function PipelineDetailPanel({ jobName, crons, agents, pipelines, onClose
             marginBottom: "var(--space-2)",
             flexShrink: 0,
           }}>
-            {agent ? `Chat with ${agent.name}` : "Agent Chat"}
+            {agent ? cronsCopy.details.chatWith(agent.name) : detailCopy.agentChat}
           </div>
 
           {!agent ? (
@@ -546,7 +598,7 @@ export function PipelineDetailPanel({ jobName, crons, agents, pipelines, onClose
               fontSize: "var(--text-footnote)",
               fontStyle: "italic",
             }}>
-              No agent owns this cron job
+              {detailCopy.noAgent}
             </div>
           ) : (
             <>
@@ -569,10 +621,10 @@ export function PipelineDetailPanel({ jobName, crons, agents, pipelines, onClose
                     fontStyle: "italic",
                     lineHeight: 1.5,
                   }}>
-                    Ask {agent.name} about {jobName}...
+                    {detailCopy.askAgentAbout(agent.name, jobName)}
                     <br />
                     <span style={{ fontSize: "var(--text-caption2)" }}>
-                      Cron context is included automatically.
+                      {detailCopy.contextIncluded}
                     </span>
                   </div>
                 )}
@@ -599,7 +651,7 @@ export function PipelineDetailPanel({ jobName, crons, agents, pipelines, onClose
                     }}>
                       {msg.content}
                       {msg.isStreaming && !msg.content && (
-                        <span style={{ opacity: 0.5 }}>Thinking...</span>
+                        <span style={{ opacity: 0.5 }}>{copy.crons.pipelines.healthCheck.thinking}</span>
                       )}
                       {msg.isStreaming && msg.content && (
                         <span style={{
@@ -632,7 +684,7 @@ export function PipelineDetailPanel({ jobName, crons, agents, pipelines, onClose
                   value={input}
                   onChange={e => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder={`Message ${agent.name}...`}
+                  placeholder={copy.chat.messagePlaceholder(agent.name)}
                   rows={1}
                   disabled={isStreaming}
                   style={{
@@ -654,7 +706,7 @@ export function PipelineDetailPanel({ jobName, crons, agents, pipelines, onClose
                   onClick={sendMessage}
                   disabled={!input.trim() || isStreaming}
                   className="focus-ring"
-                  aria-label="Send message"
+                  aria-label={detailCopy.sendMessageAria}
                   style={{
                     width: 32,
                     height: 32,

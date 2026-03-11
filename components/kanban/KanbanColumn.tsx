@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Plus } from 'lucide-react'
 import type { KanbanColumn as KanbanColumnType, KanbanTicket, TicketStatus } from '@/lib/kanban/types'
 import type { Agent } from '@/lib/types'
+import { useSettings } from '@/app/settings-provider'
 
 interface KanbanColumnProps {
   column: KanbanColumnType
@@ -24,7 +25,16 @@ export function KanbanColumn({
   onCreateTicket,
   renderTicket,
 }: KanbanColumnProps) {
+  const { copy } = useSettings()
+  const kanbanCopy = copy.kanban
   const [isDragOver, setIsDragOver] = useState(false)
+  const columnTitleMap: Record<TicketStatus, string> = {
+    backlog: kanbanCopy.columns.backlog,
+    todo: kanbanCopy.columns.todo,
+    'in-progress': kanbanCopy.columns.inProgress,
+    review: kanbanCopy.columns.review,
+    done: kanbanCopy.columns.done,
+  }
 
   function handleDragOver(e: React.DragEvent) {
     e.preventDefault()
@@ -86,8 +96,8 @@ export function KanbanColumn({
               color: 'var(--text-primary)',
               letterSpacing: '-0.01em',
             }}
-          >
-            {column.title}
+            >
+            {columnTitleMap[column.id]}
           </span>
           <span
             style={{
@@ -109,7 +119,7 @@ export function KanbanColumn({
           <button
             onClick={onCreateTicket}
             className="focus-ring hover-bg"
-            aria-label="Create new ticket"
+            aria-label={kanbanCopy.createNewTicketAria}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -156,8 +166,8 @@ export function KanbanColumn({
               fontSize: 'var(--text-caption1)',
               color: 'var(--text-tertiary)',
             }}
-          >
-            No tickets
+            >
+            {kanbanCopy.emptyColumn}
           </div>
         )}
       </div>

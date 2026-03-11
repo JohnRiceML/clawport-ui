@@ -1,10 +1,13 @@
 'use client'
 
 import { useState } from 'react'
+import { useSettings } from '@/app/settings-provider'
 import type { RunCost } from '@/lib/types'
 import { fmtCost, fmtDate, fmtTokens } from './formatters'
 
 export function RunDetailTable({ runCosts, jobName }: { runCosts: RunCost[]; jobName: (id: string) => string }) {
+  const { copy } = useSettings()
+  const runDetailCopy = copy.costs.runDetail
   const [showAll, setShowAll] = useState(false)
   const sorted = [...runCosts].sort((a, b) => b.ts - a.ts)
   const visible = showAll ? sorted : sorted.slice(0, 50)
@@ -27,7 +30,7 @@ export function RunDetailTable({ runCosts, jobName }: { runCosts: RunCost[]; job
         color: 'var(--text-tertiary)',
         fontWeight: 'var(--weight-medium)',
       }}>
-        Per-Run Detail ({sorted.length} run{sorted.length !== 1 ? 's' : ''})
+        {runDetailCopy.title(sorted.length)}
       </div>
 
       {/* Header */}
@@ -39,13 +42,13 @@ export function RunDetailTable({ runCosts, jobName }: { runCosts: RunCost[]; job
         fontWeight: 'var(--weight-medium)',
         gap: 'var(--space-3)',
       }}>
-        <span style={{ width: 120, flexShrink: 0 }}>Time</span>
-        <span style={{ flex: 2, minWidth: 0 }}>Job</span>
-        <span className="hidden-mobile" style={{ width: 120 }}>Model</span>
-        <span style={{ width: 60, textAlign: 'right' }}>Input</span>
-        <span style={{ width: 60, textAlign: 'right' }}>Output</span>
-        <span className="hidden-mobile" style={{ width: 60, textAlign: 'right' }}>Cache</span>
-        <span style={{ width: 70, textAlign: 'right' }}>Cost</span>
+        <span style={{ width: 120, flexShrink: 0 }}>{runDetailCopy.time}</span>
+        <span style={{ flex: 2, minWidth: 0 }}>{runDetailCopy.job}</span>
+        <span className="hidden-mobile" style={{ width: 120 }}>{runDetailCopy.model}</span>
+        <span style={{ width: 60, textAlign: 'right' }}>{runDetailCopy.input}</span>
+        <span style={{ width: 60, textAlign: 'right' }}>{runDetailCopy.output}</span>
+        <span className="hidden-mobile" style={{ width: 60, textAlign: 'right' }}>{runDetailCopy.cache}</span>
+        <span style={{ width: 70, textAlign: 'right' }}>{runDetailCopy.cost}</span>
       </div>
 
       {/* Rows */}
@@ -99,7 +102,7 @@ export function RunDetailTable({ runCosts, jobName }: { runCosts: RunCost[]; job
               fontWeight: 'var(--weight-medium)',
             }}
           >
-            Show all {sorted.length} runs
+            {runDetailCopy.showAllRuns(sorted.length)}
           </button>
         </div>
       )}

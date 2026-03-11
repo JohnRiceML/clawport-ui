@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback } from "react"
 import type { Agent, CronJob } from "@/lib/types"
 import { AgentAvatar } from "@/components/AgentAvatar"
+import { useSettings } from "@/app/settings-provider"
 
 interface FeedViewProps {
   agents: Agent[]
@@ -13,29 +14,34 @@ interface FeedViewProps {
 
 type Filter = "all" | "error" | "ok"
 
-const PILLS: { key: Filter; label: string; dotColor: string }[] = [
-  { key: "all", label: "All", dotColor: "var(--text-primary)" },
-  { key: "ok", label: "Healthy", dotColor: "var(--system-green)" },
-  { key: "error", label: "Errors", dotColor: "var(--system-red)" },
-]
-
-function relativeTime(dateStr: string): string {
+function relativeTime(
+  dateStr: string,
+  labels: {
+    justNow: string
+    minutesAgo: (count: number) => string
+    hoursAgo: (count: number) => string
+    daysAgo: (count: number) => string
+    yesterday: string
+  },
+): string {
   const now = Date.now()
   const then = new Date(dateStr).getTime()
   if (isNaN(then)) return dateStr
   const diffMs = now - then
   const mins = Math.floor(diffMs / 60000)
-  if (mins < 1) return "Just now"
-  if (mins < 60) return `${mins}m ago`
+  if (mins < 1) return labels.justNow
+  if (mins < 60) return labels.minutesAgo(mins)
   const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h ago`
+  if (hours < 24) return labels.hoursAgo(hours)
   const days = Math.floor(hours / 24)
-  if (days === 1) return "Yesterday"
-  if (days < 7) return `${days}d ago`
+  if (days === 1) return labels.yesterday
+  if (days < 7) return labels.daysAgo(days)
   return new Date(dateStr).toLocaleDateString()
 }
 
 function StatusBadge({ status }: { status: CronJob["status"] }) {
+  const { copy } = useSettings()
+  const feedCopy = copy.feed
   const bg =
     status === "ok"
       ? "color-mix(in srgb, var(--system-green) 15%, transparent)"
@@ -48,7 +54,7 @@ function StatusBadge({ status }: { status: CronJob["status"] }) {
       : status === "error"
         ? "var(--system-red)"
         : "var(--text-tertiary)"
-  const label = status === "ok" ? "healthy" : status
+  const label = status === "ok" ? feedCopy.status.healthy : status
 
   return (
     <span
@@ -132,8 +138,15 @@ function StatCard({
 }
 
 export function FeedView({ agents, crons, selectedId, onSelect }: FeedViewProps) {
+  const { copy } = useSettings()
+  const feedCopy = copy.feed
   const [filter, setFilter] = useState<Filter>("all")
   const pillsRef = useRef<HTMLDivElement>(null)
+  const pills: { key: Filter; label: string; dotColor: string }[] = [
+    { key: "all", label: feedCopy.pills.all, dotColor: "var(--text-primary)" },
+    { key: "ok", label: feedCopy.pills.ok, dotColor: "var(--system-green)" },
+    { key: "error", label: feedCopy.pills.error, dotColor: "var(--system-red)" },
+  ]
 
   const agentMap = new Map(agents.map((a) => [a.id, a]))
 
@@ -191,7 +204,7 @@ export function FeedView({ agents, crons, selectedId, onSelect }: FeedViewProps)
       >
         <StatCard
           value={counts.all}
-          label="Total crons"
+          label={feedCopy.statCards.totalCrons}
           color="var(--text-primary)"
           icon={
             <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
@@ -202,7 +215,7 @@ export function FeedView({ agents, crons, selectedId, onSelect }: FeedViewProps)
         />
         <StatCard
           value={counts.ok}
-          label="Healthy"
+          label={feedCopy.statCards.healthy}
           color="var(--system-green)"
           icon={
             <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
@@ -213,7 +226,7 @@ export function FeedView({ agents, crons, selectedId, onSelect }: FeedViewProps)
         />
         <StatCard
           value={counts.error}
-          label="Errors"
+          label={feedCopy.statCards.errors}
           color={counts.error > 0 ? "var(--system-red)" : "var(--text-tertiary)"}
           icon={
             <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
@@ -225,7 +238,7 @@ export function FeedView({ agents, crons, selectedId, onSelect }: FeedViewProps)
         />
         <StatCard
           value={idleCount}
-          label="Idle"
+          label={feedCopy.statCards.idle}
           color="var(--text-tertiary)"
           icon={
             <svg width="18" height="18" viewBox="0 0 16 16" fill="none">
@@ -247,7 +260,7 @@ export function FeedView({ agents, crons, selectedId, onSelect }: FeedViewProps)
           marginBottom: "var(--space-4)",
         }}
       >
-        {PILLS.map((pill) => {
+        {pills.map((pill) => {
           const isActive = filter === pill.key
           return (
             <button
@@ -324,10 +337,10 @@ export function FeedView({ agents, crons, selectedId, onSelect }: FeedViewProps)
             <polyline points="8 4.5 8 8 10.5 10" stroke="var(--fill-tertiary)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           <div style={{ fontSize: "var(--text-body)", fontWeight: "var(--weight-medium)" }}>
-            {filter === "all" ? "No cron jobs configured" : `No ${filter} crons`}
+            {filter === "all" ? feedCopy.empty.allTitle : feedCopy.empty.filteredTitle(filter)}
           </div>
           <div style={{ fontSize: "var(--text-caption1)", marginTop: "var(--space-1)" }}>
-            {filter !== "all" ? "Try changing the filter" : "Crons will appear here once configured"}
+            {filter !== "all" ? feedCopy.empty.tryFilter : feedCopy.empty.noCronsYet}
           </div>
         </div>
       ) : (
@@ -401,7 +414,7 @@ export function FeedView({ agents, crons, selectedId, onSelect }: FeedViewProps)
                         color: "var(--text-primary)",
                       }}
                     >
-                      {agent?.name ?? "Unknown"}
+                      {agent?.name ?? feedCopy.unknownAgent}
                     </span>
                     <span
                       style={{
@@ -440,7 +453,7 @@ export function FeedView({ agents, crons, selectedId, onSelect }: FeedViewProps)
                             color: "var(--text-quaternary)",
                           }}
                         >
-                          {relativeTime(cron.lastRun)}
+                          {relativeTime(cron.lastRun, feedCopy.relative)}
                         </span>
                       </>
                     )}

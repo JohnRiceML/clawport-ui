@@ -7,6 +7,7 @@ import { parseMedia, addMessage, updateLastMessage, deleteOnServer } from '@/lib
 import { buildApiContent } from '@/lib/multimodal'
 import { generateId } from '@/lib/id'
 import { useSettings } from '@/app/settings-provider'
+import { localizeAgentDescription } from '@/lib/i18n'
 import { isSlashInput, matchCommands, parseSlashCommand, executeCommand } from '@/lib/slash-commands'
 import type { SlashCommand } from '@/lib/slash-commands'
 import { FileAttachment } from './FileAttachment'
@@ -71,6 +72,7 @@ function inlineFormat(text: string): React.ReactNode {
 }
 
 function CodeBlock({ code, keyProp }: { code: string; keyProp: number }) {
+  const { copy } = useSettings()
   const [copied, setCopied] = useState(false)
 
   function handleCopy() {
@@ -85,9 +87,9 @@ function CodeBlock({ code, keyProp }: { code: string; keyProp: number }) {
       <button
         className="code-copy-btn focus-ring"
         onClick={handleCopy}
-        aria-label="Copy code"
+        aria-label={copy.chat.copyCodeAria}
       >
-        {copied ? 'Copied!' : 'Copy'}
+        {copied ? copy.chat.copied : copy.chat.copyCode}
       </button>
       <pre><code>{code}</code></pre>
     </div>
@@ -166,18 +168,18 @@ function formatMessage(content: string): React.ReactNode {
 
 /* ── Timestamp formatting ──────────────────────────────── */
 
-function formatTimestamp(ts: number): string {
+function formatTimestamp(ts: number, locale: string, labels: { today: string; yesterday: string }): string {
   const now = new Date()
   const date = new Date(ts)
   const isToday = now.toDateString() === date.toDateString()
   const yesterday = new Date(now)
   yesterday.setDate(yesterday.getDate() - 1)
   const isYesterday = yesterday.toDateString() === date.toDateString()
-  const time = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+  const time = date.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' })
 
-  if (isToday) return `Today ${time}`
-  if (isYesterday) return `Yesterday ${time}`
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ` ${time}`
+  if (isToday) return `${labels.today} ${time}`
+  if (isYesterday) return `${labels.yesterday} ${time}`
+  return `${date.toLocaleDateString(locale, { month: 'short', day: 'numeric' })} ${time}`
 }
 
 function shouldShowTimestamp(messages: Message[], index: number): boolean {
@@ -258,7 +260,11 @@ function resizeImage(file: File, maxPx: number): Promise<string> {
 
 /* ── Render media helpers ─────────────────────────────── */
 
-function renderMedia(media: MediaAttachment[], isUser: boolean) {
+function renderMedia(
+  media: MediaAttachment[],
+  isUser: boolean,
+  labels: { image: string; file: string },
+) {
   const images = media.filter(m => m.type === 'image')
   const files = media.filter(m => m.type === 'file')
 
@@ -273,7 +279,7 @@ function renderMedia(media: MediaAttachment[], isUser: boolean) {
         }}>
           <img
             src={m.url}
-            alt={m.name || 'Image'}
+            alt={m.name || labels.image}
             style={{ width: '100%', display: 'block', borderRadius: 'var(--radius-lg)', cursor: 'pointer' }}
             onClick={() => window.open(m.url, '_blank')}
           />
@@ -282,7 +288,7 @@ function renderMedia(media: MediaAttachment[], isUser: boolean) {
       {files.map((m, mi) => (
         <div key={`file-${mi}`} style={{ marginTop: 'var(--space-2)' }}>
           <FileAttachment
-            name={m.name || 'File'}
+            name={m.name || labels.file}
             size={m.size}
             mimeType={m.mimeType}
             url={m.url}
@@ -298,7 +304,7 @@ function renderMedia(media: MediaAttachment[], isUser: boolean) {
 
 export function ConversationView({ agent, conversation, onUpdate, onBack }: ConversationViewProps) {
   const router = useRouter()
-  const { settings } = useSettings()
+  const { settings, copy, resolvedLocale } = useSettings()
   const [input, setInput] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
   const [pendingAttachments, setPendingAttachments] = useState<MediaAttachment[]>([])
@@ -412,12 +418,12 @@ export function ConversationView({ agent, conversation, onUpdate, onBack }: Conv
       const finalContent = fullContent
       onUpdate(agent.id, prev => updateLastMessage(prev, agent.id, assistantMsgId, finalContent, false))
     } catch {
-      onUpdate(agent.id, prev => updateLastMessage(prev, agent.id, assistantMsgId, 'Error getting response. Check API connection.', false))
+      onUpdate(agent.id, prev => updateLastMessage(prev, agent.id, assistantMsgId, copy.chat.responseError, false))
     } finally {
       setIsStreaming(false)
       textareaRef.current?.focus()
     }
-  }, [input, pendingAttachments, isStreaming, agent.id, onUpdate])
+  }, [input, pendingAttachments, isStreaming, agent.id, onUpdate, settings.operatorName, copy.chat.responseError])
 
   function runSlashCommand(command: string) {
     const result = executeCommand(command, agent)
@@ -641,7 +647,10 @@ export function ConversationView({ agent, conversation, onUpdate, onBack }: Conv
         messages: [{
           id: generateId(),
           role: 'assistant' as const,
-          content: `I'm ${agent.name}. ${agent.description} What do you need?`,
+          content: copy.chat.clearChatSeed(
+            agent.name,
+            localizeAgentDescription(agent.id, agent.description, resolvedLocale),
+          ),
           timestamp: Date.now(),
         }],
         unread: 0,
@@ -680,7 +689,7 @@ export function ConversationView({ agent, conversation, onUpdate, onBack }: Conv
           <button
             className="md:hidden btn-ghost focus-ring"
             onClick={onBack}
-            aria-label="Back to agents"
+            aria-label={copy.chat.backToAgents}
             style={{
               padding: 'var(--space-1) var(--space-2)',
               borderRadius: 'var(--radius-sm)',
@@ -694,7 +703,7 @@ export function ConversationView({ agent, conversation, onUpdate, onBack }: Conv
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="15 18 9 12 15 6" />
             </svg>
-            Back
+            {copy.chat.back}
           </button>
         )}
 
@@ -725,7 +734,7 @@ export function ConversationView({ agent, conversation, onUpdate, onBack }: Conv
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
             }}>
-              {agent.title}{agent.model && ` · ${agent.model.split('/').pop()}`}{messages.length > 1 && ' · Synced'}
+              {agent.title}{agent.model && ` · ${agent.model.split('/').pop()}`}{messages.length > 1 && ` · ${copy.chat.synced}`}
             </div>
           </div>
         </div>
@@ -734,7 +743,7 @@ export function ConversationView({ agent, conversation, onUpdate, onBack }: Conv
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
           <button
             className="btn-ghost focus-ring"
-            aria-label="View agent profile"
+            aria-label={copy.chat.viewAgentProfile}
             onClick={() => router.push(`/agents/${agent.id}`)}
             style={{
               padding: 'var(--space-2)',
@@ -752,7 +761,7 @@ export function ConversationView({ agent, conversation, onUpdate, onBack }: Conv
           </button>
           <button
             className="btn-ghost focus-ring"
-            aria-label="Clear conversation"
+            aria-label={copy.chat.clearConversation}
             onClick={clearChat}
             style={{
               padding: 'var(--space-2)',
@@ -804,7 +813,7 @@ export function ConversationView({ agent, conversation, onUpdate, onBack }: Conv
               fontWeight: 'var(--weight-semibold)',
               color: 'var(--accent)',
             }}>
-              Drop files to attach
+              {copy.chat.dropFiles}
             </div>
           </div>
         )}
@@ -844,7 +853,10 @@ export function ConversationView({ agent, conversation, onUpdate, onBack }: Conv
                   fontSize: 'var(--text-caption2)',
                   color: 'var(--text-tertiary)',
                 }}>
-                  {formatTimestamp(msg.timestamp)}
+                  {formatTimestamp(msg.timestamp, resolvedLocale, {
+                    today: copy.chat.today,
+                    yesterday: copy.chat.yesterday,
+                  })}
                 </div>
               )}
 
@@ -882,7 +894,7 @@ export function ConversationView({ agent, conversation, onUpdate, onBack }: Conv
                   )}
                   {media.length > 0 && (
                     <div style={{ maxWidth: '75%' }}>
-                      {renderMedia(media, true)}
+                      {renderMedia(media, true, { image: copy.chat.image, file: copy.chat.file })}
                     </div>
                   )}
                 </div>
@@ -974,7 +986,7 @@ export function ConversationView({ agent, conversation, onUpdate, onBack }: Conv
                     )}
 
                     {/* Media attachments */}
-                    {media.length > 0 && renderMedia(media, false)}
+                    {media.length > 0 && renderMedia(media, false, { image: copy.chat.image, file: copy.chat.file })}
                   </div>
                 </div>
               )}
@@ -1071,7 +1083,7 @@ export function ConversationView({ agent, conversation, onUpdate, onBack }: Conv
             {/* Attach button */}
             <button
               className="btn-ghost focus-ring"
-              aria-label="Attach file"
+              aria-label={copy.chat.attachFile}
               onClick={() => fileInputRef.current?.click()}
               style={{
                 padding: 'var(--space-1)',
@@ -1112,7 +1124,7 @@ export function ConversationView({ agent, conversation, onUpdate, onBack }: Conv
               }}
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
-              placeholder={`Message ${agent.name}...`}
+              placeholder={copy.chat.messagePlaceholder(agent.name)}
               rows={1}
               disabled={isStreaming}
               style={{
@@ -1141,7 +1153,7 @@ export function ConversationView({ agent, conversation, onUpdate, onBack }: Conv
               className="focus-ring"
               onClick={() => sendMessage()}
               disabled={!hasContent || isStreaming}
-              aria-label="Send message"
+              aria-label={copy.chat.sendMessage}
               style={{
                 width: 32,
                 height: 32,
@@ -1173,7 +1185,7 @@ export function ConversationView({ agent, conversation, onUpdate, onBack }: Conv
           textAlign: 'center',
           marginTop: 'var(--space-1)',
         }}>
-          Enter to send &middot; Shift+Enter for newline &middot; / for commands
+          {copy.chat.inputHint}
         </div>
       </div>
     </div>

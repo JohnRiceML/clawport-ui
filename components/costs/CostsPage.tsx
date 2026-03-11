@@ -1,7 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { Agent, CostSummary, CronJob, RunCost, ClaudeCodeUsage } from '@/lib/types'
+import type { Agent, CostSummary, CronJob, ClaudeCodeUsage } from '@/lib/types'
+import { useSettings } from '@/app/settings-provider'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AlertTriangle, TrendingDown, TrendingUp, Activity, MessageSquare, ChevronDown } from 'lucide-react'
 import { generateId } from '@/lib/id'
@@ -28,6 +29,8 @@ interface CostChatMessage {
 /* ── CostsPage ───────────────────────────────────────────────── */
 
 export function CostsPage() {
+  const { copy, resolvedLocale } = useSettings()
+  const costsCopy = copy.costs
   const [data, setData] = useState<CostSummary | null>(null)
   const [agents, setAgents] = useState<Agent[]>([])
   const [jobNames, setJobNames] = useState<Record<string, string>>({})
@@ -57,15 +60,15 @@ export function CostsPage() {
 
     Promise.all([
       fetch('/api/costs').then(r => {
-        if (!r.ok) throw new Error('Failed to load costs')
+        if (!r.ok) throw new Error(costsCopy.loadingErrors.costs)
         return r.json()
       }),
       fetch('/api/crons').then(r => {
-        if (!r.ok) throw new Error('Failed to load crons')
+        if (!r.ok) throw new Error(costsCopy.loadingErrors.crons)
         return r.json()
       }),
       fetch('/api/agents').then(r => {
-        if (!r.ok) throw new Error('Failed to load agents')
+        if (!r.ok) throw new Error(costsCopy.loadingErrors.agents)
         return r.json()
       }),
     ])
@@ -80,10 +83,10 @@ export function CostsPage() {
         setLoading(false)
       })
       .catch(err => {
-        setError(err instanceof Error ? err.message : 'Unknown error')
+        setError(err instanceof Error ? err.message : costsCopy.loadingErrors.unknown)
         setLoading(false)
       })
-  }, [])
+  }, [costsCopy.loadingErrors])
 
   // Claude Code usage SSE stream
   useEffect(() => {
@@ -163,11 +166,11 @@ export function CostsPage() {
         }
       }
     } catch {
-      setAnalysisContent(prev => prev + '\n\n[Error: Failed to connect to agent]')
+      setAnalysisContent(prev => prev + `\n\n${costsCopy.agentOptimizer.connectError}`)
     } finally {
       setAnalysisStreaming(false)
     }
-  }, [rootAgent, analysisStreaming, data, jobNames])
+  }, [rootAgent, analysisStreaming, data, jobNames, costsCopy.agentOptimizer.connectError])
 
   // Send follow-up chat message
   const sendChatMessage = useCallback(async (overrideText?: string) => {
@@ -231,13 +234,15 @@ export function CostsPage() {
       )
     } catch {
       setChatMessages(prev =>
-        prev.map(m => m.id === assistantMsgId ? { ...m, content: 'Error getting response. Check API connection.', isStreaming: false } : m)
+        prev.map(m => m.id === assistantMsgId
+          ? { ...m, content: costsCopy.agentOptimizer.responseError, isStreaming: false }
+          : m)
       )
     } finally {
       setChatStreaming(false)
       chatTextareaRef.current?.focus()
     }
-  }, [chatInput, chatStreaming, rootAgent, chatMessages, analysisContent, data, jobNames])
+  }, [chatInput, chatStreaming, rootAgent, chatMessages, analysisContent, data, jobNames, costsCopy.agentOptimizer.responseError])
 
   // Handle insight action -- open analysis if needed, then send
   const handleInsightAction = useCallback((prompt: string) => {
@@ -270,15 +275,15 @@ export function CostsPage() {
           letterSpacing: '-0.5px',
           lineHeight: 'var(--leading-tight)',
         }}>
-          Costs & Optimization
+          {costsCopy.title}
         </h1>
         {!loading && data && (
           <p style={{ fontSize: 'var(--text-footnote)', color: 'var(--text-secondary)', marginTop: 'var(--space-1)' }}>
             {dateRange
-              ? `${dateRange.oldest.toLocaleDateString()} - ${dateRange.newest.toLocaleDateString()}`
-              : 'No data'}
+              ? `${dateRange.oldest.toLocaleDateString(resolvedLocale)} - ${dateRange.newest.toLocaleDateString(resolvedLocale)}`
+              : costsCopy.noDateRange}
             {' \u00b7 '}
-            {data.runCosts.length} run{data.runCosts.length !== 1 ? 's' : ''} with cost data
+            {costsCopy.runsWithCostData(data.runCosts.length)}
           </p>
         )}
       </header>
@@ -325,7 +330,7 @@ export function CostsPage() {
             color: 'var(--text-tertiary)',
             fontSize: 'var(--text-footnote)',
           }}>
-            No cost data -- runs without usage metadata will not appear here.
+            {costsCopy.emptyState}
           </div>
         )}
 
@@ -347,12 +352,12 @@ export function CostsPage() {
               }}>
                 <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: 1 }} />
                 <div>
-                  <strong>{data.anomalies.length} anomal{data.anomalies.length === 1 ? 'y' : 'ies'}</strong>
+                  <strong>{costsCopy.anomalies.summary(data.anomalies.length)}</strong>
                   {' -- '}
                   {data.anomalies.slice(0, 3).map((a, i) => (
                     <span key={i}>
                       {i > 0 && ', '}
-                      {jobName(a.jobId)} ({a.ratio.toFixed(1)}x median)
+                      {jobName(a.jobId)} ({costsCopy.anomalies.median(a.ratio)})
                     </span>
                   ))}
                 </div>
@@ -365,7 +370,7 @@ export function CostsPage() {
             {/* ── Summary cards ────────────────────────────────── */}
             <div className="costs-summary-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
               {/* Total Estimated Cost */}
-              <SummaryCard label="Total Estimated Cost">
+              <SummaryCard label={costsCopy.summaryCards.totalEstimatedCost}>
                 <div className="flex items-center" style={{ gap: 'var(--space-2)' }}>
                   <span style={{ fontSize: 'var(--text-title2)', color: 'var(--text-primary)', fontWeight: 'var(--weight-bold)', fontVariantNumeric: 'tabular-nums' }}>
                     {fmtCost(data.totalCost)}
@@ -392,27 +397,27 @@ export function CostsPage() {
               </SummaryCard>
 
               {/* This Week vs Last Week */}
-              <SummaryCard label="This Week">
+              <SummaryCard label={costsCopy.summaryCards.thisWeek}>
                 <div style={{ fontSize: 'var(--text-title2)', color: 'var(--text-primary)', fontWeight: 'var(--weight-bold)', fontVariantNumeric: 'tabular-nums' }}>
                   {fmtCost(data.weekOverWeek.thisWeek)}
                 </div>
                 <div style={{ fontSize: 'var(--text-caption1)', color: 'var(--text-tertiary)', marginTop: 2 }}>
-                  last week: {fmtCost(data.weekOverWeek.lastWeek)}
+                  {costsCopy.summaryCards.lastWeek(fmtCost(data.weekOverWeek.lastWeek))}
                 </div>
               </SummaryCard>
 
               {/* Cache Savings */}
-              <SummaryCard label="Cache Savings">
+              <SummaryCard label={costsCopy.summaryCards.cacheSavings}>
                 <div style={{ fontSize: 'var(--text-title2)', color: 'var(--system-green)', fontWeight: 'var(--weight-bold)', fontVariantNumeric: 'tabular-nums' }}>
                   {fmtCost(data.cacheSavings.estimatedSavings)}
                 </div>
                 <div style={{ fontSize: 'var(--text-caption1)', color: 'var(--text-tertiary)', marginTop: 2 }}>
-                  {fmtTokens(data.cacheSavings.cacheTokens)} cache tokens
+                  {costsCopy.summaryCards.cacheTokens(fmtTokens(data.cacheSavings.cacheTokens))}
                 </div>
               </SummaryCard>
 
               {/* Anomalies */}
-              <SummaryCard label="Anomalies">
+              <SummaryCard label={costsCopy.summaryCards.anomalies}>
                 <div className="flex items-center" style={{ gap: 'var(--space-2)' }}>
                   {data.anomalies.length > 0 && (
                     <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--system-orange)', flexShrink: 0 }} />
@@ -454,10 +459,10 @@ export function CostsPage() {
                 <Activity size={18} style={{ color: 'var(--accent)', flexShrink: 0 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
-                    Agent Optimizer
+                    {costsCopy.agentOptimizer.title}
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 2 }}>
-                    AI-powered analysis of your agent costs and throughput
+                    {costsCopy.agentOptimizer.subtitle}
                   </div>
                 </div>
                 {analysisStreaming && (
@@ -469,7 +474,7 @@ export function CostsPage() {
                       width: 6, height: 6, borderRadius: '50%', background: 'var(--accent)',
                       animation: 'pulse 1.2s infinite',
                     }} />
-                    Analyzing...
+                    {costsCopy.agentOptimizer.analyzing}
                   </span>
                 )}
                 {!analysisOpen && !analysisContent && !analysisStreaming && (
@@ -483,7 +488,7 @@ export function CostsPage() {
                       border: 'none', cursor: 'pointer',
                     }}
                   >
-                    Analyze
+                    {costsCopy.agentOptimizer.analyze}
                   </button>
                 )}
                 {(analysisOpen || analysisContent) && (
@@ -539,15 +544,10 @@ export function CostsPage() {
                   {!analysisContent && !analysisStreaming && (
                     <div style={{ padding: '12px 20px 16px' }}>
                       <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8 }}>
-                        Ask about
+                        {costsCopy.agentOptimizer.askAbout}
                       </div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                        {[
-                          'Which agents should switch to Haiku?',
-                          'How do I reduce my 5-hour window usage?',
-                          'Show me my most expensive agent and how to fix it',
-                          'What thinking effort should each agent use?',
-                        ].map(q => (
+                        {costsCopy.agentOptimizer.starterQuestions.map(q => (
                           <button
                             key={q}
                             onClick={() => { setAnalysisOpen(true); runAnalysis(); }}
@@ -600,7 +600,7 @@ export function CostsPage() {
                                 {msg.role === 'assistant' ? (
                                   <div
                                     className="markdown-body"
-                                    dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content || '...') }}
+                                    dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content || costsCopy.agentOptimizer.streamingPlaceholder) }}
                                   />
                                 ) : (
                                   msg.content
@@ -621,11 +621,7 @@ export function CostsPage() {
                       {/* Follow-up suggestions */}
                       {chatMessages.length === 0 && (
                         <div style={{ padding: '8px 20px 4px', display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                          {[
-                            'Show me the config changes',
-                            'Which agents need less thinking effort?',
-                            'How do I trim agent context?',
-                          ].map(q => (
+                          {costsCopy.agentOptimizer.followUpQuestions.map(q => (
                             <button
                               key={q}
                               onClick={() => sendChatMessage(q)}
@@ -660,7 +656,7 @@ export function CostsPage() {
                               sendChatMessage()
                             }
                           }}
-                          placeholder="Ask a follow-up..."
+                          placeholder={costsCopy.agentOptimizer.inputPlaceholder}
                           disabled={chatStreaming}
                           rows={1}
                           style={{
@@ -692,7 +688,7 @@ export function CostsPage() {
                             opacity: chatStreaming || !chatInput.trim() ? 0.5 : 1,
                           }}
                         >
-                          Send
+                          {costsCopy.agentOptimizer.send}
                         </button>
                       </div>
                     </>
@@ -726,17 +722,17 @@ export function CostsPage() {
                 fontWeight: 'var(--weight-medium)',
                 gap: 'var(--space-3)',
               }}>
-                <span style={{ flex: 2, minWidth: 0 }}>Job</span>
-                <span style={{ width: 50, textAlign: 'right' }}>Runs</span>
-                <span style={{ width: 80, textAlign: 'right' }}>Input</span>
-                <span style={{ width: 80, textAlign: 'right' }}>Output</span>
-                <span className="hidden-mobile" style={{ width: 80, textAlign: 'right' }}>Cache</span>
-                <span style={{ width: 80, textAlign: 'right' }}>Est. Cost</span>
+                <span style={{ flex: 2, minWidth: 0 }}>{costsCopy.jobsTable.job}</span>
+                <span style={{ width: 50, textAlign: 'right' }}>{costsCopy.jobsTable.runs}</span>
+                <span style={{ width: 80, textAlign: 'right' }}>{costsCopy.jobsTable.input}</span>
+                <span style={{ width: 80, textAlign: 'right' }}>{costsCopy.jobsTable.output}</span>
+                <span className="hidden-mobile" style={{ width: 80, textAlign: 'right' }}>{costsCopy.jobsTable.cache}</span>
+                <span style={{ width: 80, textAlign: 'right' }}>{costsCopy.jobsTable.estCost}</span>
               </div>
 
               {data.jobCosts.length === 0 ? (
                 <div style={{ padding: 'var(--space-4)', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: 'var(--text-footnote)' }}>
-                  No jobs with cost data
+                  {costsCopy.jobsTable.empty}
                 </div>
               ) : (
                 data.jobCosts.map((job, i) => (
