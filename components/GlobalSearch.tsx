@@ -13,10 +13,13 @@ import {
   Settings,
 } from 'lucide-react';
 import type { Agent, CronJob } from '@/lib/types';
+import { useSettings } from '@/app/settings-provider';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
+
+type SearchCategory = 'Agents' | 'Pages' | 'Crons'
 
 interface SearchResult {
   id: string;
@@ -24,20 +27,12 @@ interface SearchResult {
   subtitle?: string;
   icon: React.ReactNode;
   href: string;
-  category: 'Agents' | 'Pages' | 'Crons';
+  category: SearchCategory;
 }
 
 // ---------------------------------------------------------------------------
 // Static pages
 // ---------------------------------------------------------------------------
-
-const STATIC_PAGES: SearchResult[] = [
-  { id: 'page-map', label: 'Map', icon: <Map size={16} />, href: '/', category: 'Pages' },
-  { id: 'page-messages', label: 'Messages', icon: <MessageSquare size={16} />, href: '/chat', category: 'Pages' },
-  { id: 'page-crons', label: 'Crons', icon: <Clock size={16} />, href: '/crons', category: 'Pages' },
-  { id: 'page-memory', label: 'Memory', icon: <Brain size={16} />, href: '/memory', category: 'Pages' },
-  { id: 'page-settings', label: 'Settings', icon: <Settings size={16} />, href: '/settings', category: 'Pages' },
-];
 
 // ---------------------------------------------------------------------------
 // Simple fuzzy match — case-insensitive substring
@@ -61,11 +56,12 @@ function fuzzyMatch(query: string, target: string): boolean {
 // ---------------------------------------------------------------------------
 
 export function SearchTrigger({ onClick }: { onClick: () => void }) {
+  const { copy } = useSettings();
   return (
     <button
       onClick={onClick}
       className="nav-item focus-ring"
-      aria-label="Open search (Cmd+K)"
+      aria-label={copy.search.openAria}
       style={{
         width: '100%',
         display: 'flex',
@@ -83,7 +79,7 @@ export function SearchTrigger({ onClick }: { onClick: () => void }) {
       }}
     >
       <Search size={14} style={{ flexShrink: 0, opacity: 0.7 }} />
-      <span style={{ flex: 1, textAlign: 'left' }}>Search...</span>
+      <span style={{ flex: 1, textAlign: 'left' }}>{copy.search.placeholder}</span>
       <kbd
         style={{
           fontSize: '11px',
@@ -107,6 +103,7 @@ export function SearchTrigger({ onClick }: { onClick: () => void }) {
 // ---------------------------------------------------------------------------
 
 export function GlobalSearch() {
+  const { copy } = useSettings();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
@@ -201,6 +198,13 @@ export function GlobalSearch() {
   // Build filtered results
   // -----------------------------------------------------------------------
   const results = useMemo(() => {
+    const staticPages: SearchResult[] = [
+      { id: 'page-map', label: copy.nav.map, icon: <Map size={16} />, href: '/', category: 'Pages' },
+      { id: 'page-messages', label: copy.nav.messages, icon: <MessageSquare size={16} />, href: '/chat', category: 'Pages' },
+      { id: 'page-crons', label: copy.nav.crons, icon: <Clock size={16} />, href: '/crons', category: 'Pages' },
+      { id: 'page-memory', label: copy.nav.memory, icon: <Brain size={16} />, href: '/memory', category: 'Pages' },
+      { id: 'page-settings', label: copy.nav.settings, icon: <Settings size={16} />, href: '/settings', category: 'Pages' },
+    ];
     const all: SearchResult[] = [];
 
     // Agents
@@ -216,7 +220,7 @@ export function GlobalSearch() {
     });
 
     // Static pages
-    all.push(...STATIC_PAGES);
+    all.push(...staticPages);
 
     // Crons
     crons.forEach((c) => {
@@ -237,14 +241,14 @@ export function GlobalSearch() {
         fuzzyMatch(query, r.label) ||
         (r.subtitle && fuzzyMatch(query, r.subtitle))
     );
-  }, [query, agents, crons]);
+  }, [query, agents, crons, copy]);
 
   // -----------------------------------------------------------------------
   // Group results by category
   // -----------------------------------------------------------------------
   const grouped = useMemo(() => {
     const groups: { category: string; items: SearchResult[] }[] = [];
-    const categoryOrder = ['Agents', 'Pages', 'Crons'];
+    const categoryOrder: SearchCategory[] = ['Agents', 'Pages', 'Crons'];
     for (const cat of categoryOrder) {
       const items = results.filter((r) => r.category === cat);
       if (items.length > 0) {
@@ -346,7 +350,7 @@ export function GlobalSearch() {
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Search ClawPort"
+        aria-label={copy.search.dialogLabel}
         className="animate-scale-in"
         onKeyDown={handleKeyDown}
         style={{
@@ -386,8 +390,8 @@ export function GlobalSearch() {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search ClawPort..."
-            aria-label="Search ClawPort"
+            placeholder={copy.search.inputPlaceholder}
+            aria-label={copy.search.inputAria}
             style={{
               flex: 1,
               background: 'transparent',
@@ -418,7 +422,7 @@ export function GlobalSearch() {
         <div
           ref={listRef}
           role="listbox"
-          aria-label="Search results"
+          aria-label={copy.search.resultsAria}
           style={{
             flex: 1,
             overflowY: 'auto',
@@ -434,7 +438,7 @@ export function GlobalSearch() {
                 fontSize: '13px',
               }}
             >
-              No results for &lsquo;{query}&rsquo;
+              {copy.search.noResults(query)}
             </div>
           )}
 
@@ -451,7 +455,11 @@ export function GlobalSearch() {
                   padding: '6px 8px 4px',
                 }}
               >
-                {group.category}
+                {group.category === 'Agents'
+                  ? copy.search.categories.agents
+                  : group.category === 'Pages'
+                    ? copy.search.categories.pages
+                    : copy.search.categories.crons}
               </div>
 
               {/* Items */}

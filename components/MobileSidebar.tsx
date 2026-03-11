@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
 import { NavLinks } from '@/components/NavLinks';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { LocaleToggle } from '@/components/LocaleToggle';
 import { SearchTrigger } from '@/components/GlobalSearch';
 import { useSettings } from '@/app/settings-provider';
 import { SidebarUsageWidget } from '@/components/sidebar/SidebarUsageWidget';
@@ -16,7 +17,7 @@ export function MobileSidebar({
 }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
-  const { settings } = useSettings();
+  const { settings, copy } = useSettings();
 
   // Close sidebar on route change
   useEffect(() => {
@@ -76,7 +77,7 @@ export function MobileSidebar({
         <button
           onClick={toggle}
           className="btn-ghost focus-ring"
-          aria-label={open ? 'Close navigation menu' : 'Open navigation menu'}
+          aria-label={open ? copy.mobile.closeMenu : copy.mobile.openMenu}
           aria-expanded={open}
           style={{
             width: '36px',
@@ -132,7 +133,7 @@ export function MobileSidebar({
             {(!settings.portalName || settings.portalName === 'ClawPort')
               ? <>Claw<span style={{ color: 'var(--accent)' }}>Port</span></>
               : settings.portalName}
-            {' '}{settings.portalSubtitle ?? 'Command Centre'}
+            {' '}{settings.portalSubtitle ?? copy.common.commandCentre}
           </span>
         </div>
       </header>
@@ -223,7 +224,7 @@ export function MobileSidebar({
                   letterSpacing: '0.01em',
                 }}
               >
-                {settings.portalSubtitle ?? 'Command Centre'}
+                {settings.portalSubtitle ?? copy.common.commandCentre}
               </div>
             </div>
           </div>
@@ -235,6 +236,7 @@ export function MobileSidebar({
         </div>
 
         <NavLinks bottomSlot={<SidebarUsageWidget />} />
+        <LocaleToggle />
         <ThemeToggle />
       </aside>
     </>

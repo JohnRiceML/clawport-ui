@@ -3,6 +3,7 @@
 import { useCallback } from 'react';
 import { NavLinks } from '@/components/NavLinks';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { LocaleToggle } from '@/components/LocaleToggle';
 import { MobileSidebar } from '@/components/MobileSidebar';
 import { SidebarUsageWidget } from '@/components/sidebar/SidebarUsageWidget';
 import { GlobalSearch, SearchTrigger } from '@/components/GlobalSearch';
@@ -13,7 +14,7 @@ import { useSettings } from '@/app/settings-provider';
  * and the Cmd+K search palette. Rendered inside layout.tsx.
  */
 export function Sidebar() {
-  const { settings } = useSettings();
+  const { settings, copy } = useSettings();
   const openSearch = useCallback(() => {
     // We trigger the search modal by simulating Cmd+K.
     // Instead, we expose a controlled open state via a custom event.
@@ -82,11 +83,11 @@ export function Sidebar() {
                   color: 'var(--text-secondary)',
                   letterSpacing: '0.01em',
                 }}
-              >
-                {settings.portalSubtitle ?? 'Command Centre'}
+                >
+                  {settings.portalSubtitle ?? copy.common.commandCentre}
+                </div>
               </div>
             </div>
-          </div>
         </div>
 
         {/* Search trigger */}
@@ -95,6 +96,7 @@ export function Sidebar() {
         </div>
 
         <NavLinks bottomSlot={<SidebarUsageWidget />} />
+        <LocaleToggle />
         <ThemeToggle />
       </aside>
 

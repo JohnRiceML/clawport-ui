@@ -62,6 +62,7 @@ function resizeImage(file: File, maxSize: number): Promise<string> {
 export default function SettingsPage() {
   const {
     settings,
+    copy,
     setAccentColor,
     setPortalName,
     setPortalSubtitle,
@@ -74,6 +75,7 @@ export default function SettingsPage() {
     clearAgentOverride,
     resetAll,
   } = useSettings()
+  const settingsCopy = copy.settings
 
   const [wizardOpen, setWizardOpen] = useState(false)
   const [agents, setAgents] = useState<Agent[]>([])
@@ -146,7 +148,7 @@ export default function SettingsPage() {
             margin: '0 0 var(--space-8)',
           }}
         >
-          Settings
+          {settingsCopy.pageTitle}
         </h1>
 
         {/* ── Section 1: Accent Color ── */}
@@ -161,7 +163,7 @@ export default function SettingsPage() {
               padding: '0 var(--space-4) var(--space-2)',
             }}
           >
-            Accent Color
+            {settingsCopy.accentColor}
           </div>
           <div
             style={{
@@ -216,7 +218,7 @@ export default function SettingsPage() {
                   cursor: 'pointer',
                 }}
               >
-                Custom:
+                {settingsCopy.customColor}
                 <input
                   type="color"
                   value={settings.accentColor ?? '#F5C518'}
@@ -248,7 +250,7 @@ export default function SettingsPage() {
                   }}
                 >
                   <RotateCcw size={12} />
-                  Reset to Default
+                  {settingsCopy.resetToDefault}
                 </button>
               )}
             </div>
@@ -267,7 +269,7 @@ export default function SettingsPage() {
               padding: '0 var(--space-4) var(--space-2)',
             }}
           >
-            Branding
+            {settingsCopy.branding}
           </div>
           <div
             style={{
@@ -287,7 +289,7 @@ export default function SettingsPage() {
                   marginBottom: 'var(--space-1)',
                 }}
               >
-                Name
+                {settingsCopy.name}
               </label>
               <input
                 type="text"
@@ -316,12 +318,12 @@ export default function SettingsPage() {
                   marginBottom: 'var(--space-1)',
                 }}
               >
-                Subtitle
+                {settingsCopy.subtitle}
               </label>
               <input
                 type="text"
                 className="apple-input"
-                placeholder="Command Centre"
+                placeholder={copy.common.commandCentre}
                 value={subtitleValue}
                 onChange={(e) => setSubtitleValue(e.target.value)}
                 onBlur={() => setPortalSubtitle(subtitleValue || null)}
@@ -345,12 +347,12 @@ export default function SettingsPage() {
                   marginBottom: 'var(--space-1)',
                 }}
               >
-                Your Name
+                {settingsCopy.yourName}
               </label>
               <input
                 type="text"
                 className="apple-input"
-                placeholder="Your Name"
+                placeholder={settingsCopy.yourNamePlaceholder}
                 value={operatorNameValue}
                 onChange={(e) => setOperatorNameValue(e.target.value)}
                 onBlur={() => setOperatorName(operatorNameValue || null)}
@@ -374,14 +376,14 @@ export default function SettingsPage() {
                   marginBottom: 'var(--space-2)',
                 }}
               >
-                Logo / Icon
+                {settingsCopy.logoIcon}
               </label>
               <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
                 {/* Live preview */}
                 {settings.portalIcon ? (
                   <img
                     src={settings.portalIcon}
-                    alt="Portal icon"
+                    alt={settingsCopy.portalIconAlt}
                     style={{
                       width: 36,
                       height: 36,
@@ -450,7 +452,7 @@ export default function SettingsPage() {
                   }}
                 >
                   <Upload size={14} />
-                  Upload Image
+                  {settingsCopy.uploadImage}
                 </button>
                 <input
                   ref={portalIconInputRef}
@@ -471,7 +473,7 @@ export default function SettingsPage() {
                       setPortalIcon(null)
                       setPortalEmoji(null)
                     }}
-                    aria-label="Reset icon"
+                    aria-label={settingsCopy.resetIcon}
                     style={{
                       width: 24,
                       height: 24,
@@ -509,7 +511,7 @@ export default function SettingsPage() {
                       color: 'var(--text-secondary)',
                     }}
                   >
-                    Hide background
+                    {settingsCopy.hideBackground}
                   </span>
                   <button
                     role="switch"
@@ -566,7 +568,7 @@ export default function SettingsPage() {
                     color: 'var(--text-primary)',
                   }}
                 >
-                  Emoji Only Avatars
+                  {settingsCopy.emojiOnlyAvatars}
                 </div>
                 <div
                   style={{
@@ -575,7 +577,7 @@ export default function SettingsPage() {
                     marginTop: 1,
                   }}
                 >
-                  Show emoji without colored background
+                  {settingsCopy.emojiOnlyDescription}
                 </div>
               </div>
               <button
@@ -625,7 +627,7 @@ export default function SettingsPage() {
               padding: '0 var(--space-4) var(--space-2)',
             }}
           >
-            Agent Customization
+            {settingsCopy.agentCustomization}
           </div>
           <div
             style={{
@@ -729,7 +731,7 @@ export default function SettingsPage() {
                             marginBottom: 'var(--space-1)',
                           }}
                         >
-                          Custom Emoji
+                          {settingsCopy.customEmoji}
                         </label>
                         <input
                           type="text"
@@ -763,7 +765,7 @@ export default function SettingsPage() {
                             marginBottom: 'var(--space-1)',
                           }}
                         >
-                          Profile Image
+                          {settingsCopy.profileImage}
                         </label>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
                           <button
@@ -784,7 +786,7 @@ export default function SettingsPage() {
                             }}
                           >
                             <Upload size={14} />
-                            Upload
+                            {settingsCopy.upload}
                           </button>
                           <input
                             ref={fileInputRef}
@@ -801,7 +803,7 @@ export default function SettingsPage() {
                             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
                               <img
                                 src={override.profileImage}
-                                alt="Preview"
+                                alt={settingsCopy.previewAlt}
                                 style={{
                                   width: 32,
                                   height: 32,
@@ -811,7 +813,7 @@ export default function SettingsPage() {
                               />
                               <button
                                 onClick={() => setAgentOverride(agent.id, { profileImage: undefined })}
-                                aria-label="Remove image"
+                                aria-label={settingsCopy.removeImage}
                                 style={{
                                   width: 20,
                                   height: 20,
@@ -851,7 +853,7 @@ export default function SettingsPage() {
                           }}
                         >
                           <RotateCcw size={14} />
-                          Reset to Default
+                          {settingsCopy.resetToDefault}
                         </button>
                       )}
                     </div>
@@ -895,11 +897,11 @@ export default function SettingsPage() {
               }}
             >
               <RotateCcw size={16} />
-              Re-run Setup
+              {settingsCopy.reRunSetup}
             </button>
             <button
               onClick={() => {
-                if (window.confirm('Reset all settings to defaults?')) {
+                if (window.confirm(settingsCopy.confirmResetAll)) {
                   resetAll()
                 }
               }}
@@ -920,19 +922,19 @@ export default function SettingsPage() {
               }}
             >
               <Trash2 size={16} />
-              Reset All Settings
+              {settingsCopy.resetAllSettings}
             </button>
             <button
               onClick={async () => {
-                if (!window.confirm('Delete all server-side conversation data?')) return
+                if (!window.confirm(settingsCopy.confirmClearServerData)) return
                 try {
                   const res = await fetch('/api/conversations')
                   if (!res.ok) throw new Error()
                   const ids: string[] = await res.json()
                   ids.forEach(id => deleteOnServer(id))
-                  alert('Cleared')
+                  alert(settingsCopy.cleared)
                 } catch {
-                  alert('Failed to clear server data')
+                  alert(settingsCopy.clearFailed)
                 }
               }}
               className="btn-scale"
@@ -952,7 +954,7 @@ export default function SettingsPage() {
               }}
             >
               <Trash2 size={16} />
-              Clear Server Data
+              {settingsCopy.clearServerData}
             </button>
           </div>
         </section>

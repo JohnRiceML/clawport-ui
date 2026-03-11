@@ -11,6 +11,13 @@ import {
   hexToAccentFill,
   hexToContrastText,
 } from '@/lib/settings'
+import {
+  getCopy,
+  resolveLocale,
+  type Copy,
+  type LocalePreference,
+  type SupportedLocale,
+} from '@/lib/i18n'
 
 interface AgentDisplay {
   emoji: string
@@ -20,7 +27,11 @@ interface AgentDisplay {
 
 interface SettingsContextValue {
   settings: ClawPortSettings
+  locale: LocalePreference
+  resolvedLocale: SupportedLocale
+  copy: Copy
   setAccentColor: (color: string | null) => void
+  setLocale: (locale: LocalePreference) => void
   setPortalName: (name: string | null) => void
   setPortalSubtitle: (subtitle: string | null) => void
   setPortalEmoji: (emoji: string | null) => void
@@ -36,8 +47,12 @@ interface SettingsContextValue {
 }
 
 const SettingsContext = createContext<SettingsContextValue>({
-  settings: { accentColor: null, portalName: null, portalSubtitle: null, portalEmoji: null, portalIcon: null, iconBgHidden: false, emojiOnly: false, operatorName: null, agentOverrides: {}, liveStreamPosition: null },
+  settings: { accentColor: null, locale: 'system', portalName: null, portalSubtitle: null, portalEmoji: null, portalIcon: null, iconBgHidden: false, emojiOnly: false, operatorName: null, agentOverrides: {}, liveStreamPosition: null },
+  locale: 'system',
+  resolvedLocale: 'en',
+  copy: getCopy('en'),
   setAccentColor: () => {},
+  setLocale: () => {},
   setPortalName: () => {},
   setPortalSubtitle: () => {},
   setPortalEmoji: () => {},
@@ -61,6 +76,17 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     setSettings(loadSettings())
   }, [])
 
+  const locale = settings.locale
+  const resolvedLocale = resolveLocale(locale, {
+    language: typeof navigator === 'undefined' ? undefined : navigator.language,
+    languages: typeof navigator === 'undefined' ? undefined : navigator.languages,
+  })
+  const copy = getCopy(resolvedLocale)
+
+  useEffect(() => {
+    document.documentElement.lang = resolvedLocale
+  }, [resolvedLocale])
+
   // Apply accent color CSS variables when settings change
   useEffect(() => {
     const el = document.documentElement.style
@@ -83,6 +109,13 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const setAccentColor = useCallback(
     (color: string | null) => {
       update({ ...settings, accentColor: color })
+    },
+    [settings, update],
+  )
+
+  const setLocale = useCallback(
+    (localePreference: LocalePreference) => {
+      update({ ...settings, locale: localePreference })
     },
     [settings, update],
   )
@@ -180,6 +213,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const resetAll = useCallback(() => {
     const defaults: ClawPortSettings = {
       accentColor: null,
+      locale: 'system',
       portalName: null,
       portalSubtitle: null,
       portalEmoji: null,
@@ -197,7 +231,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     <SettingsContext.Provider
       value={{
         settings,
+        locale,
+        resolvedLocale,
+        copy,
         setAccentColor,
+        setLocale,
         setPortalName,
         setPortalSubtitle,
         setPortalEmoji,

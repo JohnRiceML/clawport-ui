@@ -3,9 +3,11 @@
 import { useRef, useCallback } from 'react';
 import { THEMES } from '@/lib/themes';
 import { useTheme } from '@/app/providers';
+import { useSettings } from '@/app/settings-provider';
 
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme();
+  const { copy } = useSettings();
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleKeyDown = useCallback(
@@ -45,25 +47,26 @@ export function ThemeToggle() {
           paddingLeft: '4px',
         }}
       >
-        Theme
+        {copy.theme.title}
       </div>
       <div
         ref={containerRef}
         className="flex flex-wrap gap-1.5"
         role="radiogroup"
-        aria-label="Theme selection"
+        aria-label={copy.theme.selectionLabel}
         onKeyDown={handleKeyDown}
       >
         {THEMES.map((t) => {
           const isActive = theme === t.id;
+          const label = copy.theme.labels[t.id];
           return (
             <button
               key={t.id}
               onClick={() => setTheme(t.id)}
-              title={t.label}
+              title={label}
               role="radio"
               aria-checked={isActive}
-              aria-label={`${t.label} theme`}
+              aria-label={copy.theme.themeAria(label)}
               tabIndex={isActive ? 0 : -1}
               className="focus-ring"
               style={{
@@ -96,7 +99,7 @@ export function ThemeToggle() {
                     letterSpacing: '-0.01em',
                   }}
                 >
-                  {t.label}
+                  {label}
                 </span>
               )}
             </button>

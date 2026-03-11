@@ -27,6 +27,7 @@ describe('loadSettings', () => {
     const s = loadSettings()
     expect(s).toEqual({
       accentColor: null,
+      locale: 'system',
       portalName: null,
       portalSubtitle: null,
       portalEmoji: null,
@@ -42,6 +43,7 @@ describe('loadSettings', () => {
   it('parses stored settings correctly', () => {
     store['clawport-settings'] = JSON.stringify({
       accentColor: '#3B82F6',
+      locale: 'zh-CN',
       portalName: 'HQ',
       portalSubtitle: 'Base',
       portalEmoji: '🚀',
@@ -50,6 +52,7 @@ describe('loadSettings', () => {
     })
     const s = loadSettings()
     expect(s.accentColor).toBe('#3B82F6')
+    expect(s.locale).toBe('zh-CN')
     expect(s.portalName).toBe('HQ')
     expect(s.portalSubtitle).toBe('Base')
     expect(s.portalEmoji).toBe('🚀')
@@ -61,6 +64,7 @@ describe('loadSettings', () => {
     store['clawport-settings'] = 'not-json{{'
     const s = loadSettings()
     expect(s.accentColor).toBeNull()
+    expect(s.locale).toBe('system')
     expect(s.agentOverrides).toEqual({})
   })
 
@@ -72,6 +76,7 @@ describe('loadSettings', () => {
     })
     const s = loadSettings()
     expect(s.accentColor).toBeNull()
+    expect(s.locale).toBe('system')
     expect(s.portalName).toBeNull()
     expect(s.portalEmoji).toBeNull()
     expect(s.portalIcon).toBeNull()
@@ -83,6 +88,7 @@ describe('saveSettings', () => {
   it('persists settings to localStorage', () => {
     const settings = {
       accentColor: '#EF4444',
+      locale: 'en' as const,
       portalName: 'Test',
       portalSubtitle: null,
       portalEmoji: null,
@@ -103,6 +109,7 @@ describe('saveSettings', () => {
   it('round-trips through load', () => {
     const settings = {
       accentColor: '#22C55E',
+      locale: 'system' as const,
       portalName: 'Green HQ',
       portalSubtitle: 'Ops Center',
       portalEmoji: '🏠',

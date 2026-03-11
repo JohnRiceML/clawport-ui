@@ -1,5 +1,7 @@
 // Settings types + localStorage helpers for ClawPort
 
+import { isLocalePreference, type LocalePreference } from './i18n'
+
 export interface AgentOverride {
   emoji?: string
   profileImage?: string // base64 data URL
@@ -7,6 +9,7 @@ export interface AgentOverride {
 
 export interface ClawPortSettings {
   accentColor: string | null
+  locale: LocalePreference
   portalName: string | null
   portalSubtitle: string | null
   portalEmoji: string | null
@@ -23,6 +26,7 @@ const LEGACY_KEY = 'manor-settings'
 
 export const DEFAULTS: ClawPortSettings = {
   accentColor: null,
+  locale: 'system',
   portalName: null,
   portalSubtitle: null,
   portalEmoji: null,
@@ -50,6 +54,7 @@ export function loadSettings(): ClawPortSettings {
     const parsed = JSON.parse(raw)
     return {
       accentColor: typeof parsed.accentColor === 'string' ? parsed.accentColor : null,
+      locale: isLocalePreference(parsed.locale) ? parsed.locale : 'system',
       portalName: typeof parsed.portalName === 'string' ? parsed.portalName : typeof parsed.manorName === 'string' ? parsed.manorName : null,
       portalSubtitle: typeof parsed.portalSubtitle === 'string' ? parsed.portalSubtitle : typeof parsed.manorSubtitle === 'string' ? parsed.manorSubtitle : null,
       portalEmoji: typeof parsed.portalEmoji === 'string' ? parsed.portalEmoji : typeof parsed.manorEmoji === 'string' ? parsed.manorEmoji : null,

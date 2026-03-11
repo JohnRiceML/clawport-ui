@@ -21,21 +21,21 @@ function getInitials(name: string | null): string {
 
 interface NavItem {
   href: string;
-  label: string;
+  label: 'map' | 'kanban' | 'messages' | 'crons' | 'activity' | 'costs' | 'memory' | 'docs' | 'settings';
   icon: LucideIcon;
   badge?: 'agents' | 'unread' | 'errors';
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { href: '/', label: 'Map', icon: Map, badge: 'agents' },
-  { href: '/kanban', label: 'Kanban', icon: Columns3 },
-  { href: '/chat', label: 'Messages', icon: MessageSquare, badge: 'unread' },
-  { href: '/crons', label: 'Crons', icon: Clock, badge: 'errors' },
-  { href: '/activity', label: 'Activity', icon: Activity },
-  { href: '/costs', label: 'Costs', icon: DollarSign },
-  { href: '/memory', label: 'Memory', icon: Brain },
-  { href: '/docs', label: 'Docs', icon: BookOpen },
-  { href: '/settings', label: 'Settings', icon: Settings },
+  { href: '/', label: 'map', icon: Map, badge: 'agents' },
+  { href: '/kanban', label: 'kanban', icon: Columns3 },
+  { href: '/chat', label: 'messages', icon: MessageSquare, badge: 'unread' },
+  { href: '/crons', label: 'crons', icon: Clock, badge: 'errors' },
+  { href: '/activity', label: 'activity', icon: Activity },
+  { href: '/costs', label: 'costs', icon: DollarSign },
+  { href: '/memory', label: 'memory', icon: Brain },
+  { href: '/docs', label: 'docs', icon: BookOpen },
+  { href: '/settings', label: 'settings', icon: Settings },
 ];
 
 // ---------------------------------------------------------------------------
@@ -44,7 +44,7 @@ const NAV_ITEMS: NavItem[] = [
 
 export function NavLinks({ bottomSlot }: { bottomSlot?: React.ReactNode } = {}) {
   const pathname = usePathname();
-  const { settings } = useSettings();
+  const { settings, copy } = useSettings();
   const [agentCount, setAgentCount] = useState<number | null>(null);
   const [cronCount, setCronCount] = useState<number | null>(null);
   const [cronErrorCount, setCronErrorCount] = useState<number | null>(null);
@@ -130,11 +130,11 @@ export function NavLinks({ bottomSlot }: { bottomSlot?: React.ReactNode } = {}) 
               fontWeight: hasErrors ? 600 : undefined,
             }}
           >
-            {hasErrors ? `${cronErrorCount} err` : cronCount}
+            {hasErrors ? copy.nav.cronErrorBadge(cronErrorCount) : cronCount}
           </span>
           {hasErrors && (
             <span
-              aria-label={`${cronErrorCount} cron error${cronErrorCount > 1 ? 's' : ''}`}
+              aria-label={copy.nav.cronErrorAria(cronErrorCount)}
               style={{
                 width: '6px',
                 height: '6px',
@@ -152,7 +152,7 @@ export function NavLinks({ bottomSlot }: { bottomSlot?: React.ReactNode } = {}) 
   }
 
   return (
-    <nav className="flex-1 flex flex-col" style={{ minHeight: 0, overflow: 'hidden' }} aria-label="Main navigation">
+    <nav className="flex-1 flex flex-col" style={{ minHeight: 0, overflow: 'hidden' }} aria-label={copy.common.workspace}>
       {/* Scrollable nav items */}
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '4px 12px 8px' }}>
         {/* Section header */}
@@ -167,7 +167,7 @@ export function NavLinks({ bottomSlot }: { bottomSlot?: React.ReactNode } = {}) 
             marginBottom: '2px',
           }}
         >
-          Workspace
+          {copy.common.workspace}
         </div>
 
         <div className="flex flex-col gap-0.5">
@@ -178,13 +178,14 @@ export function NavLinks({ bottomSlot }: { bottomSlot?: React.ReactNode } = {}) 
                 : pathname.startsWith(item.href);
 
             const Icon = item.icon;
+            const label = copy.nav[item.label];
 
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 className={`nav-item focus-ring ${isActive ? 'nav-item-active' : ''}`}
-                aria-label={item.label}
+                aria-label={label}
                 aria-current={isActive ? 'page' : undefined}
                 style={{
                   display: 'flex',
@@ -209,7 +210,7 @@ export function NavLinks({ bottomSlot }: { bottomSlot?: React.ReactNode } = {}) 
                     transition: 'color 100ms var(--ease-smooth)',
                   }}
                 />
-                <span style={{ flex: 1 }}>{item.label}</span>
+                <span style={{ flex: 1 }}>{label}</span>
                 {getBadge(item)}
               </Link>
             );
@@ -258,7 +259,7 @@ export function NavLinks({ bottomSlot }: { bottomSlot?: React.ReactNode } = {}) 
                   whiteSpace: 'nowrap',
                 }}
               >
-                {settings.operatorName ?? 'Operator'}
+                {settings.operatorName ?? copy.common.operator}
               </div>
               <div
                 style={{
@@ -266,7 +267,7 @@ export function NavLinks({ bottomSlot }: { bottomSlot?: React.ReactNode } = {}) 
                   color: 'var(--text-tertiary)',
                 }}
               >
-                Owner
+                {copy.common.owner}
               </div>
             </div>
           </div>
