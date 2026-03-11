@@ -4,6 +4,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import type { Agent } from '@/lib/types'
 import { AgentList, AgentListMobile } from '@/components/chat/AgentList'
 import { ConversationView } from '@/components/chat/ConversationView'
+import { fetchAgentsCached } from '@/lib/agents-client'
 import {
   loadConversations, saveConversations, getOrCreateConversation,
   markRead, type ConversationStore, type Message,
@@ -13,18 +14,32 @@ import {
 function MessengerApp() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const urlAgentId = searchParams.get('agent')
   const [agents, setAgents] = useState<Agent[]>([])
   const [conversations, setConversations] = useState<ConversationStore>({})
-  const [activeAgentId, setActiveAgentId] = useState<string | null>(searchParams.get('agent'))
+  const [activeAgentId, setActiveAgentId] = useState<string | null>(urlAgentId)
   const [loading, setLoading] = useState(true)
-  const [mobileShowConversation, setMobileShowConversation] = useState(!!searchParams.get('agent'))
+  const [mobileShowConversation, setMobileShowConversation] = useState(!!urlAgentId)
 
   // Load agents
   useEffect(() => {
-    fetch('/api/agents').then(r => r.json()).then((data: Agent[]) => {
-      setAgents(data)
-      setLoading(false)
-    })
+    let cancelled = false
+    setLoading(true)
+    fetchAgentsCached()
+      .then((data) => {
+        if (cancelled) return
+        setAgents(data)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setAgents([])
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   // Load conversations from localStorage
@@ -98,15 +113,49 @@ function MessengerApp() {
     })
   }, [loading, agents])
 
-  // Set default active agent on desktop only (don't auto-select on mobile)
+  // Keep local state in sync with URL query changes
   useEffect(() => {
-    if (!loading && agents.length > 0 && !activeAgentId) {
-      // On desktop (>= 768px), select first agent
-      if (window.innerWidth >= 768) {
-        setActiveAgentId(agents[0].id)
+    const isDesktop = window.innerWidth >= 768
+
+    if (urlAgentId) {
+      if (urlAgentId !== activeAgentId) {
+        setActiveAgentId(urlAgentId)
       }
+      setMobileShowConversation(true)
+      return
     }
-  }, [loading, agents, activeAgentId])
+
+    setMobileShowConversation(false)
+    if (!isDesktop && activeAgentId) {
+      setActiveAgentId(null)
+    }
+  }, [urlAgentId, activeAgentId])
+
+  // Normalize invalid URL state and set desktop default agent
+  useEffect(() => {
+    if (loading || agents.length === 0) return
+    const isDesktop = window.innerWidth >= 768
+    const hasUrlAgent = !!urlAgentId && agents.some((agent) => agent.id === urlAgentId)
+
+    if (urlAgentId && !hasUrlAgent) {
+      if (isDesktop) {
+        const fallbackId = agents[0].id
+        setActiveAgentId(fallbackId)
+        router.replace(`/chat?agent=${fallbackId}`, { scroll: false })
+      } else {
+        setActiveAgentId(null)
+        setMobileShowConversation(false)
+        router.replace('/chat', { scroll: false })
+      }
+      return
+    }
+
+    if (!urlAgentId && isDesktop && !activeAgentId) {
+      const fallbackId = agents[0].id
+      setActiveAgentId(fallbackId)
+      router.replace(`/chat?agent=${fallbackId}`, { scroll: false })
+    }
+  }, [loading, agents, urlAgentId, activeAgentId, router])
 
   const handleSelectAgent = useCallback((agent: Agent) => {
     setActiveAgentId(agent.id)
@@ -125,7 +174,8 @@ function MessengerApp() {
 
   const handleMobileBack = useCallback(() => {
     setMobileShowConversation(false)
-  }, [])
+    router.replace('/chat', { scroll: false })
+  }, [router])
 
   const activeAgent = agents.find(a => a.id === activeAgentId) || null
 
@@ -171,7 +221,11 @@ function MessengerApp() {
         className="hidden md:flex md:flex-col"
         style={{ flex: 1, height: '100%' }}
       >
-        {activeAgent && conversations[activeAgent.id] ? (
+        {loading ? (
+          <LoadingState />
+        ) : agents.length === 0 ? (
+          <NoAgentsState />
+        ) : activeAgent && conversations[activeAgent.id] ? (
           <ConversationView
             key={activeAgent.id}
             agent={activeAgent}
@@ -203,6 +257,69 @@ function MessengerApp() {
           />
         </div>
       )}
+    </div>
+  )
+}
+
+function LoadingState() {
+  return (
+    <div style={{
+      flex: 1,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'var(--bg)',
+      gap: 'var(--space-3)',
+      padding: 'var(--space-8)',
+    }}>
+      <div
+        className="animate-spin"
+        style={{
+          width: 24,
+          height: 24,
+          border: '2px solid var(--fill-tertiary)',
+          borderTopColor: 'var(--accent)',
+          borderRadius: '50%',
+        }}
+      />
+      <div style={{
+        fontSize: 'var(--text-subheadline)',
+        color: 'var(--text-secondary)',
+      }}>
+        Loading conversations...
+      </div>
+    </div>
+  )
+}
+
+function NoAgentsState() {
+  return (
+    <div style={{
+      flex: 1,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'var(--bg)',
+      gap: 'var(--space-2)',
+      padding: 'var(--space-8)',
+      textAlign: 'center',
+    }}>
+      <div style={{
+        fontSize: 'var(--text-title3)',
+        fontWeight: 'var(--weight-bold)',
+        color: 'var(--text-primary)',
+      }}>
+        No agents found
+      </div>
+      <div style={{
+        fontSize: 'var(--text-subheadline)',
+        color: 'var(--text-secondary)',
+        lineHeight: 'var(--leading-relaxed)',
+      }}>
+        Add agents in your OpenClaw workspace, then refresh this page.
+      </div>
     </div>
   )
 }
