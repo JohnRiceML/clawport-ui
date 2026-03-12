@@ -151,3 +151,59 @@ export function getIntegrationsSummary(): IntegrationsSummary {
     configFound: config !== null,
   }
 }
+
+// ---------------------------------------------------------------------------
+// Google Workspace detection — reads openclaw.json for GWS config written by
+// the Monarck admin deployer.
+// ---------------------------------------------------------------------------
+
+export interface GoogleWorkspaceConfig {
+  /** Whether Google Drive is listed in google_integrations */
+  driveEnabled: boolean
+  /** Auth method: 'composio' | 'gws_oauth' | 'gws_service_account' */
+  authMethod: string
+  /** Service account JSON (only for gws_service_account) */
+  saJson: string | null
+  /** Impersonate email for domain-wide delegation */
+  impersonateEmail: string | null
+}
+
+/**
+ * Check whether Google Drive integration is configured in the OpenClaw
+ * workspace config (deployed by the Monarck admin panel).
+ *
+ * Returns null if no Google Drive config is found.
+ */
+export function getGoogleWorkspaceConfig(): GoogleWorkspaceConfig | null {
+  const { configPath } = resolveConfigPath()
+  const config = readConfig(configPath)
+  if (!config) return null
+
+  const authMethod = typeof config.google_auth_method === 'string'
+    ? config.google_auth_method
+    : 'composio'
+
+  // Check google_integrations array for google_drive
+  const integrations = Array.isArray(config.google_integrations)
+    ? (config.google_integrations as string[])
+    : []
+
+  const driveEnabled = integrations.includes('google_drive')
+
+  // Also check if google_drive appears as a composio integration
+  const composioIntegrations = Array.isArray(config.composio_integrations)
+    ? (config.composio_integrations as string[])
+    : []
+  const driveInComposio = composioIntegrations.includes('google_drive')
+
+  if (!driveEnabled && !driveInComposio) return null
+
+  return {
+    driveEnabled: true,
+    authMethod,
+    saJson: typeof config.google_sa_json === 'string' ? config.google_sa_json : null,
+    impersonateEmail: typeof config.google_impersonate_email === 'string'
+      ? config.google_impersonate_email
+      : null,
+  }
+}

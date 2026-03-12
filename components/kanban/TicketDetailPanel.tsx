@@ -7,6 +7,7 @@ import type { KanbanTicket, TicketStatus, TicketPriority } from '@/lib/kanban/ty
 import { PRIORITY_COLORS, ROLE_LABELS, COLUMNS } from '@/lib/kanban/types'
 import { AgentAvatar } from '@/components/AgentAvatar'
 import { generateId } from '@/lib/id'
+import { exportAsPdf, exportAsDocx } from '@/lib/export-markdown'
 
 /* ── Chat message type (local to kanban) ─────────────── */
 
@@ -211,9 +212,19 @@ export function TicketDetailPanel({
   const [isStreaming, setIsStreaming] = useState(false)
   const [expanded, setExpanded] = useState(false)
   const [mdModalContent, setMdModalContent] = useState<string | null>(null)
+  const [googleDriveEnabled, setGoogleDriveEnabled] = useState(false)
+  const [googleDocExporting, setGoogleDocExporting] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
+
+  // Check Google Drive integration status
+  useEffect(() => {
+    fetch('/api/export/google-doc')
+      .then(res => res.ok ? res.json() : { enabled: false })
+      .then((data: { enabled: boolean }) => setGoogleDriveEnabled(data.enabled))
+      .catch(() => setGoogleDriveEnabled(false))
+  }, [])
 
   // Load messages from API on mount / ticket change
   useEffect(() => {
@@ -299,6 +310,31 @@ export function TicketDetailPanel({
     if (!content) return
     setMdModalContent(content)
   }, [])
+
+  const exportAsGoogleDoc = useCallback(async (content: string) => {
+    if (!content || googleDocExporting) return
+    setGoogleDocExporting(true)
+    try {
+      const res = await fetch('/api/export/google-doc', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: `${ticket.title || 'Response'} — ${new Date().toLocaleDateString()}`,
+          markdown: content,
+        }),
+      })
+      const data = await res.json()
+      if (data.url) {
+        window.open(data.url, '_blank', 'noopener,noreferrer')
+      } else {
+        console.error('Google Doc export failed:', data.error)
+      }
+    } catch (err) {
+      console.error('Google Doc export failed:', err)
+    } finally {
+      setGoogleDocExporting(false)
+    }
+  }, [googleDocExporting, ticket.title])
 
   /* ── Send message + stream response ─────────────── */
 
@@ -997,6 +1033,57 @@ export function TicketDetailPanel({
             >
               Close
             </button>
+          </div>
+
+          {/* Export toolbar */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 'var(--space-2)',
+            padding: 'var(--space-2) var(--space-4)',
+            borderBottom: '1px solid var(--separator)',
+            flexShrink: 0,
+          }}>
+            <span style={{
+              fontSize: 'var(--text-caption2)',
+              color: 'var(--text-tertiary)',
+              fontWeight: 500,
+              marginRight: 'var(--space-1)',
+            }}>
+              Save as
+            </span>
+            {[
+              { label: 'PDF', onClick: () => exportAsPdf(mdModalContent!) },
+              { label: 'DOCX', onClick: () => { exportAsDocx(mdModalContent!) } },
+              ...(googleDriveEnabled
+                ? [{
+                    label: googleDocExporting ? 'Creating...' : 'Google Doc',
+                    onClick: () => { exportAsGoogleDoc(mdModalContent!) },
+                  }]
+                : []),
+            ].map(btn => (
+              <button
+                key={btn.label}
+                type="button"
+                onClick={btn.onClick}
+                disabled={btn.label === 'Creating...'}
+                className="focus-ring"
+                style={{
+                  padding: '3px 10px',
+                  fontSize: 'var(--text-caption2)',
+                  fontWeight: 600,
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--separator)',
+                  background: 'var(--fill-secondary)',
+                  color: 'var(--text-secondary)',
+                  cursor: btn.label === 'Creating...' ? 'wait' : 'pointer',
+                  opacity: btn.label === 'Creating...' ? 0.6 : 1,
+                  transition: 'all 120ms ease',
+                }}
+              >
+                {btn.label}
+              </button>
+            ))}
           </div>
 
           {/* Modal body */}
