@@ -10,10 +10,20 @@ import type {
 
 function resolveConfigPath(): { workspacePath: string | null; configPath: string } {
   const workspacePath = process.env.WORKSPACE_PATH || null
+  const openClawRoot = resolveOpenClawRoot(workspacePath)
   const configPath = workspacePath
-    ? join(dirname(workspacePath), 'openclaw.json')
+    ? join(openClawRoot, 'openclaw.json')
     : join(homedir(), '.openclaw', 'openclaw.json')
   return { workspacePath, configPath }
+}
+
+function resolveOpenClawRoot(workspacePath: string | null): string {
+  if (workspacePath) {
+    const match = workspacePath.match(/^(.*?\/\.openclaw)(?:\/.*)?$/)
+    if (match?.[1]) return match[1]
+    return dirname(workspacePath)
+  }
+  return join(homedir(), '.openclaw')
 }
 
 function readConfig(configPath: string): Record<string, unknown> | null {
@@ -158,7 +168,7 @@ export function getIntegrationsSummary(): IntegrationsSummary {
 // ---------------------------------------------------------------------------
 
 export interface GoogleWorkspaceConfig {
-  /** Whether Google Drive is listed in google_integrations */
+  /** Whether Google Doc export should be offered */
   driveEnabled: boolean
   /** Auth method: 'composio' | 'gws_oauth' | 'gws_service_account' */
   authMethod: string
@@ -175,35 +185,93 @@ export interface GoogleWorkspaceConfig {
  * Returns null if no Google Drive config is found.
  */
 export function getGoogleWorkspaceConfig(): GoogleWorkspaceConfig | null {
-  const { configPath } = resolveConfigPath()
+  const { workspacePath, configPath } = resolveConfigPath()
   const config = readConfig(configPath)
-  if (!config) return null
+  const manifest = readIntegrationManifest(workspacePath)
+  const credentialConfig = readGoogleWorkspaceCredentialConfig(workspacePath)
 
-  const authMethod = typeof config.google_auth_method === 'string'
+  const authMethod = typeof config?.google_auth_method === 'string'
     ? config.google_auth_method
-    : 'composio'
+    : readManifestMethod(manifest) || (credentialConfig.saJson ? 'gws_service_account' : 'composio')
 
-  // Check google_integrations array for google_drive
-  const integrations = Array.isArray(config.google_integrations)
+  const integrations = Array.isArray(config?.google_integrations)
     ? (config.google_integrations as string[])
-    : []
+    : readManifestIntegrations(manifest)
 
-  const driveEnabled = integrations.includes('google_drive')
+  const directGoogleEnabled = authMethod !== 'composio' && (
+    integrations.includes('google_drive') ||
+    readManifestEnabled(manifest)
+  )
 
-  // Also check if google_drive appears as a composio integration
-  const composioIntegrations = Array.isArray(config.composio_integrations)
-    ? (config.composio_integrations as string[])
-    : []
-  const driveInComposio = composioIntegrations.includes('google_drive')
+  const hasUsableAuth = authMethod !== 'gws_service_account' || credentialConfig.saJson !== null
 
-  if (!driveEnabled && !driveInComposio) return null
+  if (!directGoogleEnabled || !hasUsableAuth) return null
 
   return {
     driveEnabled: true,
     authMethod,
-    saJson: typeof config.google_sa_json === 'string' ? config.google_sa_json : null,
-    impersonateEmail: typeof config.google_impersonate_email === 'string'
-      ? config.google_impersonate_email
+    saJson:
+      typeof config?.google_sa_json === 'string'
+        ? config.google_sa_json
+        : credentialConfig.saJson,
+    impersonateEmail:
+      typeof config?.google_impersonate_email === 'string'
+        ? config.google_impersonate_email
+        : credentialConfig.impersonateEmail || readManifestImpersonateEmail(manifest),
+  }
+}
+
+function getIntegrationManifestPath(workspacePath: string | null): string | null {
+  if (!workspacePath) return null
+  return join(workspacePath, '..', 'clawport', 'integrations.json')
+}
+
+function readIntegrationManifest(workspacePath: string | null): Record<string, unknown> | null {
+  const manifestPath = getIntegrationManifestPath(workspacePath)
+  if (!manifestPath) return null
+  return readConfig(manifestPath)
+}
+
+function readManifestEnabled(manifest: Record<string, unknown> | null): boolean {
+  const googleWorkspace = manifest && isRecord(manifest.google_workspace) ? manifest.google_workspace : null
+  return googleWorkspace?.enabled === true
+}
+
+function readManifestMethod(manifest: Record<string, unknown> | null): string | null {
+  const googleWorkspace = manifest && isRecord(manifest.google_workspace) ? manifest.google_workspace : null
+  return typeof googleWorkspace?.method === 'string' ? googleWorkspace.method : null
+}
+
+function readManifestIntegrations(manifest: Record<string, unknown> | null): string[] {
+  const googleWorkspace = manifest && isRecord(manifest.google_workspace) ? manifest.google_workspace : null
+  return Array.isArray(googleWorkspace?.integrations)
+    ? (googleWorkspace.integrations as string[])
+    : []
+}
+
+function readManifestImpersonateEmail(manifest: Record<string, unknown> | null): string | null {
+  const googleWorkspace = manifest && isRecord(manifest.google_workspace) ? manifest.google_workspace : null
+  return typeof googleWorkspace?.impersonate_email === 'string'
+    ? googleWorkspace.impersonate_email
+    : null
+}
+
+function readGoogleWorkspaceCredentialConfig(workspacePath: string | null): {
+  saJson: string | null
+  impersonateEmail: string | null
+} {
+  const openClawRoot = resolveOpenClawRoot(workspacePath)
+  const configPath = join(openClawRoot, 'credentials', 'google-workspace.json')
+  const rawConfig = readConfig(configPath)
+  const credentialConfig = rawConfig && isRecord(rawConfig) ? rawConfig : null
+  const keyPath = typeof credentialConfig?.service_account_key_path === 'string'
+    ? credentialConfig.service_account_key_path
+    : join(openClawRoot, 'credentials', 'gw-sa.json')
+  const saJson = existsSync(keyPath) ? readFileSync(keyPath, 'utf-8') : null
+  return {
+    saJson,
+    impersonateEmail: typeof credentialConfig?.impersonate_email === 'string'
+      ? credentialConfig.impersonate_email
       : null,
   }
 }
