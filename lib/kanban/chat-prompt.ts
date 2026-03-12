@@ -7,6 +7,7 @@ const MAX_RESULT = 10000
 interface RawTicketLike {
   title?: unknown
   description?: unknown
+  useSessionMemory?: unknown
   status?: unknown
   priority?: unknown
   assigneeRole?: unknown
