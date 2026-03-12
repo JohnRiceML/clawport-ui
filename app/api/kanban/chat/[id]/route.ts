@@ -4,6 +4,7 @@ import { getAgent } from '@/lib/agents'
 import OpenAI from 'openai'
 import { gatewayBaseUrl } from '@/lib/env'
 import { buildKanbanSystemPrompt, sanitizeKanbanTicketContext } from '@/lib/kanban/chat-prompt'
+import { humanizeKanbanChatError } from '@/lib/kanban/chat-errors'
 
 const openai = new OpenAI({
   baseURL: gatewayBaseUrl(),
@@ -80,8 +81,8 @@ export async function POST(
           }
           controller.enqueue(encoder.encode('data: [DONE]\n\n'))
         } catch (err) {
-          const errMsg = err instanceof Error ? err.message : 'Stream interrupted'
-          console.error(`Kanban chat stream error [agentId=${id}]:`, errMsg)
+          const errMsg = humanizeKanbanChatError(err)
+          console.error(`Kanban chat stream error [agentId=${id}]:`, err instanceof Error ? err.message : err)
           // Signal error to client before closing
           controller.enqueue(
             encoder.encode(`data: ${JSON.stringify({ error: errMsg })}\n\n`)
@@ -101,10 +102,10 @@ export async function POST(
       },
     })
   } catch (err) {
-    const errMsg = err instanceof Error ? err.message : 'Unknown error'
-    console.error(`Kanban chat API error [agentId=${id}]:`, errMsg)
+    const errMsg = humanizeKanbanChatError(err)
+    console.error(`Kanban chat API error [agentId=${id}]:`, err instanceof Error ? err.message : err)
     return new Response(
-      JSON.stringify({ error: 'Chat failed. Make sure OpenClaw gateway is running.' }),
+      JSON.stringify({ error: errMsg }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     )
   }

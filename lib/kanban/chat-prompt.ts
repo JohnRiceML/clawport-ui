@@ -52,7 +52,7 @@ export function buildKanbanSystemPrompt(
 Description: ${ticket.description || 'No description provided.'}
 Status: ${ticket.status}
 Priority: ${ticket.priority}
-Your role: ${ticket.assigneeRole || 'unassigned'}${buildWorkContext(ticket.workResult)}
+Your role: ${ticket.assigneeRole || 'unassigned'}${buildWorkContext(ticket.status, ticket.workResult)}
 
 Help the user with this ticket. Stay in character as ${agent.name}, ${agent.title}. Be concise - 2-4 sentences unless detail is asked for. No em dashes.
 ${sessionMemoryRules}`
@@ -65,8 +65,16 @@ If the provided messages do not include a prior assistant reply, do not say "as 
     : ticketContext
 }
 
-function buildWorkContext(workResult: string | null): string {
+function buildWorkContext(status: string, workResult: string | null): string {
   if (!workResult) return ''
 
-  return `\n\nYou already completed work on this ticket. Here is what you produced:\n${workResult}\n\nReference this work when answering follow-up questions. Build on it, don't repeat it unless asked.`
+  return `\n\n${buildWorkLeadIn(status)}\n${workResult}\n\nReference this work when answering follow-up questions. Build on it, don't repeat it unless asked.`
+}
+
+function buildWorkLeadIn(status: string): string {
+  if (status === 'done' || status === 'review') {
+    return 'You already completed work on this ticket. Here is what you produced:'
+  }
+
+  return 'You already made progress on this ticket. Here is the latest visible work:'
 }

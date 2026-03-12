@@ -9,6 +9,7 @@ import { AgentAvatar } from '@/components/AgentAvatar'
 import { AgentPicker } from '@/components/kanban/AgentPicker'
 import { generateId } from '@/lib/id'
 import { exportAsPdf, exportAsDocx } from '@/lib/export-markdown'
+import { humanizeKanbanChatError, readKanbanChatErrorResponse } from '@/lib/kanban/chat-errors'
 
 /* ── Chat message type (local to kanban) ─────────────── */
 
@@ -358,7 +359,9 @@ export function TicketDetailPanel({
         }),
       })
 
-      if (!res.ok || !res.body) throw new Error('Stream failed')
+      if (!res.ok || !res.body) {
+        throw new Error(await readKanbanChatErrorResponse(res))
+      }
 
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
@@ -373,19 +376,25 @@ export function TicketDetailPanel({
         buffer = lines.pop() || ''
         for (const line of lines) {
           if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+            let chunk: { content?: string; error?: string } | null = null
             try {
-              const chunk = JSON.parse(line.slice(6))
-              if (chunk.content) {
-                fullContent += chunk.content
-                const captured = fullContent
-                setMessages(prev =>
-                  prev.map(m => m.id === assistantMsgId
-                    ? { ...m, content: captured, isStreaming: true }
-                    : m
-                  )
-                )
-              }
+              chunk = JSON.parse(line.slice(6))
             } catch { /* skip malformed chunks */ }
+
+            if (chunk?.error) {
+              throw new Error(humanizeKanbanChatError(chunk.error))
+            }
+
+            if (chunk?.content) {
+              fullContent += chunk.content
+              const captured = fullContent
+              setMessages(prev =>
+                prev.map(m => m.id === assistantMsgId
+                  ? { ...m, content: captured, isStreaming: true }
+                  : m
+                )
+              )
+            }
           }
         }
       }
@@ -405,8 +414,8 @@ export function TicketDetailPanel({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: [userMsg, completedAssistant] }),
       }).catch(() => { /* persist best-effort */ })
-    } catch {
-      const errorContent = 'Error getting response. Check API connection.'
+    } catch (err) {
+      const errorContent = humanizeKanbanChatError(err)
       setMessages(prev =>
         prev.map(m => m.id === assistantMsgId
           ? { ...m, content: errorContent, isStreaming: false }

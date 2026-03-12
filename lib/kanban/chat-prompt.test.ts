@@ -62,6 +62,20 @@ describe('buildKanbanSystemPrompt', () => {
     expect(prompt).toContain('Collected three likely cases.')
   })
 
+  it('describes in-progress work neutrally', () => {
+    const prompt = buildKanbanSystemPrompt(agent, sanitizeKanbanTicketContext({
+      title: 'Find legal',
+      description: 'Continue prior work.',
+      useSessionMemory: false,
+      status: 'in-progress',
+      priority: 'medium',
+      workResult: 'Fetched batch 1 and saved the next page token.',
+    }))
+
+    expect(prompt).toContain('You already made progress on this ticket.')
+    expect(prompt).not.toContain('You already completed work on this ticket.')
+  })
+
   it('builds a non-ticket prompt when no ticket is provided', () => {
     const prompt = buildKanbanSystemPrompt(agent, null)
 
