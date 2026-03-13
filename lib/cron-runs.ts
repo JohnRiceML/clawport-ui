@@ -1,7 +1,11 @@
 import { CronRun } from '@/lib/types'
-import { readFileSync, readdirSync, existsSync } from 'fs'
+import { readFileSync, readdirSync, existsSync, statSync } from 'fs'
 import path from 'path'
 import { requireEnv } from '@/lib/env'
+
+/** In-memory cache for cron runs (keyed by jobId or '__all__') */
+const runCache = new Map<string, { runs: CronRun[]; mtime: number }>()
+const RUN_CACHE_TTL = 15_000 // 15 seconds
 
 /** Derive the cron runs directory from WORKSPACE_PATH (go up from workspace to .openclaw/cron/runs) */
 function getRunsDir(): string {
@@ -50,6 +54,8 @@ export function getCronRuns(jobId?: string): CronRun[] {
   const runsDir = getRunsDir()
   if (!existsSync(runsDir)) return []
 
+  const cacheKey = jobId || '__all__'
+
   let files: string[]
   if (jobId) {
     const filePath = path.join(runsDir, `${jobId}.jsonl`)
@@ -58,6 +64,21 @@ export function getCronRuns(jobId?: string): CronRun[] {
     files = readdirSync(runsDir)
       .filter(f => f.endsWith('.jsonl'))
       .map(f => path.join(runsDir, f))
+  }
+
+  // Check if any file has been modified since last cache
+  let latestMtime = 0
+  for (const filePath of files) {
+    try {
+      const mt = statSync(filePath).mtimeMs
+      if (mt > latestMtime) latestMtime = mt
+    } catch { /* skip */ }
+  }
+
+  const cached = runCache.get(cacheKey)
+  if (cached && cached.mtime === latestMtime && Date.now() - cached.mtime < Date.now()) {
+    // Files haven't changed — return cached result
+    if (latestMtime > 0 && cached.mtime === latestMtime) return cached.runs
   }
 
   const runs: CronRun[] = []
@@ -74,5 +95,6 @@ export function getCronRuns(jobId?: string): CronRun[] {
   }
 
   runs.sort((a, b) => b.ts - a.ts)
+  runCache.set(cacheKey, { runs, mtime: latestMtime })
   return runs
 }

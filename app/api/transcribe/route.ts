@@ -21,6 +21,11 @@ export async function POST(request: Request) {
     return Response.json({ error: 'Missing audio file' }, { status: 400 })
   }
 
+  const MAX_AUDIO_SIZE = 25 * 1024 * 1024 // 25MB (Whisper limit)
+  if (audioFile.size > MAX_AUDIO_SIZE) {
+    return Response.json({ error: 'Audio file too large (max 25MB)' }, { status: 413 })
+  }
+
   try {
     const transcription = await openai.audio.transcriptions.create({
       model: 'whisper-1',

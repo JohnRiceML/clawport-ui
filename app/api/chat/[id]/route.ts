@@ -69,6 +69,7 @@ export async function POST(
       gatewayToken: GATEWAY_TOKEN,
       message: textPrompt,
       attachments,
+      signal: request.signal,
     })
 
     // Return as a non-streaming SSE response (complete text at once)

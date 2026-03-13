@@ -45,11 +45,28 @@ export function loadConversations(): ConversationStore {
   }
 }
 
+let saveTimer: ReturnType<typeof setTimeout> | null = null
+let pendingStore: ConversationStore | null = null
+
+export function flushSave(): void {
+  if (pendingStore && typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(pendingStore))
+    } catch { /* storage full or unavailable */ }
+    pendingStore = null
+  }
+}
+
+// Flush on page unload to avoid data loss
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', flushSave)
+}
+
 export function saveConversations(store: ConversationStore): void {
   if (typeof window === 'undefined') return
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(store))
-  } catch {}
+  pendingStore = store
+  if (saveTimer) clearTimeout(saveTimer)
+  saveTimer = setTimeout(flushSave, 500)
 }
 
 export function getOrCreateConversation(store: ConversationStore, agent: Agent): Conversation {

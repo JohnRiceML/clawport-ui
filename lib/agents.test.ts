@@ -126,7 +126,8 @@ vi.mock('fs', () => ({
 // Mock child_process for CLI discovery
 vi.mock('child_process', () => ({
   execSync: mockExecSync,
-  default: { execSync: mockExecSync },
+  execFileSync: mockExecSync,
+  default: { execSync: mockExecSync, execFileSync: mockExecSync },
 }))
 
 // Mock the bundled agents.json
@@ -135,12 +136,13 @@ vi.mock('@/lib/agents.json', () => ({
 }))
 
 // We need to import AFTER mocks are set up
-import { getAgents, getAgent } from './agents'
+import { getAgents, getAgent, clearAgentCache } from './agents'
 import { parseSoulHeading, parseIdentity } from './agents-registry'
 
 beforeEach(() => {
   vi.clearAllMocks()
   vi.unstubAllEnvs()
+  clearAgentCache()
   // Default: no files exist on disk, no directories
   mockExistsSync.mockReturnValue(false)
   mockReaddirSync.mockReturnValue([])

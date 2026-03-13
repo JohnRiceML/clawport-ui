@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import type { Agent, CronJob, CronRun } from "@/lib/types";
 import type { Pipeline } from "@/lib/cron-pipelines";
 import { formatDuration, timeAgo, nextRunLabel } from "@/lib/cron-utils";
@@ -9,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { RefreshCw, BarChart3, Calendar, GitBranch, Copy, Check } from "lucide-react";
 import { ErrorState } from "@/components/ErrorState";
 import { WeeklySchedule } from "@/components/crons/WeeklySchedule";
-import { PipelineGraph } from "@/components/crons/PipelineGraph";
+const PipelineGraph = dynamic(() => import("@/components/crons/PipelineGraph").then(m => ({ default: m.PipelineGraph })), { ssr: false });
 import { PipelineDetailPanel } from "@/components/crons/PipelineDetailPanel";
 import { PipelineWizard } from "@/components/crons/PipelineWizard";
 
