@@ -3,11 +3,16 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Map, MessageSquare, Clock, Activity, Brain, Columns3, BookOpen, Settings, DollarSign, PlugZap } from 'lucide-react';
+import { Map, MessageSquare, Clock, Activity, Brain, Columns3, BookOpen, Settings, DollarSign, PlugZap, BriefcaseBusiness } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { CronJob } from '@/lib/types';
 import { useSettings } from '@/app/settings-provider';
-import { isMonarckProductionHost, shouldHideClientNavPath } from '@/lib/branding';
+import {
+  CLIENT_HUB_PATH,
+  isMonarckProductionHost,
+  shouldHideClientNavPath,
+  shouldShowClientHub,
+} from '@/lib/branding';
 
 function getInitials(name: string | null): string {
   if (!name) return '??'
@@ -25,9 +30,11 @@ interface NavItem {
   label: string;
   icon: LucideIcon;
   badge?: 'agents' | 'unread' | 'errors';
+  clientOnly?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
+  { href: CLIENT_HUB_PATH, label: 'Client', icon: BriefcaseBusiness, clientOnly: true },
   { href: '/', label: 'Map', icon: Map, badge: 'agents' },
   { href: '/kanban', label: 'Kanban', icon: Columns3 },
   { href: '/chat', label: 'Messages', icon: MessageSquare, badge: 'unread' },
@@ -185,6 +192,9 @@ export function NavLinks({ bottomSlot }: { bottomSlot?: React.ReactNode } = {}) 
 
         <div className="flex flex-col gap-0.5">
           {NAV_ITEMS.filter((item) => {
+            if (item.clientOnly && !shouldShowClientHub(isClientFacingHost)) {
+              return false;
+            }
             return !shouldHideClientNavPath(item.href, isClientFacingHost);
           }).map((item) => {
             const isActive =

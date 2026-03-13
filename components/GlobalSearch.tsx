@@ -11,9 +11,16 @@ import {
   Bot,
   Timer,
   Settings,
+  BriefcaseBusiness,
 } from 'lucide-react';
 import type { Agent, CronJob } from '@/lib/types';
-import { APP_NAME, isMonarckProductionHost, shouldHideClientNavPath } from '@/lib/branding';
+import {
+  APP_NAME,
+  CLIENT_HUB_PATH,
+  isMonarckProductionHost,
+  shouldHideClientNavPath,
+  shouldShowClientHub,
+} from '@/lib/branding';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -39,6 +46,14 @@ const STATIC_PAGES: SearchResult[] = [
   { id: 'page-memory', label: 'Memory', icon: <Brain size={16} />, href: '/memory', category: 'Pages' },
   { id: 'page-settings', label: 'Settings', icon: <Settings size={16} />, href: '/settings', category: 'Pages' },
 ];
+
+const CLIENT_PAGE: SearchResult = {
+  id: 'page-client',
+  label: 'Client',
+  icon: <BriefcaseBusiness size={16} />,
+  href: CLIENT_HUB_PATH,
+  category: 'Pages',
+}
 
 // ---------------------------------------------------------------------------
 // Simple fuzzy match — case-insensitive substring
@@ -232,6 +247,9 @@ export function GlobalSearch() {
         !shouldHideClientNavPath(page.href, isClientFacingHost)
       ))
     );
+    if (shouldShowClientHub(isClientFacingHost)) {
+      all.push(CLIENT_PAGE);
+    }
 
     if (!isClientFacingHost) {
       crons.forEach((c) => {
