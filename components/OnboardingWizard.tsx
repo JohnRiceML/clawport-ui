@@ -36,7 +36,7 @@ const FEATURES = [
   { icon: Map, name: 'Agent Map', desc: 'Visual org chart of all your AI agents' },
   { icon: MessageSquare, name: 'Chat', desc: 'Direct conversations with any agent' },
   { icon: Columns3, name: 'Kanban', desc: 'Task board for agent work management' },
-  { icon: Clock, name: 'Crons', desc: 'Scheduled jobs with status monitoring' },
+  { icon: Clock, name: 'Scheduled', desc: 'Scheduled jobs with status monitoring' },
   { icon: Brain, name: 'Memory', desc: 'Shared context and knowledge files' },
 ]
 

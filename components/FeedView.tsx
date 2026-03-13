@@ -324,10 +324,10 @@ export function FeedView({ agents, crons, selectedId, onSelect }: FeedViewProps)
             <polyline points="8 4.5 8 8 10.5 10" stroke="var(--fill-tertiary)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           <div style={{ fontSize: "var(--text-body)", fontWeight: "var(--weight-medium)" }}>
-            {filter === "all" ? "No cron jobs configured" : `No ${filter} crons`}
+            {filter === "all" ? "No scheduled jobs configured" : `No ${filter} scheduled jobs`}
           </div>
           <div style={{ fontSize: "var(--text-caption1)", marginTop: "var(--space-1)" }}>
-            {filter !== "all" ? "Try changing the filter" : "Crons will appear here once configured"}
+            {filter !== "all" ? "Try changing the filter" : "Scheduled jobs will appear here once configured"}
           </div>
         </div>
       ) : (

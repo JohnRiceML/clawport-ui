@@ -543,7 +543,7 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
     return (
       <div>
         <PipelinesEmptyState onSetupClick={onSetupClick} />
-        <CronsCardGrid crons={crons} agentColorMap={agentColorMap} label="All Crons" />
+        <CronsCardGrid crons={crons} agentColorMap={agentColorMap} label="All Scheduled Jobs" />
       </div>
     )
   }
@@ -959,7 +959,7 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
         Pipeline config does not auto-update. Regenerate to re-analyze with AI.
       </div>
 
-      <CronsCardGrid crons={standaloneCrons} agentColorMap={agentColorMap} label="Standalone Crons" />
+      <CronsCardGrid crons={standaloneCrons} agentColorMap={agentColorMap} label="Standalone Scheduled Jobs" />
     </div>
   )
 }

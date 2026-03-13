@@ -682,7 +682,7 @@ export default function AgentDetailPage({
               justifyContent: "space-between",
             }}
           >
-            <span>Crons {crons.length > 0 && `(${crons.length})`}</span>
+            <span>Scheduled {crons.length > 0 && `(${crons.length})`}</span>
           </div>
           {crons.length === 0 ? (
             <div
@@ -691,7 +691,7 @@ export default function AgentDetailPage({
                 color: "var(--text-tertiary)",
               }}
             >
-              No crons associated with this agent
+              No scheduled jobs associated with this agent
             </div>
           ) : (
             <div

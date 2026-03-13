@@ -13,7 +13,7 @@ export function TopCrons({ jobCosts, jobName }: { jobCosts: CostSummary['jobCost
         fontWeight: 'var(--weight-medium)',
         marginBottom: 'var(--space-3)',
       }}>
-        Most Expensive Crons
+        Most Expensive Scheduled Jobs
       </div>
       <div className="top-crons-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--space-3)' }}>
         {top.map((job) => (

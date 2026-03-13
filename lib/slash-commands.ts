@@ -103,11 +103,11 @@ export function executeCommand(command: string, agent: Agent): { content: string
 
     case '/crons': {
       if (agent.crons.length === 0) {
-        return { content: `${agent.name} has no cron jobs.` }
+        return { content: `${agent.name} has no scheduled jobs.` }
       }
       return {
         content: [
-          `**${agent.name}'s cron jobs**`,
+          `**${agent.name}'s scheduled jobs**`,
           '',
           ...agent.crons.map(c => {
             const status = c.enabled ? c.status : 'disabled'

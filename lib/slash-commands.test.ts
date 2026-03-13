@@ -232,8 +232,9 @@ describe('executeCommand', () => {
     expect(result.content).toContain('no tools configured')
   })
 
-  it('/crons lists cron jobs', () => {
+  it('/crons lists scheduled jobs', () => {
     const result = executeCommand('/crons', agent)
+    expect(result.content).toContain("scheduled jobs")
     expect(result.content).toContain('Daily Report')
     expect(result.content).toContain('Daily at 8 AM')
     expect(result.content).toContain('ok')
@@ -264,10 +265,10 @@ describe('executeCommand', () => {
     expect(result.content).toContain('disabled')
   })
 
-  it('/crons handles no cron jobs', () => {
+  it('/crons handles no scheduled jobs', () => {
     const bare = makeAgent()
     const result = executeCommand('/crons', bare)
-    expect(result.content).toContain('no cron jobs')
+    expect(result.content).toContain('no scheduled jobs')
   })
 
   it('unknown command returns error message', () => {

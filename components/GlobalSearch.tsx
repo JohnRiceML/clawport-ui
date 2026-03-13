@@ -13,7 +13,7 @@ import {
   Settings,
 } from 'lucide-react';
 import type { Agent, CronJob } from '@/lib/types';
-import { APP_NAME, CLIENT_HIDDEN_NAV_PATHS, isMonarckProductionHost } from '@/lib/branding';
+import { APP_NAME, isMonarckProductionHost, shouldHideClientNavPath } from '@/lib/branding';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -25,7 +25,7 @@ interface SearchResult {
   subtitle?: string;
   icon: React.ReactNode;
   href: string;
-  category: 'Agents' | 'Pages' | 'Crons';
+  category: 'Agents' | 'Pages' | 'Scheduled';
 }
 
 // ---------------------------------------------------------------------------
@@ -35,7 +35,7 @@ interface SearchResult {
 const STATIC_PAGES: SearchResult[] = [
   { id: 'page-map', label: 'Map', icon: <Map size={16} />, href: '/', category: 'Pages' },
   { id: 'page-messages', label: 'Messages', icon: <MessageSquare size={16} />, href: '/chat', category: 'Pages' },
-  { id: 'page-crons', label: 'Crons', icon: <Clock size={16} />, href: '/crons', category: 'Pages' },
+  { id: 'page-crons', label: 'Scheduled', icon: <Clock size={16} />, href: '/crons', category: 'Pages' },
   { id: 'page-memory', label: 'Memory', icon: <Brain size={16} />, href: '/memory', category: 'Pages' },
   { id: 'page-settings', label: 'Settings', icon: <Settings size={16} />, href: '/settings', category: 'Pages' },
 ];
@@ -229,7 +229,7 @@ export function GlobalSearch() {
     // Static pages
     all.push(
       ...STATIC_PAGES.filter((page) => (
-        !CLIENT_HIDDEN_NAV_PATHS.includes(page.href as typeof CLIENT_HIDDEN_NAV_PATHS[number])
+        !shouldHideClientNavPath(page.href, isClientFacingHost)
       ))
     );
 
@@ -241,7 +241,7 @@ export function GlobalSearch() {
           subtitle: c.schedule,
           icon: <Timer size={16} />,
           href: '/crons',
-          category: 'Crons',
+          category: 'Scheduled',
         });
       });
     }
@@ -260,7 +260,7 @@ export function GlobalSearch() {
   // -----------------------------------------------------------------------
   const grouped = useMemo(() => {
     const groups: { category: string; items: SearchResult[] }[] = [];
-    const categoryOrder = ['Agents', 'Pages', 'Crons'];
+    const categoryOrder = ['Agents', 'Pages', 'Scheduled'];
     for (const cat of categoryOrder) {
       const items = results.filter((r) => r.category === cat);
       if (items.length > 0) {

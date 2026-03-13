@@ -488,7 +488,7 @@ export function PipelineWizard({ open, onOpenChange, agents, crons, onSaved }: P
                     <path d="M12 2a4 4 0 0 0-4 4v2H6a2 2 0 0 0-2 2v1l2 9h12l2-9v-1a2 2 0 0 0-2-2h-2V6a4 4 0 0 0-4-4z" />
                     <line x1="12" y1="12" x2="12" y2="16" /><line x1="10" y1="14" x2="14" y2="14" />
                   </svg>
-                  Analyze My Crons
+                  Analyze My Scheduled Jobs
                 </button>
               </div>
             </div>

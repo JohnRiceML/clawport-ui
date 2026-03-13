@@ -7,7 +7,7 @@ import { Map, MessageSquare, Clock, Activity, Brain, Columns3, BookOpen, Setting
 import type { LucideIcon } from 'lucide-react';
 import type { CronJob } from '@/lib/types';
 import { useSettings } from '@/app/settings-provider';
-import { CLIENT_HIDDEN_NAV_PATHS, isMonarckProductionHost } from '@/lib/branding';
+import { isMonarckProductionHost, shouldHideClientNavPath } from '@/lib/branding';
 
 function getInitials(name: string | null): string {
   if (!name) return '??'
@@ -31,7 +31,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/', label: 'Map', icon: Map, badge: 'agents' },
   { href: '/kanban', label: 'Kanban', icon: Columns3 },
   { href: '/chat', label: 'Messages', icon: MessageSquare, badge: 'unread' },
-  { href: '/crons', label: 'Crons', icon: Clock, badge: 'errors' },
+  { href: '/crons', label: 'Scheduled', icon: Clock, badge: 'errors' },
   { href: '/activity', label: 'Activity', icon: Activity },
   { href: '/integrations', label: 'Integrations', icon: PlugZap },
   { href: '/costs', label: 'Costs', icon: DollarSign },
@@ -185,7 +185,7 @@ export function NavLinks({ bottomSlot }: { bottomSlot?: React.ReactNode } = {}) 
 
         <div className="flex flex-col gap-0.5">
           {NAV_ITEMS.filter((item) => {
-            return !CLIENT_HIDDEN_NAV_PATHS.includes(item.href as typeof CLIENT_HIDDEN_NAV_PATHS[number]);
+            return !shouldHideClientNavPath(item.href, isClientFacingHost);
           }).map((item) => {
             const isActive =
               item.href === '/'

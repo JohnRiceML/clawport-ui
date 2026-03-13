@@ -505,7 +505,7 @@ export default function CronsPage() {
         <div className="flex items-center justify-between" style={{ padding: "var(--space-4) var(--space-6)" }}>
           <div>
             <h1 style={{ fontSize: "var(--text-title1)", fontWeight: "var(--weight-bold)", color: "var(--text-primary)", letterSpacing: "-0.5px", lineHeight: "var(--leading-tight)" }}>
-              Cron Monitor
+              Scheduled
             </h1>
             {!loading && (
               <p style={{ fontSize: "var(--text-footnote)", color: "var(--text-secondary)", marginTop: "var(--space-1)" }}>
