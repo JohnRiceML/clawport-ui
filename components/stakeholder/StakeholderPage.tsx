@@ -9,6 +9,7 @@ import { StakeholderEmptyState } from '@/components/stakeholder/StakeholderEmpty
 import { StakeholderHero } from '@/components/stakeholder/StakeholderHero'
 import { StakeholderMetricCard } from '@/components/stakeholder/StakeholderMetricCard'
 import { StakeholderSection } from '@/components/stakeholder/StakeholderSection'
+import { StakeholderChat } from '@/components/stakeholder/StakeholderChat'
 import type {
   StakeholderRange,
   StakeholderRiskItem,
@@ -119,6 +120,19 @@ export function StakeholderPage({
   const [exporting, setExporting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [exportError, setExportError] = useState<string | null>(null)
+  const [rootAgentId, setRootAgentId] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch('/api/agents')
+      .then((res) => res.json())
+      .then((agents: { id: string; reportsTo: string | null }[]) => {
+        const root = agents.find((a) => a.reportsTo === null) || agents[0]
+        if (root) setRootAgentId(root.id)
+      })
+      .catch(() => {
+        /* agent fetch is best-effort for chat */
+      })
+  }, [])
 
   const fetchSummary = useCallback(
     async (selectedRange: StakeholderRange, isRefresh = false) => {
@@ -570,6 +584,14 @@ export function StakeholderPage({
                       )}
                     </div>
                   </StakeholderSection>
+
+                  {rootAgentId && (
+                    <StakeholderChat
+                      summary={summary}
+                      audienceLabel={audienceLabel}
+                      agentId={rootAgentId}
+                    />
+                  )}
 
                   <StakeholderSection
                     title="Report Export"

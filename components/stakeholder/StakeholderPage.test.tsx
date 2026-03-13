@@ -66,9 +66,11 @@ describe('StakeholderPage', () => {
   })
 
   it('renders stakeholder summary data', async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      json: async () => summary,
+    mockFetch.mockImplementation(async (url: string) => {
+      if (url.includes('/api/agents')) {
+        return { ok: true, json: async () => [{ id: 'main', reportsTo: null }] }
+      }
+      return { ok: true, json: async () => summary }
     })
 
     render(
@@ -89,15 +91,15 @@ describe('StakeholderPage', () => {
   })
 
   it('uses client wording and exports through the client endpoint', async () => {
-    mockFetch
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => summary,
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ url: 'https://docs.google.com/document/d/123/edit' }),
-      })
+    mockFetch.mockImplementation(async (url: string) => {
+      if (url.includes('/api/agents')) {
+        return { ok: true, json: async () => [{ id: 'main', reportsTo: null }] }
+      }
+      if (url.includes('/export')) {
+        return { ok: true, json: async () => ({ url: 'https://docs.google.com/document/d/123/edit' }) }
+      }
+      return { ok: true, json: async () => summary }
+    })
 
     render(
       <StakeholderPage
