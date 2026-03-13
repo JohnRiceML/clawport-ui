@@ -8,7 +8,8 @@ const { mockExecSync } = vi.hoisted(() => ({
 // Mock child_process (Dependency Inversion -- no real CLI calls)
 vi.mock('child_process', () => ({
   execSync: mockExecSync,
-  default: { execSync: mockExecSync },
+  execFileSync: mockExecSync,
+  default: { execSync: mockExecSync, execFileSync: mockExecSync },
 }))
 
 // Mock agents-registry so getCrons can resolve agent IDs without real fs

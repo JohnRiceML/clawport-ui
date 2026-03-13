@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import type { Agent } from '@/lib/types'
 import type { ConversationStore } from '@/lib/conversations'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -16,21 +16,23 @@ interface AgentListProps {
 export function AgentList({ agents, conversations, activeId, onSelect, loading }: AgentListProps) {
   const [search, setSearch] = useState('')
 
-  const filtered = search.trim()
-    ? agents.filter(a => {
-        const q = search.toLowerCase()
-        return a.name.toLowerCase().includes(q) || a.title.toLowerCase().includes(q)
-      })
-    : agents
+  const sorted = useMemo(() => {
+    const filtered = search.trim()
+      ? agents.filter(a => {
+          const q = search.toLowerCase()
+          return a.name.toLowerCase().includes(q) || a.title.toLowerCase().includes(q)
+        })
+      : agents
 
-  const sorted = [...filtered].sort((a, b) => {
-    const ca = conversations[a.id]
-    const cb = conversations[b.id]
-    if (ca && cb) return cb.lastActivity - ca.lastActivity
-    if (ca) return -1
-    if (cb) return 1
-    return a.name.localeCompare(b.name)
-  })
+    return [...filtered].sort((a, b) => {
+      const ca = conversations[a.id]
+      const cb = conversations[b.id]
+      if (ca && cb) return cb.lastActivity - ca.lastActivity
+      if (ca) return -1
+      if (cb) return 1
+      return a.name.localeCompare(b.name)
+    })
+  }, [agents, conversations, search])
 
   return (
     <div
@@ -292,21 +294,23 @@ export function AgentListMobile({
 }: Omit<AgentListProps, 'activeId'>) {
   const [search, setSearch] = useState('')
 
-  const filtered = search.trim()
-    ? agents.filter(a => {
-        const q = search.toLowerCase()
-        return a.name.toLowerCase().includes(q) || a.title.toLowerCase().includes(q)
-      })
-    : agents
+  const sorted = useMemo(() => {
+    const filtered = search.trim()
+      ? agents.filter(a => {
+          const q = search.toLowerCase()
+          return a.name.toLowerCase().includes(q) || a.title.toLowerCase().includes(q)
+        })
+      : agents
 
-  const sorted = [...filtered].sort((a, b) => {
-    const ca = conversations[a.id]
-    const cb = conversations[b.id]
-    if (ca && cb) return cb.lastActivity - ca.lastActivity
-    if (ca) return -1
-    if (cb) return 1
-    return a.name.localeCompare(b.name)
-  })
+    return [...filtered].sort((a, b) => {
+      const ca = conversations[a.id]
+      const cb = conversations[b.id]
+      if (ca && cb) return cb.lastActivity - ca.lastActivity
+      if (ca) return -1
+      if (cb) return 1
+      return a.name.localeCompare(b.name)
+    })
+  }, [agents, conversations, search])
 
   return (
     <div style={{

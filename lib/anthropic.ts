@@ -116,6 +116,7 @@ export async function sendViaOpenClaw(opts: {
   attachments: OpenClawAttachment[]
   sessionKey?: string
   timeoutMs?: number
+  signal?: AbortSignal
 }): Promise<string | null> {
   const openclawBin = process.env.OPENCLAW_BIN || 'openclaw'
   const sessionKey = opts.sessionKey || 'agent:main:clawport'
@@ -157,13 +158,18 @@ export async function sendViaOpenClaw(opts: {
     return null
   }
 
-  // Step 2: Poll chat.history for the assistant response
-  const pollIntervalMs = 2000
+  // Step 2: Poll chat.history for the assistant response (exponential backoff)
+  let pollIntervalMs = 500
+  const MAX_POLL_INTERVAL = 4000
   const historyParams = JSON.stringify({ sessionKey })
   const deadline = sendTs + timeoutMs
 
   while (Date.now() < deadline) {
-    await new Promise(r => setTimeout(r, pollIntervalMs))
+    if (opts.signal?.aborted) return null
+    const jitter = Math.random() * 200
+    await new Promise(r => setTimeout(r, pollIntervalMs + jitter))
+    if (opts.signal?.aborted) return null
+    pollIntervalMs = Math.min(pollIntervalMs * 2, MAX_POLL_INTERVAL)
 
     const historyResult = await execCli(openclawBin, [
       'gateway', 'call', 'chat.history',

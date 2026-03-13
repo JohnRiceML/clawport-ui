@@ -1,5 +1,5 @@
 import { readFileSync, existsSync, readdirSync } from 'fs'
-import { execSync } from 'child_process'
+import { execFileSync } from 'child_process'
 import { join, basename } from 'path'
 import bundledRegistry from '@/lib/agents.json'
 import type { Agent } from '@/lib/types'
@@ -425,7 +425,7 @@ interface CliAgentEntry {
  */
 export function listCliAgents(openclawBin: string): CliAgentEntry[] | null {
   try {
-    const raw = execSync(`${openclawBin} agents list --json`, {
+    const raw = execFileSync(openclawBin, ['agents', 'list', '--json'], {
       encoding: 'utf-8',
       timeout: 10000,
     })

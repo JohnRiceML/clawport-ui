@@ -10,6 +10,7 @@ import { AgentPicker } from '@/components/kanban/AgentPicker'
 import { generateId } from '@/lib/id'
 import { exportAsPdf, exportAsDocx } from '@/lib/export-markdown'
 import { humanizeKanbanChatError, readKanbanChatErrorResponse } from '@/lib/kanban/chat-errors'
+import { formatMessage } from '@/lib/format-message'
 
 /* ── Chat message type (local to kanban) ─────────────── */
 
@@ -19,130 +20,6 @@ interface ChatMessage {
   content: string
   timestamp: number
   isStreaming?: boolean
-}
-
-/* ── Simple markdown formatting (matches ConversationView pattern) ── */
-
-function formatInline(text: string): React.ReactNode {
-  // Handle **bold**, `code`, and plain text segments
-  const parts: React.ReactNode[] = []
-  const re = /(\*\*(.+?)\*\*|`([^`]+)`)/g
-  let last = 0
-  let match: RegExpExecArray | null
-
-  while ((match = re.exec(text)) !== null) {
-    if (match.index > last) parts.push(text.slice(last, match.index))
-    if (match[2]) {
-      parts.push(<strong key={match.index} style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{match[2]}</strong>)
-    } else if (match[3]) {
-      parts.push(
-        <code key={match.index} style={{
-          background: 'var(--code-bg)',
-          border: '1px solid var(--code-border)',
-          borderRadius: 4,
-          padding: '1px 5px',
-          fontSize: '0.9em',
-          fontFamily: 'var(--font-mono)',
-          color: 'var(--code-text)',
-        }}>{match[3]}</code>
-      )
-    }
-    last = match.index + match[0].length
-  }
-  if (last < text.length) parts.push(text.slice(last))
-  return parts.length === 1 ? parts[0] : <>{parts}</>
-}
-
-function formatContent(content: string): React.ReactNode {
-  if (!content) return null
-  const lines = content.split('\n')
-  const result: React.ReactNode[] = []
-  let inCode = false
-  const codeBlock: string[] = []
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]
-
-    // Code fence toggle
-    if (line.startsWith('```')) {
-      if (inCode) {
-        result.push(
-          <pre key={`code-${i}`} style={{
-            background: 'var(--code-bg)',
-            border: '1px solid var(--code-border)',
-            borderRadius: 'var(--radius-sm)',
-            padding: 'var(--space-2) var(--space-3)',
-            fontSize: 'var(--text-caption1)',
-            fontFamily: 'var(--font-mono)',
-            color: 'var(--code-text)',
-            overflowX: 'auto',
-            margin: '4px 0',
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-word',
-          }}>
-            {codeBlock.join('\n')}
-          </pre>
-        )
-        codeBlock.length = 0
-      }
-      inCode = !inCode
-      continue
-    }
-
-    if (inCode) {
-      codeBlock.push(line)
-      continue
-    }
-
-    if (line.trim() === '') {
-      result.push(<div key={`space-${i}`} style={{ height: 4 }} />)
-      continue
-    }
-
-    // Headings
-    const headingMatch = line.match(/^(#{1,3})\s+(.+)/)
-    if (headingMatch) {
-      const level = headingMatch[1].length
-      result.push(
-        <div key={i} style={{
-          fontSize: level === 1 ? 'var(--text-subheadline)' : 'var(--text-footnote)',
-          fontWeight: 600,
-          color: 'var(--text-primary)',
-          marginTop: 6,
-          marginBottom: 2,
-        }}>
-          {formatInline(headingMatch[2])}
-        </div>
-      )
-      continue
-    }
-
-    // Bullet points
-    if (line.match(/^[-*] /)) {
-      result.push(
-        <div key={i} style={{ display: 'flex', gap: 'var(--space-1)', marginBottom: 1 }}>
-          <span style={{ color: 'var(--accent)', flexShrink: 0 }}>&bull;</span>
-          <span>{formatInline(line.slice(2))}</span>
-        </div>
-      )
-      continue
-    }
-
-    // Numbered lists
-    const numMatch = line.match(/^(\d+)[.)]\s+(.+)/)
-    if (numMatch) {
-      result.push(
-        <div key={i} style={{ display: 'flex', gap: 'var(--space-1)', marginBottom: 1 }}>
-          <span style={{ color: 'var(--text-tertiary)', flexShrink: 0, minWidth: 16, textAlign: 'right' }}>{numMatch[1]}.</span>
-          <span>{formatInline(numMatch[2])}</span>
-        </div>
-      )
-      continue
-    }
-
-    result.push(<div key={i} style={{ marginBottom: 1 }}>{formatInline(line)}</div>)
-  }
-  return <>{result}</>
 }
 
 /* ── Main component ──────────────────────────────────── */
@@ -835,7 +712,7 @@ export function TicketDetailPanel({
                 borderLeft: `2px solid ${accentColor}`,
                 paddingLeft: 'var(--space-3)',
               }}>
-                {formatContent(ticket.workResult)}
+                {formatMessage(ticket.workResult)}
               </div>
             </div>
           )}
@@ -975,7 +852,7 @@ export function TicketDetailPanel({
                       background: msg.role === 'user' ? accentColor : 'var(--fill-tertiary)',
                       color: msg.role === 'user' ? '#fff' : 'var(--text-primary)',
                     }}>
-                      {formatContent(msg.content)}
+                      {formatMessage(msg.content)}
                       {msg.isStreaming && !msg.content && (
                         <span style={{ opacity: 0.5 }}>Thinking...</span>
                       )}
@@ -1229,7 +1106,7 @@ export function TicketDetailPanel({
             lineHeight: 1.6,
             color: 'var(--text-primary)',
           }}>
-            {formatContent(mdModalContent)}
+            {formatMessage(mdModalContent)}
           </div>
         </div>
       </div>

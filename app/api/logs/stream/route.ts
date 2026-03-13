@@ -87,7 +87,10 @@ export async function GET(request: Request) {
       function cleanup() {
         if (heartbeat) { clearInterval(heartbeat); heartbeat = null }
         if (lifetime) { clearTimeout(lifetime); lifetime = null }
-        if (child) { child.kill('SIGTERM'); child = null }
+        if (child) {
+          try { child.kill('SIGTERM') } catch { /* already dead */ }
+          child = null
+        }
       }
     },
   })

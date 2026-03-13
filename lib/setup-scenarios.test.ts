@@ -59,7 +59,8 @@ vi.mock('fs', () => ({
 
 vi.mock('child_process', () => ({
   execSync: mockExecSync,
-  default: { execSync: mockExecSync },
+  execFileSync: mockExecSync,
+  default: { execSync: mockExecSync, execFileSync: mockExecSync },
 }))
 
 vi.mock('@/lib/agents.json', () => ({
@@ -68,7 +69,7 @@ vi.mock('@/lib/agents.json', () => ({
 
 // ── Imports (after mocks) ─────────────────────────────────────────
 
-import { getAgents } from './agents'
+import { getAgents, clearAgentCache } from './agents'
 import { loadRegistry } from './agents-registry'
 import { getMemoryFiles, getMemoryConfig, getMemoryStatus, computeMemoryStats } from './memory'
 import { requireEnv } from './env'
@@ -94,6 +95,7 @@ describe('Fresh user (no OpenClaw installed)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.unstubAllEnvs()
+    clearAgentCache()
     // Fresh user: no env vars set, no files on disk
     mockExistsSync.mockReturnValue(false)
     mockReaddirSync.mockReturnValue([])
@@ -175,6 +177,7 @@ describe('Partial user (OpenClaw installed, no ClawPort config)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.unstubAllEnvs()
+    clearAgentCache()
     vi.stubEnv('WORKSPACE_PATH', WS)
     vi.stubEnv('OPENCLAW_BIN', '/usr/local/bin/openclaw')
     vi.stubEnv('OPENCLAW_GATEWAY_TOKEN', 'tok_test_12345')
@@ -279,6 +282,7 @@ describe('Existing user (fully configured workspace)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.unstubAllEnvs()
+    clearAgentCache()
     vi.stubEnv('WORKSPACE_PATH', WS)
     vi.stubEnv('OPENCLAW_BIN', OPENCLAW_BIN)
     vi.stubEnv('OPENCLAW_GATEWAY_TOKEN', 'oc_tok_abc123xyz')
@@ -643,6 +647,7 @@ describe('Transition scenarios', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.unstubAllEnvs()
+    clearAgentCache()
   })
 
   it('agents upgrade from bundled → auto-discovery when SOUL.md appears', async () => {
@@ -654,6 +659,7 @@ describe('Transition scenarios', () => {
     expect(bundled[0].id).toBe('example')
 
     // Phase 2: Workspace created with agents → auto-discovery
+    clearAgentCache()
     vi.stubEnv('WORKSPACE_PATH', WS)
     mockExistsSync.mockImplementation((p: string) => {
       if (p === `${WS}/clawport/agents.json`) return false
@@ -706,6 +712,7 @@ describe('Transition scenarios', () => {
     expect(auto[0].id).toBe('bot')
 
     // Phase 2: User drops agents.json → override
+    clearAgentCache()
     const customAgents = [
       { id: 'custom-root', name: 'Root', title: 'Boss', reportsTo: null, directReports: [], soulPath: null, voiceId: null, color: '#ff0000', emoji: 'R', tools: ['exec'], memoryPath: null, description: 'Boss.' },
     ]

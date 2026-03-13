@@ -7,6 +7,7 @@ import {
   getOrCreateConversation,
   loadConversations,
   saveConversations,
+  flushSave,
   type Message,
   type ConversationStore,
   type Conversation,
@@ -325,6 +326,7 @@ describe('saveConversations', () => {
       vera: makeConversation({ agentId: 'vera' }),
     }
     saveConversations(data)
+    flushSave() // flush the debounced write for synchronous test assertion
     const raw = localStorage.getItem('clawport-conversations')
     expect(raw).toBeTruthy()
     expect(JSON.parse(raw!).vera.agentId).toBe('vera')

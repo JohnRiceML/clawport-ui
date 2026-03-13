@@ -6,6 +6,7 @@ import { Sidebar } from '@/components/Sidebar';
 import { DynamicFavicon } from '@/components/DynamicFavicon';
 import { OnboardingWizard } from '@/components/OnboardingWizard';
 import { LiveStreamWidget } from '@/components/LiveStreamWidget';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { APP_NAME } from '@/lib/branding';
 
 export const metadata: Metadata = {
@@ -37,7 +38,9 @@ export default function RootLayout({
               <main className="flex-1 overflow-hidden relative">
                 {/* Mobile spacer for fixed header */}
                 <div className="md:hidden" style={{ height: '48px', flexShrink: 0 }} />
-                {children}
+                <ErrorBoundary>
+                  {children}
+                </ErrorBoundary>
               </main>
             </div>
           </SettingsProvider>
