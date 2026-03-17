@@ -61,11 +61,15 @@ export function getWorkPrompt(ticket: KanbanTicket): string {
     ? ROLE_PROMPTS[ticket.assigneeRole] ?? FALLBACK_PROMPT
     : FALLBACK_PROMPT
 
+  const filesBlock = ticket.relevantFiles.length > 0
+    ? `\nRelevant files:\n${ticket.relevantFiles.map((f) => f.url ? `- "${f.name}" (${f.url})` : `- "${f.name}"`).join('\n')}`
+    : ''
+
   return `${rolePrompt}${WORKFLOW_STATUS_INSTRUCTIONS}
 
 Ticket: ${ticket.title}
 ${ticket.description ? `Description: ${ticket.description}` : 'No description provided.'}
-Priority: ${ticket.priority}`
+Priority: ${ticket.priority}${filesBlock}`
 }
 
 export function parseWorkDisposition(rawContent: string): {
@@ -143,6 +147,7 @@ export async function executeWork(
           title: ticket.title,
           description: ticket.description,
           useSessionMemory: ticket.useSessionMemory,
+          relevantFiles: ticket.relevantFiles,
           status: ticket.status,
           priority: ticket.priority,
           assigneeRole: ticket.assigneeRole,

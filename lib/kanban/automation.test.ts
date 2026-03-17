@@ -10,6 +10,7 @@ function makeTicket(overrides: Partial<KanbanTicket> = {}): KanbanTicket {
     title: 'Build login page',
     description: 'Implement login with email/password',
     useSessionMemory: false,
+    relevantFiles: [],
     status: 'todo',
     priority: 'high',
     assigneeId: 'agent-1',

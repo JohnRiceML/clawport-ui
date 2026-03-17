@@ -3,10 +3,11 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { Maximize2, Minimize2 } from 'lucide-react'
 import type { Agent } from '@/lib/types'
-import type { KanbanTicket, TicketStatus, TicketPriority, TeamRole } from '@/lib/kanban/types'
+import type { KanbanTicket, RelevantFile, TicketStatus, TicketPriority, TeamRole } from '@/lib/kanban/types'
 import { PRIORITY_COLORS, ROLE_LABELS, COLUMNS } from '@/lib/kanban/types'
 import { AgentAvatar } from '@/components/AgentAvatar'
 import { AgentPicker } from '@/components/kanban/AgentPicker'
+import { DriveFilePicker } from '@/components/kanban/DriveFilePicker'
 import { generateId } from '@/lib/id'
 import { exportAsPdf, exportAsDocx } from '@/lib/export-markdown'
 import { humanizeKanbanChatError, readKanbanChatErrorResponse } from '@/lib/kanban/chat-errors'
@@ -228,6 +229,7 @@ export function TicketDetailPanel({
             title: ticket.title,
             description: ticket.description,
             useSessionMemory: ticket.useSessionMemory,
+            relevantFiles: ticket.relevantFiles,
             status: ticket.status,
             priority: ticket.priority,
             assigneeRole: ticket.assigneeRole,
@@ -640,6 +642,53 @@ export function TicketDetailPanel({
               }}
             />
           </div>
+
+          {/* Relevant Files */}
+          {(googleDriveEnabled || ticket.relevantFiles.length > 0) && (
+            <div style={{ padding: '0 var(--space-5) var(--space-4)' }}>
+              <div style={{
+                height: 1,
+                background: 'var(--separator)',
+                marginBottom: 'var(--space-3)',
+              }} />
+              {googleDriveEnabled ? (
+                <DriveFilePicker
+                  value={ticket.relevantFiles}
+                  onChange={(files) => onUpdateTicket({ relevantFiles: files })}
+                />
+              ) : (
+                <div>
+                  <div style={{
+                    fontSize: 'var(--text-caption1)',
+                    fontWeight: 600,
+                    color: 'var(--text-tertiary)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    marginBottom: 'var(--space-2)',
+                  }}>
+                    Relevant Files
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)' }}>
+                    {ticket.relevantFiles.map((f) => (
+                      <a
+                        key={f.id}
+                        href={f.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          fontSize: 'var(--text-footnote)',
+                          color: 'var(--accent)',
+                          textDecoration: 'none',
+                        }}
+                      >
+                        {f.name}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <div style={{ padding: '0 var(--space-5) var(--space-4)' }}>
             <div style={{

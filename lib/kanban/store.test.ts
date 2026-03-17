@@ -30,7 +30,7 @@ beforeEach(() => {
 })
 
 // Default work state fields for test tickets
-const WORK_DEFAULTS = { workState: 'idle' as const, workStartedAt: null, workError: null, workResult: null }
+const WORK_DEFAULTS = { workState: 'idle' as const, workStartedAt: null, workError: null, workResult: null, relevantFiles: [] as import('./types').RelevantFile[] }
 
 describe('loadTickets', () => {
   it('returns empty object when nothing stored', () => {
@@ -71,6 +71,7 @@ describe('createTicket', () => {
       title: 'New ticket',
       description: 'Do the thing',
       useSessionMemory: true,
+      relevantFiles: [],
       status: 'backlog',
       priority: 'medium',
       assigneeId: null,
@@ -107,6 +108,7 @@ describe('createTicket', () => {
       title: 'New',
       description: '',
       useSessionMemory: false,
+      relevantFiles: [],
       status: 'backlog',
       priority: 'medium',
       assigneeId: null,

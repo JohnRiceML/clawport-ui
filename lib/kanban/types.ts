@@ -1,5 +1,12 @@
 // Kanban board types
 
+export interface RelevantFile {
+  id: string        // Google Drive file ID
+  name: string      // Display name
+  mimeType: string  // e.g. 'application/vnd.google-apps.document'
+  url: string       // Google Drive web URL
+}
+
 export type TicketStatus = 'backlog' | 'todo' | 'in-progress' | 'review' | 'done'
 
 export type TicketPriority = 'low' | 'medium' | 'high'
@@ -13,6 +20,7 @@ export interface KanbanTicket {
   title: string
   description: string
   useSessionMemory: boolean
+  relevantFiles: RelevantFile[]
   status: TicketStatus
   priority: TicketPriority
   assigneeId: string | null   // agent id from agents.json

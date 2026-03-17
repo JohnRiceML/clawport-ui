@@ -3,7 +3,9 @@ export const runtime = 'nodejs'
 import { getAgent } from '@/lib/agents'
 import OpenAI from 'openai'
 import { gatewayBaseUrl } from '@/lib/env'
-import { buildKanbanSystemPrompt, sanitizeKanbanTicketContext } from '@/lib/kanban/chat-prompt'
+import { buildKanbanSystemPrompt, sanitizeKanbanTicketContext, type AgentEnvironmentContext } from '@/lib/kanban/chat-prompt'
+import { getIntegrationsSummary, getGoogleWorkspaceConfig } from '@/lib/integrations'
+import { getActiveComposioApps } from '@/lib/composio'
 import { humanizeKanbanChatError } from '@/lib/kanban/chat-errors'
 
 const openai = new OpenAI({
@@ -55,7 +57,33 @@ export async function POST(
   const messages = rawMessages as { role: 'user' | 'assistant'; content: string }[]
 
   const ticket = sanitizeKanbanTicketContext(body.ticket)
-  const systemPrompt = buildKanbanSystemPrompt(agent, ticket)
+
+  let environment: AgentEnvironmentContext | null = null
+  try {
+    const [summary, composioApps, gwsConfig] = await Promise.all([
+      Promise.resolve(getIntegrationsSummary()),
+      getActiveComposioApps(),
+      Promise.resolve(getGoogleWorkspaceConfig()),
+    ])
+    // Merge Composio apps with GWS service account integrations
+    const allServices = [...composioApps]
+    if (gwsConfig?.driveEnabled) {
+      if (!allServices.includes('googledrive')) allServices.push('googledrive')
+      if (!allServices.includes('googledocs')) allServices.push('googledocs')
+    }
+    environment = {
+      tools: agent.tools,
+      integrations: {
+        channels: summary.channels,
+        tools: summary.tools,
+      },
+      composioApps: allServices,
+    }
+  } catch {
+    // Non-fatal — proceed without environment context
+  }
+
+  const systemPrompt = buildKanbanSystemPrompt(agent, ticket, environment)
 
   try {
     const stream = await openai.chat.completions.create({

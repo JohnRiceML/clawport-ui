@@ -14,6 +14,9 @@ import type {
   HealthSeverity,
   ReindexStatus,
   EditingHint,
+  LibraryConfig,
+  LibrarySyncResult,
+  LibrarySyncSource,
 } from "@/lib/types";
 import {
   RefreshCw,
@@ -49,7 +52,7 @@ import {
 
 /* ─── Types ──────────────────────────────────────────────────── */
 
-type Tab = "overview" | "browser" | "guide";
+type Tab = "overview" | "browser" | "guide" | "sync";
 type SortKey = "date" | "name" | "size";
 
 interface HealthChatMessage {
@@ -63,6 +66,7 @@ const TABS: { key: Tab; label: string; Icon: typeof BarChart3 }[] = [
   { key: "overview", label: "Overview", Icon: BarChart3 },
   { key: "browser", label: "Browser", Icon: FolderOpen },
   { key: "guide", label: "Guide", Icon: BookOpen },
+  { key: "sync", label: "Library Sync", Icon: RefreshCw },
 ];
 
 /* ─── Helpers ────────────────────────────────────────────────── */
@@ -1485,6 +1489,403 @@ function EditingHintsPanel({ hints }: { hints: EditingHint[] }) {
   );
 }
 
+/* ─── Library Sync Panel ─────────────────────────────────────── */
+
+const SYNC_SCHEDULES = [
+  { label: "Nightly at 2 AM", value: "0 2 * * *" },
+  { label: "Every 6 hours", value: "0 */6 * * *" },
+  { label: "Hourly", value: "0 * * * *" },
+];
+
+function LibrarySyncPanel({
+  config,
+  saving,
+  syncing,
+  syncResult,
+  error,
+  onSave,
+  onSync,
+}: {
+  config: LibraryConfig;
+  saving: boolean;
+  syncing: boolean;
+  syncResult: LibrarySyncResult | null;
+  error: string | null;
+  onSave: (config: LibraryConfig) => Promise<void>;
+  onSync: () => Promise<void>;
+}) {
+  const [form, setForm] = useState<LibraryConfig>(config);
+
+  const set = <K extends keyof LibraryConfig>(key: K, value: LibraryConfig[K]) =>
+    setForm((prev) => ({ ...prev, [key]: value }));
+
+  const labelStyle: React.CSSProperties = {
+    fontSize: "var(--text-footnote)",
+    fontWeight: "var(--weight-medium)",
+    color: "var(--text-secondary)",
+    marginBottom: "var(--space-1)",
+    display: "block",
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    padding: "8px 10px",
+    background: "var(--bg-input, var(--material-regular))",
+    border: "1px solid var(--separator)",
+    borderRadius: "var(--radius-sm)",
+    color: "var(--text-primary)",
+    fontSize: "var(--text-footnote)",
+    outline: "none",
+    boxSizing: "border-box",
+  };
+
+  const fieldStyle: React.CSSProperties = { marginBottom: "var(--space-3)" };
+
+  return (
+    <div style={{ maxWidth: 580 }}>
+      <div
+        style={{
+          fontSize: "var(--text-body)",
+          fontWeight: "var(--weight-semibold)",
+          color: "var(--text-primary)",
+          marginBottom: "var(--space-4)",
+        }}
+      >
+        Library Sync
+      </div>
+
+      {/* Enable toggle */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "var(--space-2)",
+          marginBottom: "var(--space-4)",
+        }}
+      >
+        <input
+          id="lib-enabled"
+          type="checkbox"
+          checked={form.enabled}
+          onChange={(e) => set("enabled", e.target.checked)}
+          style={{ width: 16, height: 16, cursor: "pointer" }}
+        />
+        <label
+          htmlFor="lib-enabled"
+          style={{
+            fontSize: "var(--text-footnote)",
+            fontWeight: "var(--weight-medium)",
+            color: "var(--text-primary)",
+            cursor: "pointer",
+          }}
+        >
+          Enable library sync
+        </label>
+      </div>
+
+      {/* Source selector */}
+      <div style={fieldStyle}>
+        <span style={labelStyle}>Source</span>
+        <div style={{ display: "flex", gap: "var(--space-2)" }}>
+          {(["google_drive", "onedrive"] as LibrarySyncSource[]).map((src) => (
+            <button
+              key={src}
+              onClick={() => set("source", src)}
+              className="focus-ring"
+              style={{
+                padding: "6px 14px",
+                fontSize: "var(--text-footnote)",
+                fontWeight:
+                  form.source === src
+                    ? "var(--weight-semibold)"
+                    : "var(--weight-medium)",
+                border: "1px solid var(--separator)",
+                borderRadius: "var(--radius-sm)",
+                cursor: "pointer",
+                background:
+                  form.source === src
+                    ? "var(--accent-fill)"
+                    : "var(--material-regular)",
+                color:
+                  form.source === src
+                    ? "var(--accent)"
+                    : "var(--text-secondary)",
+              }}
+            >
+              {src === "google_drive" ? "Google Drive" : "OneDrive"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Google Drive fields */}
+      {form.source === "google_drive" && (
+        <div style={fieldStyle}>
+          <label htmlFor="lib-drive-url" style={labelStyle}>
+            Drive Folder URL
+          </label>
+          <input
+            id="lib-drive-url"
+            type="text"
+            value={form.folderUrl}
+            onChange={(e) => set("folderUrl", e.target.value)}
+            placeholder="https://drive.google.com/drive/folders/..."
+            style={inputStyle}
+          />
+        </div>
+      )}
+
+      {/* OneDrive fields */}
+      {form.source === "onedrive" && (
+        <>
+          <div style={fieldStyle}>
+            <label htmlFor="lib-od-tenant" style={labelStyle}>
+              Tenant ID
+            </label>
+            <input
+              id="lib-od-tenant"
+              type="text"
+              value={form.onedriveTenantId}
+              onChange={(e) => set("onedriveTenantId", e.target.value)}
+              placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+              style={inputStyle}
+            />
+          </div>
+          <div style={fieldStyle}>
+            <label htmlFor="lib-od-client" style={labelStyle}>
+              Client ID
+            </label>
+            <input
+              id="lib-od-client"
+              type="text"
+              value={form.onedriveClientId}
+              onChange={(e) => set("onedriveClientId", e.target.value)}
+              placeholder="App (client) ID"
+              style={inputStyle}
+            />
+          </div>
+          <div style={fieldStyle}>
+            <label htmlFor="lib-od-secret" style={labelStyle}>
+              Client Secret
+            </label>
+            <input
+              id="lib-od-secret"
+              type="password"
+              value={form.onedriveClientSecret}
+              onChange={(e) => set("onedriveClientSecret", e.target.value)}
+              placeholder="Client secret value"
+              style={inputStyle}
+            />
+          </div>
+          <div style={fieldStyle}>
+            <label htmlFor="lib-od-folder" style={labelStyle}>
+              Folder URL or Item ID
+            </label>
+            <input
+              id="lib-od-folder"
+              type="text"
+              value={form.onedriveFolderUrl}
+              onChange={(e) => set("onedriveFolderUrl", e.target.value)}
+              placeholder="OneDrive folder URL or item ID"
+              style={inputStyle}
+            />
+          </div>
+        </>
+      )}
+
+      {/* Schedule */}
+      <div style={fieldStyle}>
+        <label htmlFor="lib-schedule" style={labelStyle}>
+          Sync Schedule
+        </label>
+        <select
+          id="lib-schedule"
+          value={form.syncSchedule}
+          onChange={(e) => set("syncSchedule", e.target.value)}
+          style={inputStyle}
+        >
+          {SYNC_SCHEDULES.map((s) => (
+            <option key={s.value} value={s.value}>
+              {s.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Actions */}
+      <div
+        style={{
+          display: "flex",
+          gap: "var(--space-2)",
+          marginTop: "var(--space-4)",
+          flexWrap: "wrap",
+        }}
+      >
+        <button
+          onClick={() => onSave(form)}
+          disabled={saving}
+          className="focus-ring"
+          style={{
+            padding: "8px 18px",
+            fontSize: "var(--text-footnote)",
+            fontWeight: "var(--weight-medium)",
+            border: "1px solid var(--separator)",
+            borderRadius: "var(--radius-sm)",
+            cursor: saving ? "default" : "pointer",
+            background: "var(--material-regular)",
+            color: saving ? "var(--text-tertiary)" : "var(--text-primary)",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          {saving ? (
+            <>
+              <RefreshCw size={13} style={{ animation: "spin 1s linear infinite" }} />
+              Saving…
+            </>
+          ) : (
+            <>
+              <Check size={13} />
+              Save Config
+            </>
+          )}
+        </button>
+
+        <button
+          onClick={onSync}
+          disabled={syncing || !form.enabled}
+          className="focus-ring"
+          style={{
+            padding: "8px 18px",
+            fontSize: "var(--text-footnote)",
+            fontWeight: "var(--weight-medium)",
+            border: "none",
+            borderRadius: "var(--radius-sm)",
+            cursor: syncing || !form.enabled ? "default" : "pointer",
+            background:
+              syncing || !form.enabled
+                ? "var(--accent-fill)"
+                : "var(--accent)",
+            color:
+              syncing || !form.enabled ? "var(--accent)" : "var(--bg)",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          {syncing ? (
+            <>
+              <RefreshCw size={13} style={{ animation: "spin 1s linear infinite" }} />
+              Syncing…
+            </>
+          ) : (
+            <>
+              <RefreshCw size={13} />
+              Sync Now
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Error */}
+      {error && (
+        <div
+          style={{
+            marginTop: "var(--space-3)",
+            padding: "10px 12px",
+            background: "var(--system-red-fill, rgba(255,59,48,0.1))",
+            border: "1px solid var(--system-red, #ff3b30)",
+            borderRadius: "var(--radius-sm)",
+            color: "var(--system-red, #ff3b30)",
+            fontSize: "var(--text-footnote)",
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          <AlertCircle size={13} />
+          {error}
+        </div>
+      )}
+
+      {/* Last sync result */}
+      {syncResult && (
+        <div
+          style={{
+            marginTop: "var(--space-4)",
+            padding: "12px 14px",
+            background: syncResult.ok
+              ? "var(--system-green-fill, rgba(52,199,89,0.1))"
+              : "var(--system-red-fill, rgba(255,59,48,0.1))",
+            border: `1px solid ${syncResult.ok ? "var(--system-green, #34c759)" : "var(--system-red, #ff3b30)"}`,
+            borderRadius: "var(--radius-sm)",
+          }}
+        >
+          <div
+            style={{
+              fontSize: "var(--text-footnote)",
+              fontWeight: "var(--weight-semibold)",
+              color: syncResult.ok
+                ? "var(--system-green, #34c759)"
+                : "var(--system-red, #ff3b30)",
+              marginBottom: 4,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            {syncResult.ok ? <Check size={13} /> : <AlertCircle size={13} />}
+            {syncResult.ok ? "Sync complete" : "Sync failed"}
+            {syncResult.syncedAt > 0 && (
+              <span
+                style={{
+                  fontWeight: "var(--weight-regular)",
+                  color: "var(--text-tertiary)",
+                  marginLeft: 4,
+                }}
+              >
+                {new Date(syncResult.syncedAt).toLocaleString()}
+              </span>
+            )}
+          </div>
+          {syncResult.ok && (
+            <div
+              style={{
+                fontSize: "var(--text-caption1)",
+                color: "var(--text-secondary)",
+                display: "flex",
+                gap: "var(--space-3)",
+              }}
+            >
+              <span>{syncResult.total} total</span>
+              <span style={{ color: "var(--system-green, #34c759)" }}>
+                +{syncResult.added} added
+              </span>
+              <span style={{ color: "var(--system-blue, #007aff)" }}>
+                ~{syncResult.updated} updated
+              </span>
+              <span style={{ color: "var(--text-tertiary)" }}>
+                −{syncResult.removed} removed
+              </span>
+            </div>
+          )}
+          {!syncResult.ok && syncResult.error && (
+            <div
+              style={{
+                fontSize: "var(--text-caption1)",
+                color: "var(--system-red, #ff3b30)",
+              }}
+            >
+              {syncResult.error}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── Main Component ─────────────────────────────────────────── */
 
 export default function MemoryPage() {
@@ -1500,6 +1901,14 @@ export default function MemoryPage() {
   const [sort, setSort] = useState<SortKey>("date");
   const [copied, setCopied] = useState(false);
   const [mobileShowContent, setMobileShowContent] = useState(false);
+
+  // Library sync state
+  const [libConfig, setLibConfig] = useState<LibraryConfig | null>(null);
+  const [libConfigLoading, setLibConfigLoading] = useState(false);
+  const [libSaving, setLibSaving] = useState(false);
+  const [libSyncing, setLibSyncing] = useState(false);
+  const [libSyncResult, setLibSyncResult] = useState<LibrarySyncResult | null>(null);
+  const [libError, setLibError] = useState<string | null>(null);
 
   // Health & hints state
   const [health, setHealth] = useState<MemoryHealthSummary | null>(null);
@@ -1609,6 +2018,17 @@ export default function MemoryPage() {
   useEffect(() => {
     setShowReindex(false);
   }, [selected, isEditing]);
+
+  // Load library config when sync tab is opened
+  useEffect(() => {
+    if (tab !== "sync" || libConfig !== null) return;
+    setLibConfigLoading(true);
+    fetch("/api/library/config")
+      .then((r) => r.json())
+      .then((data: LibraryConfig) => setLibConfig(data))
+      .catch(() => setLibError("Failed to load library config"))
+      .finally(() => setLibConfigLoading(false));
+  }, [tab, libConfig]);
 
   /* Reindex handler */
   async function handleReindex() {
@@ -3175,6 +3595,65 @@ export default function MemoryPage() {
                   <div style={{ marginTop: "var(--space-4)" }}>
                     <FileReference />
                   </div>
+                )}
+              </div>
+            )}
+
+            {/* ─── LIBRARY SYNC TAB ─────────────────────────── */}
+            {tab === "sync" && (
+              <div
+                className="overflow-y-auto h-full"
+                style={{ padding: "var(--space-4) var(--space-6) var(--space-6)" }}
+              >
+                {libConfigLoading && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+                    <Skeleton style={{ width: 200, height: 14 }} />
+                    <Skeleton style={{ width: "100%", height: 48 }} />
+                    <Skeleton style={{ width: "100%", height: 48 }} />
+                    <Skeleton style={{ width: 160, height: 36 }} />
+                  </div>
+                )}
+
+                {!libConfigLoading && libConfig && (
+                  <LibrarySyncPanel
+                    config={libConfig}
+                    saving={libSaving}
+                    syncing={libSyncing}
+                    syncResult={libSyncResult ?? libConfig.lastSync}
+                    error={libError}
+                    onSave={async (updated) => {
+                      setLibSaving(true);
+                      setLibError(null);
+                      try {
+                        const res = await fetch("/api/library/config", {
+                          method: "PUT",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify(updated),
+                        });
+                        const saved = await res.json();
+                        if (!res.ok) throw new Error(saved.error ?? "Save failed");
+                        setLibConfig(saved);
+                      } catch (e) {
+                        setLibError(e instanceof Error ? e.message : "Save failed");
+                      } finally {
+                        setLibSaving(false);
+                      }
+                    }}
+                    onSync={async () => {
+                      setLibSyncing(true);
+                      setLibError(null);
+                      try {
+                        const res = await fetch("/api/library/sync", { method: "POST" });
+                        const result = await res.json();
+                        if (!res.ok) throw new Error(result.error ?? "Sync failed");
+                        setLibSyncResult(result);
+                      } catch (e) {
+                        setLibError(e instanceof Error ? e.message : "Sync failed");
+                      } finally {
+                        setLibSyncing(false);
+                      }
+                    }}
+                  />
                 )}
               </div>
             )}

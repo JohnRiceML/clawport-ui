@@ -190,6 +190,21 @@ export function TicketCard({ ticket, agent, onClick, isWorking }: TicketCardProp
           </span>
         )}
 
+        {ticket.relevantFiles.length > 0 && (
+          <span
+            title={ticket.relevantFiles.map((f) => f.name).join(', ')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 2,
+              fontSize: 'var(--text-caption2)',
+              color: 'var(--text-tertiary)',
+            }}
+          >
+            {'\u{1F4CE}'} {ticket.relevantFiles.length}
+          </span>
+        )}
+
         <span
           style={{
             fontSize: 'var(--text-caption2)',

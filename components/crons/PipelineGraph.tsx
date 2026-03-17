@@ -13,7 +13,7 @@ import {
   ConnectionLineType,
 } from "@xyflow/react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { RefreshCw, Activity, ChevronDown, MessageSquare, Trash2 } from "lucide-react"
+import { RefreshCw, Activity, ChevronDown, MessageSquare, Trash2, Lightbulb } from "lucide-react"
 import type { Agent, CronJob } from "@/lib/types"
 import type { Pipeline } from "@/lib/cron-pipelines"
 import { getAllPipelineJobNames } from "@/lib/cron-pipelines"
@@ -280,6 +280,128 @@ function CronsCardGrid({
   )
 }
 
+/* ─── Suggestions panel ──────────────────────────────────────── */
+
+function SuggestionsPanel({
+  open,
+  streaming,
+  content,
+  contentRef,
+  onRun,
+  onClose,
+}: {
+  open: boolean
+  streaming: boolean
+  content: string
+  contentRef: React.RefObject<HTMLDivElement | null>
+  onRun: () => void
+  onClose: () => void
+}) {
+  return (
+    <div style={{ marginTop: 20 }}>
+      {!open && (
+        <button
+          onClick={onRun}
+          disabled={streaming}
+          className="btn-ghost focus-ring"
+          style={{
+            padding: "6px 14px",
+            borderRadius: "var(--radius-sm, 6px)",
+            fontSize: 12,
+            fontWeight: 500,
+            border: "1px solid var(--separator)",
+            cursor: streaming ? "default" : "pointer",
+            color: "var(--text-secondary)",
+            background: "transparent",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          <Lightbulb size={13} />
+          Suggest Jobs
+        </button>
+      )}
+
+      {open && (
+        <div
+          style={{
+            background: "var(--material-regular)",
+            borderRadius: "var(--radius-md, 10px)",
+            border: "1px solid var(--separator)",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              padding: "8px 14px",
+              borderBottom: "1px solid var(--separator)",
+            }}
+          >
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-primary)", display: "flex", alignItems: "center", gap: 6 }}>
+              <Lightbulb size={14} />
+              Job Suggestions
+              {streaming && <span style={{ fontSize: 11, color: "var(--text-tertiary)" }}>streaming...</span>}
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                onClick={onRun}
+                disabled={streaming}
+                className="btn-ghost focus-ring"
+                style={{
+                  padding: "2px 8px",
+                  borderRadius: "var(--radius-sm, 6px)",
+                  fontSize: 11,
+                  border: "1px solid var(--separator)",
+                  cursor: streaming ? "default" : "pointer",
+                  color: "var(--text-secondary)",
+                  background: "transparent",
+                }}
+              >
+                <RefreshCw size={11} className={streaming ? "animate-spin" : ""} />
+              </button>
+              <button
+                onClick={onClose}
+                className="btn-ghost focus-ring"
+                style={{
+                  padding: "2px 8px",
+                  borderRadius: "var(--radius-sm, 6px)",
+                  fontSize: 11,
+                  border: "1px solid var(--separator)",
+                  cursor: "pointer",
+                  color: "var(--text-secondary)",
+                  background: "transparent",
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+          <div
+            ref={contentRef}
+            style={{
+              padding: 14,
+              maxHeight: 400,
+              overflowY: "auto",
+              fontSize: 13,
+              lineHeight: 1.6,
+              color: "var(--text-primary)",
+            }}
+            dangerouslySetInnerHTML={{
+              __html: content
+                ? renderMarkdown(content)
+                : '<span style="color: var(--text-muted)">Analyzing connected services and existing jobs...</span>',
+            }}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
 /* ─── Main component ──────────────────────────────────────────── */
 
 export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditClick, onClearClick, onJobSelect, selectedJob }: PipelineGraphProps) {
@@ -292,6 +414,12 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
   const [healthChatMessages, setHealthChatMessages] = useState<HealthChatMessage[]>([])
   const [healthChatInput, setHealthChatInput] = useState("")
   const [healthChatStreaming, setHealthChatStreaming] = useState(false)
+
+  // Job suggestions state
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false)
+  const [suggestionsStreaming, setSuggestionsStreaming] = useState(false)
+  const [suggestionsContent, setSuggestionsContent] = useState("")
+  const suggestionsRef = useRef<HTMLDivElement>(null)
 
   const agentColorMap = useMemo(
     () => new Map(agents.map(a => [a.id, a.color])),
@@ -539,11 +667,80 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
     }
   }, [healthChatInput, healthChatStreaming, rootAgent, healthChatMessages, healthCheckContent, crons, pipelines, agents])
 
+  // Cron job suggestions
+  const runSuggestions = useCallback(async () => {
+    if (suggestionsStreaming) return
+
+    setSuggestionsOpen(true)
+    setSuggestionsStreaming(true)
+    setSuggestionsContent("")
+
+    try {
+      const res = await fetch("/api/crons/suggestions")
+
+      if (!res.ok || !res.body) {
+        const data = await res.json().catch(() => ({}))
+        if (data.reason) {
+          setSuggestionsContent(`No suggestions available: ${data.reason}`)
+          setSuggestionsStreaming(false)
+          return
+        }
+        throw new Error("Stream failed")
+      }
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ""
+      let fullContent = ""
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split("\n")
+        buffer = lines.pop() || ""
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue
+          const payload = line.slice(6)
+          if (payload === "[DONE]") break
+          try {
+            const parsed = JSON.parse(payload) as { content?: string }
+            if (parsed.content) {
+              fullContent += parsed.content
+              setSuggestionsContent(fullContent)
+            }
+          } catch { /* skip malformed */ }
+        }
+      }
+    } catch {
+      if (!suggestionsContent) {
+        setSuggestionsContent("Failed to generate suggestions. Check API connection.")
+      }
+    } finally {
+      setSuggestionsStreaming(false)
+    }
+  }, [suggestionsStreaming, suggestionsContent])
+
+  // Auto-scroll suggestions
+  useEffect(() => {
+    if (suggestionsRef.current && suggestionsStreaming) {
+      suggestionsRef.current.scrollTop = suggestionsRef.current.scrollHeight
+    }
+  }, [suggestionsContent, suggestionsStreaming])
+
   if (!hasPipelines) {
     return (
       <div>
         <PipelinesEmptyState onSetupClick={onSetupClick} />
         <CronsCardGrid crons={crons} agentColorMap={agentColorMap} label="All Scheduled Jobs" />
+        <SuggestionsPanel
+          open={suggestionsOpen}
+          streaming={suggestionsStreaming}
+          content={suggestionsContent}
+          contentRef={suggestionsRef}
+          onRun={runSuggestions}
+          onClose={() => setSuggestionsOpen(false)}
+        />
       </div>
     )
   }
@@ -960,6 +1157,15 @@ export function PipelineGraph({ crons, agents, pipelines, onSetupClick, onEditCl
       </div>
 
       <CronsCardGrid crons={standaloneCrons} agentColorMap={agentColorMap} label="Standalone Scheduled Jobs" />
+
+      <SuggestionsPanel
+        open={suggestionsOpen}
+        streaming={suggestionsStreaming}
+        content={suggestionsContent}
+        contentRef={suggestionsRef}
+        onRun={runSuggestions}
+        onClose={() => setSuggestionsOpen(false)}
+      />
     </div>
   )
 }

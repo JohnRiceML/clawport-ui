@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Plus } from 'lucide-react'
 import type { Agent } from '@/lib/types'
-import type { TicketPriority, TeamRole } from '@/lib/kanban/types'
+import type { TicketPriority, TeamRole, RelevantFile } from '@/lib/kanban/types'
 import { PRIORITY_COLORS, ROLE_LABELS } from '@/lib/kanban/types'
 import { AgentPicker } from '@/components/kanban/AgentPicker'
+import { DriveFilePicker } from '@/components/kanban/DriveFilePicker'
 import {
   Dialog,
   DialogContent,
@@ -22,6 +23,7 @@ interface CreateTicketModalProps {
     title: string
     description: string
     useSessionMemory: boolean
+    relevantFiles: RelevantFile[]
     priority: TicketPriority
     assigneeId: string | null
     assigneeRole: TeamRole | null
@@ -31,7 +33,7 @@ interface CreateTicketModalProps {
 const PRIORITIES: TicketPriority[] = ['low', 'medium', 'high']
 const PRIORITY_LABELS: Record<TicketPriority, string> = {
   low: 'Low',
-  medium: 'Medium',
+  medium: 'Med',
   high: 'High',
 }
 
@@ -41,6 +43,7 @@ const initialState = {
   title: '',
   description: '',
   useSessionMemory: false,
+  relevantFiles: [] as RelevantFile[],
   priority: 'medium' as TicketPriority,
   assigneeId: '' as string,
   assigneeRole: null as TeamRole | null,
@@ -53,6 +56,14 @@ export function CreateTicketModal({
   onSubmit,
 }: CreateTicketModalProps) {
   const [form, setForm] = useState(initialState)
+  const [driveEnabled, setDriveEnabled] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/export/google-doc')
+      .then((res) => res.json())
+      .then((data) => setDriveEnabled(data.enabled === true))
+      .catch(() => {})
+  }, [])
 
   const resetForm = useCallback(() => {
     setForm(initialState)
@@ -71,6 +82,7 @@ export function CreateTicketModal({
       title: form.title.trim(),
       description: form.description.trim(),
       useSessionMemory: form.useSessionMemory,
+      relevantFiles: form.relevantFiles,
       priority: form.priority,
       assigneeId: form.assigneeId || null,
       assigneeRole: form.assigneeId ? form.assigneeRole : null,
@@ -178,98 +190,125 @@ export function CreateTicketModal({
             />
           </div>
 
-          <label
+          {/* Relevant Files (Google Drive) */}
+          {driveEnabled && (
+            <DriveFilePicker
+              value={form.relevantFiles}
+              onChange={(files) => setForm((f) => ({ ...f, relevantFiles: files }))}
+            />
+          )}
+
+          <div
             style={{
-              display: 'flex',
-              alignItems: 'flex-start',
+              display: 'grid',
+              gridTemplateColumns: 'minmax(0, 1fr) auto',
+              alignItems: 'start',
               gap: 'var(--space-3)',
-              padding: 'var(--space-3)',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--separator)',
-              background: 'var(--fill-quaternary)',
-              cursor: 'pointer',
             }}
           >
-            <input
-              type="checkbox"
-              checked={form.useSessionMemory}
-              onChange={(e) => setForm((f) => ({ ...f, useSessionMemory: e.target.checked }))}
-              style={{ marginTop: 2 }}
-            />
-            <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 'var(--space-3)',
+                padding: 'var(--space-3)',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--separator)',
+                background: 'var(--fill-quaternary)',
+                cursor: 'pointer',
+                minWidth: 0,
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={form.useSessionMemory}
+                onChange={(e) => setForm((f) => ({ ...f, useSessionMemory: e.target.checked }))}
+                style={{ marginTop: 2 }}
+              />
+              <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                <span
+                  style={{
+                    fontSize: 'var(--text-caption1)',
+                    fontWeight: 'var(--weight-medium)',
+                    color: 'var(--text-primary)',
+                  }}
+                >
+                  Allow session memory
+                </span>
+                <span
+                  style={{
+                    fontSize: 'var(--text-caption2)',
+                    color: 'var(--text-tertiary)',
+                    lineHeight: 1.4,
+                  }}
+                >
+                  Let the agent rely on prior hidden session context for continuation tickets.
+                </span>
+              </span>
+            </label>
+
+            {/* Priority */}
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-end',
+                gap: 'var(--space-2)',
+                paddingTop: 2,
+              }}
+            >
               <span
                 style={{
                   fontSize: 'var(--text-caption1)',
                   fontWeight: 'var(--weight-medium)',
-                  color: 'var(--text-primary)',
+                  color: 'var(--text-secondary)',
                 }}
               >
-                Allow session memory
+                Priority
               </span>
-              <span
-                style={{
-                  fontSize: 'var(--text-caption2)',
-                  color: 'var(--text-tertiary)',
-                  lineHeight: 1.4,
-                }}
-              >
-                Let the agent rely on prior hidden session context for continuation tickets.
-              </span>
-            </span>
-          </label>
-
-          {/* Priority */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-            <span
-              style={{
-                fontSize: 'var(--text-caption1)',
-                fontWeight: 'var(--weight-medium)',
-                color: 'var(--text-secondary)',
-              }}
-            >
-              Priority
-            </span>
-            <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-              {PRIORITIES.map((p) => {
-                const isSelected = form.priority === p
-                return (
-                  <button
-                    key={p}
-                    type="button"
-                    className="focus-ring"
-                    onClick={() => setForm((f) => ({ ...f, priority: p }))}
-                    style={{
-                      flex: 1,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 'var(--space-1)',
-                      padding: 'var(--space-2) var(--space-3)',
-                      borderRadius: 'var(--radius-md)',
-                      border: isSelected
-                        ? `2px solid ${PRIORITY_COLORS[p]}`
-                        : '2px solid var(--separator)',
-                      background: isSelected ? 'var(--fill-tertiary)' : 'transparent',
-                      cursor: 'pointer',
-                      fontSize: 'var(--text-caption1)',
-                      fontWeight: 'var(--weight-medium)',
-                      color: isSelected ? 'var(--text-primary)' : 'var(--text-tertiary)',
-                      transition: 'all 150ms var(--ease-smooth)',
-                    }}
-                  >
-                    <span
+              <div style={{ display: 'flex', gap: 'var(--space-1)', justifyContent: 'flex-end' }}>
+                {PRIORITIES.map((p) => {
+                  const isSelected = form.priority === p
+                  return (
+                    <button
+                      key={p}
+                      type="button"
+                      className="focus-ring"
+                      onClick={() => setForm((f) => ({ ...f, priority: p }))}
                       style={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: '50%',
-                        background: PRIORITY_COLORS[p],
-                        flexShrink: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 'var(--space-1)',
+                        minWidth: 74,
+                        padding: '7px 10px',
+                        borderRadius: 'var(--radius-md)',
+                        border: isSelected
+                          ? `2px solid ${PRIORITY_COLORS[p]}`
+                          : '2px solid var(--separator)',
+                        background: isSelected ? 'var(--fill-tertiary)' : 'transparent',
+                        cursor: 'pointer',
+                        fontSize: 'var(--text-caption1)',
+                        fontWeight: 'var(--weight-medium)',
+                        color: isSelected ? 'var(--text-primary)' : 'var(--text-tertiary)',
+                        transition: 'all 150ms var(--ease-smooth)',
+                        whiteSpace: 'nowrap',
                       }}
-                    />
-                    {PRIORITY_LABELS[p]}
-                  </button>
-                )
-              })}
+                    >
+                      <span
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: '50%',
+                          background: PRIORITY_COLORS[p],
+                          flexShrink: 0,
+                        }}
+                      />
+                      {PRIORITY_LABELS[p]}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           </div>
 

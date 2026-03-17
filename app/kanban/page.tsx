@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import type { Agent } from '@/lib/types'
-import type { KanbanTicket, TicketStatus, TicketPriority, TeamRole } from '@/lib/kanban/types'
+import type { KanbanTicket, RelevantFile, TicketStatus, TicketPriority, TeamRole } from '@/lib/kanban/types'
 import {
   loadTickets,
   saveTickets,
@@ -129,6 +129,7 @@ export default function KanbanPage() {
     title: string
     description: string
     useSessionMemory: boolean
+    relevantFiles: RelevantFile[]
     priority: TicketPriority
     assigneeId: string | null
     assigneeRole: TeamRole | null

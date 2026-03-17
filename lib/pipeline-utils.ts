@@ -102,7 +102,7 @@ export function buildCronContext(
 /**
  * Build the AI health check prompt from cron and pipeline data.
  */
-export function buildHealthCheckPrompt(crons: CronJob[], pipelines: Pipeline[], agents?: Agent[]): string {
+export function buildHealthCheckPrompt(crons: CronJob[], pipelines: Pipeline[], agents?: Agent[], availableServices?: string[]): string {
   const agentMap = new Map((agents || []).map(a => [a.id, a.name]))
 
   const pipelinesSummary = pipelines.map(p => {
@@ -137,7 +137,12 @@ export function buildHealthCheckPrompt(crons: CronJob[], pipelines: Pipeline[], 
 6. **Recommendations** - Top 2-3 actionable items to improve reliability
 
 Be direct and specific. Use job names and agent names. Keep it under 400 words.
+${availableServices && availableServices.length > 0 ? `
+## Available Services
 
+The following external services are connected and available for cron jobs to use: ${availableServices.join(', ')}.
+If any jobs could benefit from these services but aren't using them, mention it in recommendations.
+` : ''}
 ## Pipelines
 
 ${pipelinesSummary || "No pipelines configured"}
@@ -145,6 +150,53 @@ ${pipelinesSummary || "No pipelines configured"}
 ## Jobs
 
 ${jobsSummary || "No jobs found"}`
+}
+
+/* ─── Cron job suggestion prompt builder ───────────────────────── */
+
+/**
+ * Build a prompt that suggests new cron jobs based on available services,
+ * existing jobs, and agent capabilities.
+ */
+export function buildCronSuggestionsPrompt(
+  crons: CronJob[],
+  agents: Agent[],
+  availableServices: string[],
+): string {
+  const existingJobs = crons.map(c => {
+    const parts = [c.name, `(${c.scheduleDescription || c.schedule})`]
+    if (c.description) parts.push(`-- ${c.description}`)
+    if (c.delivery) parts.push(`-> ${c.delivery.channel}`)
+    return parts.join(' ')
+  }).join('\n')
+
+  const agentList = agents.map(a => {
+    const tools = a.tools.length > 0 ? ` [tools: ${a.tools.join(', ')}]` : ''
+    return `- ${a.name} (${a.title})${tools}`
+  }).join('\n')
+
+  return `You are suggesting new cron jobs for an AI agent system. Analyze what's already running, what services are available, and what agents can do, then suggest useful automations that aren't already covered.
+
+## Connected Services
+
+${availableServices.join(', ')}
+
+## Existing Cron Jobs
+
+${existingJobs || 'No jobs configured yet'}
+
+## Available Agents
+
+${agentList}
+
+Suggest 3-5 new cron jobs that would be valuable. For each suggestion:
+- **Job name** (kebab-case, e.g. "daily-email-digest")
+- **Schedule** (cron expression + human description)
+- **Agent** (which agent should own it)
+- **What it does** (1-2 sentences)
+- **Services used** (which connected services it leverages)
+
+Focus on practical automations that combine the connected services with agent capabilities. Don't suggest jobs that duplicate existing ones. Be concise.`
 }
 
 /* ─── Pipeline layout builder ──────────────────────────────────── */

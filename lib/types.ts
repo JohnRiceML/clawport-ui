@@ -295,6 +295,34 @@ export interface MemoryApiResponse {
   health: MemoryHealthSummary
 }
 
+// ── Library Sync Types ──────────────────────────────────────
+
+export type LibrarySyncSource = 'google_drive' | 'onedrive'
+
+export interface LibraryConfig {
+  enabled: boolean
+  source: LibrarySyncSource
+  folderUrl: string
+  folderId: string
+  syncSchedule: string
+  onedriveTenantId: string
+  onedriveClientId: string
+  onedriveClientSecret: string
+  onedriveFolderUrl: string
+  onedriveFolderId: string
+  lastSync: LibrarySyncResult | null
+}
+
+export interface LibrarySyncResult {
+  ok: boolean
+  added: number
+  updated: number
+  removed: number
+  total: number
+  error?: string
+  syncedAt: number
+}
+
 // ── Activity Console Types ─────────────────────────────────────
 
 export interface LogEntry {
