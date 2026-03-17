@@ -10,17 +10,50 @@
  * Used by: npm run setup, clawport setup, clawport doctor
  */
 
-import { existsSync, readFileSync, writeFileSync } from 'fs'
+import { existsSync, readFileSync, writeFileSync, readdirSync } from 'fs'
 import { join } from 'path'
 import { homedir } from 'os'
 import { execSync } from 'child_process'
 
 // ── Workspace ─────────────────────────────────────────────────────
 
-/** Detect the default workspace path (~/.openclaw/workspace). */
+/**
+ * Detect the default workspace path.
+ *
+ * Checks in order:
+ *   1. ~/.openclaw/agents/main/workspace  (current agent-scoped layout)
+ *   2. ~/.openclaw/workspace-main         (multi-agent layout, main agent)
+ *   3. ~/.openclaw/workspace-*            (multi-agent layout, any agent)
+ *   4. ~/.openclaw/workspace              (legacy single-workspace layout)
+ */
 export function detectWorkspacePath(): string | null {
-  const defaultPath = join(homedir(), '.openclaw', 'workspace')
-  if (existsSync(defaultPath)) return defaultPath
+  const base = join(homedir(), '.openclaw')
+
+  // 1. Current agent-scoped layout
+  const agentPath = join(base, 'agents', 'main', 'workspace')
+  if (existsSync(agentPath)) return agentPath
+
+  // 2. Multi-agent layout: workspace-main
+  const multiMain = join(base, 'workspace-main')
+  if (existsSync(multiMain)) return multiMain
+
+  // 3. Multi-agent layout: first workspace-<agentId> found
+  try {
+    const entries = readdirSync(base)
+    const workspaceDirs = entries
+      .filter((e) => typeof e === 'string' && e.startsWith('workspace-'))
+      .sort()
+    if (workspaceDirs.length > 0) {
+      return join(base, workspaceDirs[0] as string)
+    }
+  } catch {
+    // ~/.openclaw doesn't exist or isn't readable
+  }
+
+  // 4. Legacy single-workspace layout
+  const legacyPath = join(base, 'workspace')
+  if (existsSync(legacyPath)) return legacyPath
+
   return null
 }
 

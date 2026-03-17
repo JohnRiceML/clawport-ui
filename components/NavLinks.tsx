@@ -13,6 +13,7 @@ import {
   shouldHideClientNavPath,
   shouldShowClientHub,
 } from '@/lib/branding';
+import { useAgentsContext } from '@/app/agents-provider';
 
 function getInitials(name: string | null): string {
   if (!name) return '??'
@@ -55,29 +56,13 @@ export function NavLinks({ bottomSlot }: { bottomSlot?: React.ReactNode } = {}) 
   const pathname = usePathname();
   const { settings } = useSettings();
   const [isClientFacingHost, setIsClientFacingHost] = useState<boolean | null>(null);
-  const [agentCount, setAgentCount] = useState<number | null>(null);
+  const { agents } = useAgentsContext();
+  const agentCount = agents.length > 0 ? agents.length : null;
   const [cronCount, setCronCount] = useState<number | null>(null);
   const [cronErrorCount, setCronErrorCount] = useState<number | null>(null);
 
   useEffect(() => {
     setIsClientFacingHost(isMonarckProductionHost(window.location.hostname));
-  }, []);
-
-  // Fetch agent count
-  useEffect(() => {
-    fetch('/api/agents')
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then((data: unknown) => {
-        if (Array.isArray(data)) {
-          setAgentCount(data.length);
-        }
-      })
-      .catch(() => {
-        setAgentCount(null);
-      });
   }, []);
 
   // Fetch cron error count

@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback, useRef, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import type { Agent } from '@/lib/types'
+import { useAgentsContext } from '@/app/agents-provider'
 import { AgentList, AgentListMobile } from '@/components/chat/AgentList'
 import { ConversationView } from '@/components/chat/ConversationView'
 import { APP_NAME } from '@/lib/branding'
@@ -14,19 +15,10 @@ import {
 function MessengerApp() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [agents, setAgents] = useState<Agent[]>([])
+  const { agents, loading } = useAgentsContext()
   const [conversations, setConversations] = useState<ConversationStore>({})
   const [activeAgentId, setActiveAgentId] = useState<string | null>(searchParams.get('agent'))
-  const [loading, setLoading] = useState(true)
   const [mobileShowConversation, setMobileShowConversation] = useState(!!searchParams.get('agent'))
-
-  // Load agents
-  useEffect(() => {
-    fetch('/api/agents').then(r => r.json()).then((data: Agent[]) => {
-      setAgents(data)
-      setLoading(false)
-    })
-  }, [])
 
   // Load conversations from localStorage
   useEffect(() => {

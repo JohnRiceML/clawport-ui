@@ -9,7 +9,7 @@ import {
   type Edge,
   ConnectionLineType,
 } from "@xyflow/react"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import dagre from "@dagrejs/dagre"
 import type { Agent, CronJob } from "@/lib/types"
 import { buildTeams } from "@/lib/teams"
@@ -117,14 +117,14 @@ const GROUP_PAD_X = 30
 const GROUP_PAD_TOP = 36
 const GROUP_PAD_BOTTOM = 24
 
-function buildTeamLayout(
+/** Compute dagre positions for team layout (expensive, depends only on agents/crons structure). */
+function computeTeamPositions(
   agents: Agent[],
   crons: CronJob[],
-  selectedId: string | null,
-): { nodes: Node[]; edges: Edge[] } {
+): { nodes: Node[]; agentMap: Map<string, Agent> } {
   const agentMapWithCrons = mergeAgentsWithCrons(agents, crons)
   const { root, teams, soloOps } = buildTeams(agents)
-  if (!root) return { nodes: [], edges: [] }
+  if (!root) return { nodes: [], agentMap: agentMapWithCrons }
 
   // Collect all placed IDs
   const placedIds = new Set<string>([root.id])
@@ -218,7 +218,6 @@ function buildTeamLayout(
         position: { x: pos.x - minX + GROUP_PAD_X, y: pos.y - minY + GROUP_PAD_TOP },
         parentId: groupId,
         extent: "parent" as const,
-        selected: id === selectedId,
       })
     }
 
@@ -235,7 +234,6 @@ function buildTeamLayout(
       type: "agentNode",
       data: rootAgent as unknown as Record<string, unknown>,
       position: { x: totalWidth / 2 - NODE_W / 2, y: ROOT_Y },
-      selected: root.id === selectedId,
     })
   }
 
@@ -244,16 +242,16 @@ function buildTeamLayout(
     nodes.push(...cr.childNodes)
   }
 
-  return { nodes, edges: buildEdges(agents, selectedId) }
+  return { nodes, agentMap: agentMapWithCrons }
 }
 
 // ── Hierarchy layout (full dagre) ──────────────────────────────
 
-function buildHierarchyLayout(
+/** Compute dagre positions for hierarchy layout (expensive, depends only on agents/crons structure). */
+function computeHierarchyPositions(
   agents: Agent[],
   crons: CronJob[],
-  selectedId: string | null,
-): { nodes: Node[]; edges: Edge[] } {
+): { nodes: Node[]; agentMap: Map<string, Agent> } {
   const agentMapWithCrons = mergeAgentsWithCrons(agents, crons)
   const agentMap = new Map(agents.map((a) => [a.id, a]))
 
@@ -277,10 +275,22 @@ function buildHierarchyLayout(
       type: "agentNode",
       data: agent as unknown as Record<string, unknown>,
       position: pos,
-      selected: a.id === selectedId,
     })
   }
 
+  return { nodes, agentMap: agentMapWithCrons }
+}
+
+/** Apply selection styling to pre-computed nodes/edges (cheap). */
+function applySelection(
+  positionedNodes: Node[],
+  agents: Agent[],
+  selectedId: string | null,
+): { nodes: Node[]; edges: Edge[] } {
+  const nodes = positionedNodes.map((n) => ({
+    ...n,
+    selected: n.id === selectedId,
+  }))
   return { nodes, edges: buildEdges(agents, selectedId) }
 }
 
@@ -289,16 +299,26 @@ function buildHierarchyLayout(
 export function OrgMap({ agents, crons, selectedId, onNodeClick }: OrgMapProps) {
   const [layout, setLayout] = useState<MapLayout>("hierarchy")
 
-  const build = layout === "teams" ? buildTeamLayout : buildHierarchyLayout
-  const { nodes: initialNodes, edges: initialEdges } = build(agents, crons, selectedId)
+  // Expensive dagre computation -- only recomputes when agents/crons/layout change
+  const positionedNodes = useMemo(() => {
+    const compute = layout === "teams" ? computeTeamPositions : computeHierarchyPositions
+    return compute(agents, crons).nodes
+  }, [agents, crons, layout])
+
+  // Cheap selection styling -- runs on every selectedId change without dagre
+  const { nodes: initialNodes, edges: initialEdges } = useMemo(
+    () => applySelection(positionedNodes, agents, selectedId),
+    [positionedNodes, agents, selectedId],
+  )
+
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
 
   useEffect(() => {
-    const { nodes: n, edges: e } = build(agents, crons, selectedId)
+    const { nodes: n, edges: e } = applySelection(positionedNodes, agents, selectedId)
     setNodes(n)
     setEdges(e)
-  }, [agents, crons, selectedId, layout, setNodes, setEdges, build])
+  }, [positionedNodes, agents, selectedId, setNodes, setEdges])
 
   const handleNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {

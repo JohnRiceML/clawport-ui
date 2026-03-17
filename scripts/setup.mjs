@@ -4,7 +4,7 @@
 // Usage: npm run setup
 
 import { execSync } from 'node:child_process'
-import { readFileSync, writeFileSync, existsSync, mkdirSync, accessSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, mkdirSync, accessSync, readdirSync } from 'node:fs'
 import { constants } from 'node:fs'
 import { resolve, join } from 'node:path'
 import { createInterface } from 'node:readline'
@@ -43,12 +43,31 @@ function exec(cmd) {
 // ---------------------------------------------------------------------------
 
 function detectWorkspacePath() {
-  // Current OpenClaw layout: ~/.openclaw/agents/main/workspace
-  const agentPath = join(homedir(), '.openclaw', 'agents', 'main', 'workspace')
+  const base = join(homedir(), '.openclaw')
+
+  // 1. Current agent-scoped layout
+  const agentPath = join(base, 'agents', 'main', 'workspace')
   if (existsSync(agentPath)) return agentPath
-  // Legacy layout: ~/.openclaw/workspace
-  const legacyPath = join(homedir(), '.openclaw', 'workspace')
+
+  // 2. Multi-agent layout: workspace-main
+  const multiMain = join(base, 'workspace-main')
+  if (existsSync(multiMain)) return multiMain
+
+  // 3. Multi-agent layout: first workspace-<agentId> found
+  try {
+    const entries = readdirSync(base)
+    const workspaceDirs = entries
+      .filter((e) => typeof e === 'string' && e.startsWith('workspace-'))
+      .sort()
+    if (workspaceDirs.length > 0) return join(base, workspaceDirs[0])
+  } catch {
+    // ~/.openclaw doesn't exist
+  }
+
+  // 4. Legacy single-workspace layout
+  const legacyPath = join(base, 'workspace')
   if (existsSync(legacyPath)) return legacyPath
+
   return null
 }
 

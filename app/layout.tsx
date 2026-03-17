@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { ThemeProvider } from './providers';
 import { SettingsProvider } from './settings-provider';
+import { AgentsProvider } from './agents-provider';
 import { Sidebar } from '@/components/Sidebar';
 import { DynamicFavicon } from '@/components/DynamicFavicon';
 import { OnboardingWizard } from '@/components/OnboardingWizard';
@@ -24,6 +25,7 @@ export default function RootLayout({
       <body>
         <ThemeProvider>
           <SettingsProvider>
+            <AgentsProvider>
             <DynamicFavicon />
             <OnboardingWizard />
             <LiveStreamWidget />
@@ -43,6 +45,7 @@ export default function RootLayout({
                 </ErrorBoundary>
               </main>
             </div>
+          </AgentsProvider>
           </SettingsProvider>
         </ThemeProvider>
       </body>

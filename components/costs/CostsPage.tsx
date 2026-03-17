@@ -1,7 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { Agent, CostSummary, CronJob, RunCost, ClaudeCodeUsage } from '@/lib/types'
+import type { CostSummary, CronJob, RunCost, ClaudeCodeUsage } from '@/lib/types'
+import { useAgentsContext } from '@/app/agents-provider'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AlertTriangle, TrendingDown, TrendingUp, Activity, MessageSquare, ChevronDown } from 'lucide-react'
 import { generateId } from '@/lib/id'
@@ -28,8 +29,8 @@ interface CostChatMessage {
 /* ── CostsPage ───────────────────────────────────────────────── */
 
 export function CostsPage() {
+  const { agents } = useAgentsContext()
   const [data, setData] = useState<CostSummary | null>(null)
-  const [agents, setAgents] = useState<Agent[]>([])
   const [jobNames, setJobNames] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -64,14 +65,9 @@ export function CostsPage() {
         if (!r.ok) throw new Error('Failed to load crons')
         return r.json()
       }),
-      fetch('/api/agents').then(r => {
-        if (!r.ok) throw new Error('Failed to load agents')
-        return r.json()
-      }),
     ])
-      .then(([costData, cronData, agentData]: [CostSummary, { crons: CronJob[] }, Agent[]]) => {
+      .then(([costData, cronData]: [CostSummary, { crons: CronJob[] }]) => {
         setData(costData)
-        setAgents(agentData)
         const names: Record<string, string> = {}
         for (const c of cronData.crons) {
           names[c.id] = c.name

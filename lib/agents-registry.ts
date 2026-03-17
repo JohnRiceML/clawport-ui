@@ -3,6 +3,7 @@ import { execFileSync } from 'child_process'
 import { join, basename } from 'path'
 import bundledRegistry from '@/lib/agents.json'
 import type { Agent } from '@/lib/types'
+import { extractJson } from '@/lib/cli-utils'
 
 /** Raw agent data from JSON (everything except runtime-loaded soul and crons) */
 export type AgentEntry = Omit<Agent, 'soul' | 'crons'>
@@ -400,6 +401,18 @@ function discoverAgents(workspacePath: string): AgentEntry[] | null {
 }
 
 // ---------------------------------------------------------------------------
+// TTL cache for loadRegistry()
+// ---------------------------------------------------------------------------
+
+let _registryCache: { result: AgentEntry[]; ts: number } | null = null
+const REGISTRY_TTL = 5000 // 5 seconds
+
+/** Clear the registry cache (exported for testing). */
+export function clearRegistryCache(): void {
+  _registryCache = null
+}
+
+// ---------------------------------------------------------------------------
 // CLI-based multi-workspace discovery (openclaw agents list)
 // ---------------------------------------------------------------------------
 
@@ -429,7 +442,7 @@ export function listCliAgents(openclawBin: string): CliAgentEntry[] | null {
       encoding: 'utf-8',
       timeout: 10000,
     })
-    const parsed = JSON.parse(raw)
+    const parsed = extractJson(raw)
     const agents: unknown[] = Array.isArray(parsed) ? parsed : []
     if (agents.length === 0) return null
     return agents as CliAgentEntry[]
@@ -540,8 +553,17 @@ function enrichModelsFromCli(
  *   4. Bundled lib/agents.json               (default example registry)
  */
 export function loadRegistry(): AgentEntry[] {
+  if (_registryCache && Date.now() - _registryCache.ts < REGISTRY_TTL) {
+    return _registryCache.result
+  }
+
   const workspacePath = process.env.WORKSPACE_PATH
   const openclawBin = process.env.OPENCLAW_BIN
+
+  const cacheAndReturn = (result: AgentEntry[]): AgentEntry[] => {
+    _registryCache = { result, ts: Date.now() }
+    return result
+  }
 
   if (workspacePath) {
     // 1. User-provided override
@@ -549,7 +571,7 @@ export function loadRegistry(): AgentEntry[] {
     if (existsSync(userRegistryPath)) {
       try {
         const raw = readFileSync(userRegistryPath, 'utf-8')
-        return JSON.parse(raw) as AgentEntry[]
+        return cacheAndReturn(JSON.parse(raw) as AgentEntry[])
       } catch {
         // Malformed user JSON -- fall through
       }
@@ -564,22 +586,22 @@ export function loadRegistry(): AgentEntry[] {
       if (cliAgents) {
         enrichModelsFromCli(discovered, cliAgents, workspacePath)
         if (cliAgents.length > 1) {
-          return mergeExtraWorkspaces(discovered, cliAgents, workspacePath)
+          return cacheAndReturn(mergeExtraWorkspaces(discovered, cliAgents, workspacePath))
         }
       }
-      return discovered
+      return cacheAndReturn(discovered)
     }
-    if (discovered) return discovered
+    if (discovered) return cacheAndReturn(discovered)
 
     // 3. CLI-only: no primary workspace agents, scan each CLI agent's workspace
     if (openclawBin) {
       const cliAgents = listCliAgents(openclawBin)
       if (cliAgents) {
-        return mergeExtraWorkspaces([], cliAgents, '')
+        return cacheAndReturn(mergeExtraWorkspaces([], cliAgents, ''))
       }
     }
   }
 
   // 4. Bundled fallback
-  return bundledRegistry as AgentEntry[]
+  return cacheAndReturn(bundledRegistry as AgentEntry[])
 }

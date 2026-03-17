@@ -70,7 +70,7 @@ vi.mock('@/lib/agents.json', () => ({
 // ── Imports (after mocks) ─────────────────────────────────────────
 
 import { getAgents, clearAgentCache } from './agents'
-import { loadRegistry } from './agents-registry'
+import { loadRegistry, clearRegistryCache } from './agents-registry'
 import { getMemoryFiles, getMemoryConfig, getMemoryStatus, computeMemoryStats } from './memory'
 import { requireEnv } from './env'
 import { loadPipelines } from './cron-pipelines.server'
@@ -93,6 +93,7 @@ function fakeStat(size: number, mtime?: Date) {
 
 describe('Fresh user (no OpenClaw installed)', () => {
   beforeEach(() => {
+    clearRegistryCache()
     vi.clearAllMocks()
     vi.unstubAllEnvs()
     clearAgentCache()
@@ -175,6 +176,7 @@ describe('Fresh user (no OpenClaw installed)', () => {
 
 describe('Partial user (OpenClaw installed, no ClawPort config)', () => {
   beforeEach(() => {
+    clearRegistryCache()
     vi.clearAllMocks()
     vi.unstubAllEnvs()
     clearAgentCache()
@@ -280,6 +282,7 @@ describe('Existing user (fully configured workspace)', () => {
   const OPENCLAW_BIN = '/usr/local/bin/openclaw'
 
   beforeEach(() => {
+    clearRegistryCache()
     vi.clearAllMocks()
     vi.unstubAllEnvs()
     clearAgentCache()
@@ -645,6 +648,7 @@ describe('Existing user (fully configured workspace)', () => {
 
 describe('Transition scenarios', () => {
   beforeEach(() => {
+    clearRegistryCache()
     vi.clearAllMocks()
     vi.unstubAllEnvs()
     clearAgentCache()
@@ -660,6 +664,9 @@ describe('Transition scenarios', () => {
 
     // Phase 2: Workspace created with agents → auto-discovery
     clearAgentCache()
+    clearRegistryCache()
+    clearAgentCache()
+    clearRegistryCache()
     vi.stubEnv('WORKSPACE_PATH', WS)
     mockExistsSync.mockImplementation((p: string) => {
       if (p === `${WS}/clawport/agents.json`) return false
@@ -713,6 +720,9 @@ describe('Transition scenarios', () => {
 
     // Phase 2: User drops agents.json → override
     clearAgentCache()
+    clearRegistryCache()
+    clearAgentCache()
+    clearRegistryCache()
     const customAgents = [
       { id: 'custom-root', name: 'Root', title: 'Boss', reportsTo: null, directReports: [], soulPath: null, voiceId: null, color: '#ff0000', emoji: 'R', tools: ['exec'], memoryPath: null, description: 'Boss.' },
     ]

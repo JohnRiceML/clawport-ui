@@ -3,6 +3,7 @@ import { execFileSync } from 'child_process'
 import { parseSchedule, describeCron } from './cron-utils'
 import { requireEnv } from '@/lib/env'
 import { loadRegistry } from '@/lib/agents-registry'
+import { extractJson } from '@/lib/cli-utils'
 
 /**
  * Match a cron job name to an agent by prefix.
@@ -17,7 +18,19 @@ function matchAgent(name: string, agentIds: string[]): string | null {
   return null
 }
 
+let _cronsCache: { result: CronJob[]; ts: number } | null = null
+const CRONS_TTL = 5000 // 5 seconds
+
+/** Clear the crons cache (exported for testing). */
+export function clearCronsCache(): void {
+  _cronsCache = null
+}
+
 export async function getCrons(): Promise<CronJob[]> {
+  if (_cronsCache && Date.now() - _cronsCache.ts < CRONS_TTL) {
+    return _cronsCache.result
+  }
+
   try {
     const openclawBin = requireEnv('OPENCLAW_BIN')
     const raw = execFileSync(openclawBin, ['cron', 'list', '--json'], {
@@ -25,15 +38,15 @@ export async function getCrons(): Promise<CronJob[]> {
       timeout: 10000,
     })
 
-    const parsed = JSON.parse(raw)
+    const parsed = extractJson(raw) as Record<string, unknown>
     const jobs: unknown[] = Array.isArray(parsed)
       ? parsed
-      : parsed.jobs ?? parsed.data ?? []
+      : (parsed.jobs ?? parsed.data ?? []) as unknown[]
 
     // Load known agent IDs for dynamic cron-to-agent matching
     const agentIds = loadRegistry().map(a => a.id)
 
-    return jobs.map((job: unknown) => {
+    const result = jobs.map((job: unknown) => {
       const j = job as Record<string, unknown>
       const state = (j.state as Record<string, unknown>) || {}
       const name = String(j.name || '')
@@ -97,6 +110,9 @@ export async function getCrons(): Promise<CronJob[]> {
         lastDeliveryStatus,
       }
     })
+
+    _cronsCache = { result, ts: Date.now() }
+    return result
   } catch (err) {
     throw new Error(
       `Failed to fetch cron jobs: ${err instanceof Error ? err.message : String(err)}`

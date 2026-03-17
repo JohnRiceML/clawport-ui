@@ -29,9 +29,10 @@ vi.mock('@/lib/agents-registry', () => ({
   ],
 }))
 
-import { getCrons } from './crons'
+import { getCrons, clearCronsCache } from './crons'
 
 beforeEach(() => {
+  clearCronsCache()
   vi.clearAllMocks()
   vi.stubEnv('OPENCLAW_BIN', '/usr/local/bin/openclaw')
 })

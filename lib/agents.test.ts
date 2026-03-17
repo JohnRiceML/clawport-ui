@@ -137,9 +137,10 @@ vi.mock('@/lib/agents.json', () => ({
 
 // We need to import AFTER mocks are set up
 import { getAgents, getAgent, clearAgentCache } from './agents'
-import { parseSoulHeading, parseIdentity } from './agents-registry'
+import { parseSoulHeading, parseIdentity, clearRegistryCache } from './agents-registry'
 
 beforeEach(() => {
+  clearRegistryCache()
   vi.clearAllMocks()
   vi.unstubAllEnvs()
   clearAgentCache()

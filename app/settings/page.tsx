@@ -1,9 +1,10 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { ChevronRight, RotateCcw, Trash2, Upload, X } from 'lucide-react'
+import { ChevronRight, RotateCcw, Trash2, Upload, X, RefreshCw } from 'lucide-react'
 import type { Agent } from '@/lib/types'
 import { useSettings } from '@/app/settings-provider'
+import { useAgentsContext } from '@/app/agents-provider'
 import { AgentAvatar } from '@/components/AgentAvatar'
 import { OnboardingWizard } from '@/components/OnboardingWizard'
 import { APP_NAME } from '@/lib/branding'
@@ -76,9 +77,10 @@ export default function SettingsPage() {
     resetAll,
   } = useSettings()
 
+  const { agents, refresh: refreshAgents, loading: agentsLoading } = useAgentsContext()
   const [wizardOpen, setWizardOpen] = useState(false)
-  const [agents, setAgents] = useState<Agent[]>([])
   const [expandedAgent, setExpandedAgent] = useState<string | null>(null)
+  const [rescanResult, setRescanResult] = useState<string | null>(null)
   const [nameValue, setNameValue] = useState(settings.portalName ?? '')
   const [subtitleValue, setSubtitleValue] = useState(settings.portalSubtitle ?? '')
   const [operatorNameValue, setOperatorNameValue] = useState(settings.operatorName ?? '')
@@ -93,19 +95,6 @@ export default function SettingsPage() {
     setOperatorNameValue(settings.operatorName ?? '')
     setEmojiValue(settings.portalEmoji ?? '')
   }, [settings.portalName, settings.portalSubtitle, settings.operatorName, settings.portalEmoji])
-
-  // Fetch agents
-  useEffect(() => {
-    fetch('/api/agents')
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`)
-        return r.json()
-      })
-      .then((data: unknown) => {
-        if (Array.isArray(data)) setAgents(data as Agent[])
-      })
-      .catch(() => setAgents([]))
-  }, [])
 
   async function handleIconUpload(file: File) {
     try {
@@ -897,6 +886,35 @@ export default function SettingsPage() {
             >
               <RotateCcw size={16} />
               Re-run Setup
+            </button>
+            <button
+              onClick={() => {
+                refreshAgents()
+                setRescanResult(null)
+                // Show result after a short delay to let the fetch complete
+                setTimeout(() => {
+                  setRescanResult(`Found ${agents.length} agents`)
+                  setTimeout(() => setRescanResult(null), 2000)
+                }, 600)
+              }}
+              className="btn-scale"
+              style={{
+                padding: 'var(--space-2) var(--space-6)',
+                borderRadius: 'var(--radius-md)',
+                background: 'var(--fill-tertiary)',
+                color: 'var(--text-primary)',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: 'var(--text-body)',
+                fontWeight: 'var(--weight-semibold)',
+                transition: 'all 150ms var(--ease-spring)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 'var(--space-2)',
+              }}
+            >
+              <RefreshCw size={16} className={agentsLoading ? 'animate-spin' : ''} />
+              {rescanResult || 'Rescan Agents'}
             </button>
             <button
               onClick={() => {

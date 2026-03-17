@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import type { Agent, CronJob, CronRun } from "@/lib/types";
+import { useAgentsContext } from "@/app/agents-provider";
 import type { Pipeline } from "@/lib/cron-pipelines";
 import { formatDuration, timeAgo, nextRunLabel } from "@/lib/cron-utils";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -519,8 +520,8 @@ function RecentRuns({ jobId }: { jobId: string }) {
 /* ─── Component ─────────────────────────────────────────────────── */
 
 export default function CronsPage() {
+  const { agents } = useAgentsContext();
   const [crons, setCrons] = useState<CronJob[]>([]);
-  const [agents, setAgents] = useState<Agent[]>([]);
   const [pipelines, setPipelines] = useState<Pipeline[]>([]);
   const [filter, setFilter] = useState<Filter>("all");
   const [tab, setTab] = useState<Tab>("overview");
@@ -539,18 +540,12 @@ export default function CronsPage() {
   const refresh = useCallback(() => {
     setRefreshing(true);
     setError(null);
-    Promise.all([
-      fetch("/api/crons").then((r) => {
+    fetch("/api/crons")
+      .then((r) => {
         if (!r.ok) throw new Error("Failed to load crons");
         return r.json();
-      }),
-      fetch("/api/agents").then((r) => {
-        if (!r.ok) throw new Error("Failed to load agents");
-        return r.json();
-      }),
-    ])
-      .then(([cronData, a]) => {
-        // Backward compat: if response is a plain array, treat as crons-only
+      })
+      .then((cronData) => {
         if (Array.isArray(cronData)) {
           setCrons(cronData);
           setPipelines([]);
@@ -558,7 +553,6 @@ export default function CronsPage() {
           setCrons(cronData.crons);
           setPipelines(cronData.pipelines || []);
         }
-        setAgents(a);
         setLastRefresh(new Date());
         setLoading(false);
         setRefreshing(false);

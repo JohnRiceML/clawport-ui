@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import dynamic from "next/dynamic"
 import type { Agent, CronJob } from "@/lib/types"
+import { useAgentsContext } from "@/app/agents-provider"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Map as MapIcon, LayoutGrid, List, X, MessageSquare, User } from "lucide-react"
 import { ErrorState } from "@/components/ErrorState"
@@ -117,38 +118,40 @@ const VIEW_OPTIONS: { key: View; label: string }[] = [
    ────────────────────────────────────────────── */
 export default function HomePage() {
   const router = useRouter()
-  const [agents, setAgents] = useState<Agent[]>([])
+  const { agents, loading: agentsLoading, error: agentsError, refresh: refreshAgents } = useAgentsContext()
   const [crons, setCrons] = useState<CronJob[]>([])
   const [selected, setSelected] = useState<Agent | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [cronsLoading, setCronsLoading] = useState(true)
+  const [cronsError, setCronsError] = useState<string | null>(null)
   const [view, setView] = useState<View>("map")
   const closeRef = useRef<HTMLButtonElement>(null)
 
-  const loadData = useCallback(() => {
-    setLoading(true)
-    setError(null)
-    Promise.all([
-      fetch("/api/agents").then((r) => {
-        if (!r.ok) throw new Error("Failed to fetch agents")
-        return r.json()
-      }),
-      fetch("/api/crons").then((r) => {
+  const loading = agentsLoading || cronsLoading
+  const error = agentsError || cronsError
+
+  const loadCrons = useCallback(() => {
+    setCronsLoading(true)
+    setCronsError(null)
+    fetch("/api/crons")
+      .then((r) => {
         if (!r.ok) throw new Error("Failed to fetch crons")
         return r.json()
-      }),
-    ])
-      .then(([a, cronData]) => {
-        setAgents(a)
+      })
+      .then((cronData) => {
         setCrons(Array.isArray(cronData) ? cronData : cronData.crons ?? [])
       })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false))
+      .catch((e) => setCronsError(e.message))
+      .finally(() => setCronsLoading(false))
   }, [])
 
   useEffect(() => {
-    loadData()
-  }, [loadData])
+    loadCrons()
+  }, [loadCrons])
+
+  const loadData = useCallback(() => {
+    refreshAgents()
+    loadCrons()
+  }, [refreshAgents, loadCrons])
 
   // Focus close button when panel opens
   useEffect(() => {

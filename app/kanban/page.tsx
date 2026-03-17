@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import type { Agent } from '@/lib/types'
 import type { KanbanTicket, RelevantFile, TicketStatus, TicketPriority, TeamRole } from '@/lib/kanban/types'
+import { useAgentsContext } from '@/app/agents-provider'
 import {
   loadTickets,
   saveTickets,
@@ -24,9 +24,9 @@ import { Skeleton } from '@/components/ui/skeleton'
 
 export default function KanbanPage() {
   const [tickets, setTickets] = useState<KanbanStore>({})
-  const [agents, setAgents] = useState<Agent[]>([])
+  const { agents, error: agentsError } = useAgentsContext()
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [ticketError, setTicketError] = useState<string | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
   const [selectedTicket, setSelectedTicket] = useState<KanbanTicket | null>(null)
   const [filterAgentId, setFilterAgentId] = useState<string | null>(null)
@@ -34,24 +34,17 @@ export default function KanbanPage() {
 
   const loadData = useCallback(() => {
     setLoading(true)
-    setError(null)
+    setTicketError(null)
 
     const localTickets = loadTickets()
 
-    Promise.all([
-      fetch('/api/agents').then((r) => {
-        if (!r.ok) throw new Error('Failed to fetch agents')
-        return r.json() as Promise<Agent[]>
-      }),
-      fetch('/api/kanban/tickets')
-        .then((r) => {
-          if (!r.ok) throw new Error('Failed to fetch kanban tickets')
-          return r.json() as Promise<KanbanStore>
-        })
-        .catch(() => ({} as KanbanStore)),
-    ])
-      .then(async ([a, remoteTickets]) => {
-        setAgents(a)
+    fetch('/api/kanban/tickets')
+      .then((r) => {
+        if (!r.ok) throw new Error('Failed to fetch kanban tickets')
+        return r.json() as Promise<KanbanStore>
+      })
+      .catch(() => ({} as KanbanStore))
+      .then(async (remoteTickets) => {
         const merged = mergeTicketStores(remoteTickets, localTickets)
         setTickets(merged)
         saveTickets(merged)
@@ -73,7 +66,7 @@ export default function KanbanPage() {
           }).catch(() => {})
         }
       })
-      .catch((e) => setError(e.message))
+      .catch((e) => setTicketError(e instanceof Error ? e.message : 'Failed to load kanban tickets'))
       .finally(() => setLoading(false))
   }, [])
 
@@ -184,8 +177,8 @@ export default function KanbanPage() {
     setSelectedTicket(ticket)
   }
 
-  if (error) {
-    return <ErrorState message={error} onRetry={loadData} />
+  if (ticketError || agentsError) {
+    return <ErrorState message={ticketError ?? agentsError ?? 'Unknown error'} onRetry={loadData} />
   }
 
   const selectedAgent = selectedTicket?.assigneeId
