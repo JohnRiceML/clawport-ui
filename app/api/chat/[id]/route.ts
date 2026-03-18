@@ -3,21 +3,17 @@ export const runtime = 'nodejs'
 import { getAgent } from '@/lib/agents'
 import { validateChatMessages } from '@/lib/validation'
 import { hasImageContent, extractImageAttachments, buildTextPrompt, sendViaOpenClaw } from '@/lib/anthropic'
-import OpenAI from 'openai'
-import { gatewayBaseUrl } from '@/lib/env'
+import { getOpenAIClient } from '@/lib/openai'
+import { gatewayToken } from '@/lib/env'
+import type OpenAI from 'openai'
 
-// Route through the OpenClaw gateway — no separate API key needed
-const openai = new OpenAI({
-  baseURL: gatewayBaseUrl(),
-  apiKey: process.env.OPENCLAW_GATEWAY_TOKEN,
-})
-
-const GATEWAY_TOKEN = process.env.OPENCLAW_GATEWAY_TOKEN || ''
+const GATEWAY_TOKEN = gatewayToken()
 
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const openai = getOpenAIClient()
   const { id } = await params
   const agent = await getAgent(id)
 

@@ -44,16 +44,30 @@ function exec(cmd) {
 
 function detectWorkspacePath() {
   const base = join(homedir(), '.openclaw')
+  const configPath = join(base, 'openclaw.json')
 
-  // 1. Current agent-scoped layout
+  // 1. Read from openclaw.json agents.defaults.workspace (canonical source)
+  if (existsSync(configPath)) {
+    try {
+      const config = JSON.parse(readFileSync(configPath, 'utf-8'))
+      const defaultWorkspace = config?.agents?.defaults?.workspace
+      if (typeof defaultWorkspace === 'string' && existsSync(defaultWorkspace)) {
+        return defaultWorkspace
+      }
+    } catch {
+      // Invalid JSON, fall through
+    }
+  }
+
+  // 2. Current agent-scoped layout (legacy fallback)
   const agentPath = join(base, 'agents', 'main', 'workspace')
   if (existsSync(agentPath)) return agentPath
 
-  // 2. Multi-agent layout: workspace-main
+  // 3. Multi-agent layout: workspace-main
   const multiMain = join(base, 'workspace-main')
   if (existsSync(multiMain)) return multiMain
 
-  // 3. Multi-agent layout: first workspace-<agentId> found
+  // 4. Multi-agent layout: first workspace-<agentId> found
   try {
     const entries = readdirSync(base)
     const workspaceDirs = entries
@@ -64,7 +78,7 @@ function detectWorkspacePath() {
     // ~/.openclaw doesn't exist
   }
 
-  // 4. Legacy single-workspace layout
+  // 5. Legacy single-workspace layout
   const legacyPath = join(base, 'workspace')
   if (existsSync(legacyPath)) return legacyPath
 
