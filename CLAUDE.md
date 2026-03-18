@@ -49,7 +49,7 @@ ELEVENLABS_API_KEY   # Optional -- voice indicators
 
 Run `npm run setup` to auto-detect all required values from your local OpenClaw installation.
 
-**Workspace detection order:** `~/.openclaw/agents/main/workspace` (current layout) → `~/.openclaw/workspace` (legacy). Falls back to manual prompt if neither exists.
+**Workspace detection order:** `~/.openclaw/openclaw.json` → `agents.defaults.workspace` (canonical) → legacy filesystem paths. Falls back to manual prompt if none found.
 
 **Global install:** When installed via `npm install -g clawport-ui`, `.env.local` may not be writable in the package directory. Setup falls back to `~/.config/clawport-ui/.env.local` (XDG-compliant). The CLI (`bin/clawport.mjs`) checks both locations when loading env vars.
 

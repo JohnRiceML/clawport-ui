@@ -140,7 +140,7 @@ All AI calls -- chat, vision, TTS, transcription -- route through the gateway. O
 
 | Variable | Description | How to find it |
 |----------|-------------|----------------|
-| `WORKSPACE_PATH` | Path to your OpenClaw workspace | Default: `~/.openclaw/agents/main/workspace` (or legacy `~/.openclaw/workspace`) |
+| `WORKSPACE_PATH` | Path to your OpenClaw workspace | Read from `~/.openclaw/openclaw.json` (agents.defaults.workspace) |
 | `OPENCLAW_BIN` | Path to the `openclaw` binary | Run `which openclaw` |
 | `OPENCLAW_GATEWAY_TOKEN` | Gateway auth token | Run `openclaw gateway status` |
 

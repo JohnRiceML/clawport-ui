@@ -1,13 +1,8 @@
 export const runtime = 'nodejs'
 
 import { getAgent } from '@/lib/agents'
-import OpenAI from 'openai'
-import { gatewayBaseUrl } from '@/lib/env'
-
-const openai = new OpenAI({
-  baseURL: gatewayBaseUrl(),
-  apiKey: process.env.OPENCLAW_GATEWAY_TOKEN,
-})
+import { getOpenAIClient } from '@/lib/openai'
+import type OpenAI from 'openai'
 
 const MAX_TITLE = 500
 const MAX_DESC = 5000
@@ -27,6 +22,7 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const openai = getOpenAIClient()
   const { id } = await params
   const agent = await getAgent(id)
 

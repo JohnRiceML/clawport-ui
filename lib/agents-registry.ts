@@ -474,31 +474,42 @@ function mergeExtraWorkspaces(
     // Skip agents whose workspace matches the primary (already discovered)
     if (!ws || ws === primaryWorkspace) continue
 
+    // Use CLI agent ID as the canonical ID for this workspace
+    const cliId = cli.id
+    if (existingIds.has(cliId)) continue
+
     // Try discovering agents from this workspace's filesystem
     const discovered = discoverAgents(ws)
-    if (discovered) {
-      // Enrich with model from this CLI agent
-      if (cli.model) {
-        for (const d of discovered) {
-          if (!d.model) d.model = cli.model
-        }
-      }
-      for (const agent of discovered) {
-        if (existingIds.has(agent.id)) continue
-        // Agents from other workspaces are top-level peers (no cross-workspace hierarchy)
-        if (agent.reportsTo && !existingIds.has(agent.reportsTo)) {
-          agent.reportsTo = null
-        }
-        added.push(agent)
-        existingIds.add(agent.id)
-      }
-    } else {
-      // Workspace has no agents/ dir — create a minimal entry from CLI identity
-      const id = cli.id
-      if (existingIds.has(id)) continue
-      const name = cli.identityName || slugToName(id)
+
+    if (discovered && discovered.length > 0) {
+      // Take the first (root) agent from discovered and merge with CLI data
+      const discoveredAgent = discovered[0]
+
+      // Use CLI ID as canonical, prefer CLI identity if available, otherwise slug from ID
+      const name = cli.identityName || slugToName(cliId)
+      const emoji = cli.identityEmoji || name.charAt(0).toUpperCase()
+
       added.push({
-        id,
+        id: cliId,
+        name,
+        title: discoveredAgent.title || 'Agent',
+        reportsTo: null,
+        directReports: [],
+        soulPath: discoveredAgent.soulPath,
+        voiceId: discoveredAgent.voiceId,
+        color: DISCOVER_COLORS[colorIndex++ % DISCOVER_COLORS.length],
+        emoji,
+        tools: discoveredAgent.tools,
+        model: cli.model || discoveredAgent.model,
+        memoryPath: discoveredAgent.memoryPath,
+        description: discoveredAgent.description || `${name} agent.`,
+      })
+      existingIds.add(cliId)
+    } else {
+      // Workspace has no discoverable agents — create a minimal entry from CLI identity
+      const name = cli.identityName || slugToName(cliId)
+      added.push({
+        id: cliId,
         name,
         title: 'Agent',
         reportsTo: null,
@@ -512,7 +523,7 @@ function mergeExtraWorkspaces(
         memoryPath: null,
         description: `${name} agent.`,
       })
-      existingIds.add(id)
+      existingIds.add(cliId)
     }
   }
 

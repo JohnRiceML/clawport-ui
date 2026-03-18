@@ -1,25 +1,66 @@
 /**
- * Extract a JSON value from CLI output that may contain non-JSON preamble.
+ * Extract a JSON value from CLI output that may contain non-JSON preamble or epilogue.
  *
  * Some OpenClaw versions print validation warnings (e.g. "Unrecognized key")
- * to stdout before the JSON payload. This function finds the first `[` or `{`
- * and parses from there, so ClawPort doesn't break on noisy CLI output.
+ * or plugin logs (e.g. "[plugins] ...") to stdout before/after the JSON payload.
+ * This function finds and extracts only the valid JSON structure.
  */
 export function extractJson(raw: string): unknown {
-  // Fast path: raw is already valid JSON
-  const trimmed = raw.trim()
-  if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
-    return JSON.parse(trimmed)
+  const lines = raw.split('\n')
+  let jsonStartLine = -1
+  let jsonType: '[' | '{' | null = null
+
+  for (let i = 0; i < lines.length; i++) {
+    // Strip ANSI escape codes
+    const cleanLine = lines[i].replace(/\x1b\[[0-9;]*m/g, '').trim()
+
+    if (cleanLine.startsWith('{')) {
+      jsonStartLine = i
+      jsonType = '{'
+      break
+    }
+    if (cleanLine.startsWith('[')) {
+      // Check if this is a JSON array start
+      // - Line is just "[" (empty array or array start on new line)
+      // - OR next char is whitespace, quote, bracket, or digit (JSON array content)
+      // NOT a log tag like [plugins] where next char is a letter
+      const nextChar = cleanLine[1]
+      if (!nextChar || /[\s"'\{\[\d]/.test(nextChar)) {
+        jsonStartLine = i
+        jsonType = '['
+        break
+      }
+    }
   }
 
-  // Find the first JSON structure in the output
-  const arrStart = raw.indexOf('[')
-  const objStart = raw.indexOf('{')
-  const starts = [arrStart, objStart].filter(i => i >= 0)
-  if (starts.length === 0) {
+  if (jsonStartLine < 0) {
     throw new SyntaxError('No JSON found in CLI output')
   }
 
-  const start = Math.min(...starts)
-  return JSON.parse(raw.slice(start))
+  // Find where the JSON ends by matching brackets
+  const jsonLines = lines.slice(jsonStartLine)
+  let depth = 0
+  let jsonEndLine = -1
+
+  for (let i = 0; i < jsonLines.length; i++) {
+    const line = jsonLines[i].replace(/\x1b\[[0-9;]*m/g, '')
+    for (const char of line) {
+      if (char === '[' || char === '{') depth++
+      else if (char === ']' || char === '}') {
+        depth--
+        if (depth === 0) {
+          jsonEndLine = i
+          break
+        }
+      }
+    }
+    if (jsonEndLine >= 0) break
+  }
+
+  if (jsonEndLine < 0) {
+    throw new SyntaxError('JSON structure not properly closed')
+  }
+
+  const jsonPart = jsonLines.slice(0, jsonEndLine + 1).join('\n')
+  return JSON.parse(jsonPart)
 }

@@ -22,3 +22,8 @@ export function gatewayPort(): number {
 export function gatewayBaseUrl(): string {
   return `http://localhost:${gatewayPort()}/v1`
 }
+
+/** OpenClaw gateway auth token. */
+export function gatewayToken(): string {
+  return process.env.OPENCLAW_GATEWAY_TOKEN || ''
+}
