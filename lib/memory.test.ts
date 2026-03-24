@@ -283,17 +283,19 @@ describe('getMemoryStatus', () => {
   })
 
   it('parses valid JSON status', () => {
-    mockExecSync.mockReturnValue(JSON.stringify({
-      indexed: true,
-      lastIndexed: '2026-03-01T12:00:00Z',
-      totalEntries: 42,
-      vectorAvailable: true,
-      embeddingProvider: 'openai',
-    }))
+    mockExecSync.mockReturnValue(JSON.stringify([{
+      agentId: 'main',
+      status: {
+        files: 9,
+        chunks: 42,
+        dirty: false,
+        provider: 'openai',
+        vector: { available: true },
+      },
+    }]))
 
     const status = getMemoryStatus()
     expect(status.indexed).toBe(true)
-    expect(status.lastIndexed).toBe('2026-03-01T12:00:00Z')
     expect(status.totalEntries).toBe(42)
     expect(status.vectorAvailable).toBe(true)
     expect(status.embeddingProvider).toBe('openai')
@@ -324,12 +326,36 @@ describe('getMemoryStatus', () => {
   })
 
   it('handles missing fields in JSON response', () => {
-    mockExecSync.mockReturnValue(JSON.stringify({ indexed: true }))
+    mockExecSync.mockReturnValue(JSON.stringify([{
+      agentId: 'main',
+      status: { files: 1, chunks: 1, dirty: false },
+    }]))
 
     const status = getMemoryStatus()
     expect(status.indexed).toBe(true)
     expect(status.lastIndexed).toBeNull()
-    expect(status.totalEntries).toBeNull()
+    expect(status.totalEntries).toBe(1)
+  })
+
+  it('reports not indexed when agent has dirty files', () => {
+    mockExecSync.mockReturnValue(JSON.stringify([{
+      agentId: 'main',
+      status: { files: 9, chunks: 13, dirty: true, provider: 'gemini' },
+    }]))
+
+    const status = getMemoryStatus()
+    expect(status.indexed).toBe(false)
+  })
+
+  it('aggregates entries across multiple agents', () => {
+    mockExecSync.mockReturnValue(JSON.stringify([
+      { agentId: 'main', status: { files: 9, chunks: 13, dirty: false, provider: 'gemini', vector: { available: true } } },
+      { agentId: 'courier', status: { files: 2, chunks: 2, dirty: false } },
+    ]))
+
+    const status = getMemoryStatus()
+    expect(status.indexed).toBe(true)
+    expect(status.totalEntries).toBe(15)
   })
 })
 

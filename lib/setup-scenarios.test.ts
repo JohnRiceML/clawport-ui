@@ -578,17 +578,19 @@ describe('Existing user (fully configured workspace)', () => {
   describe('memory status — CLI returns JSON', () => {
     it('parses full memory status from CLI', () => {
       vi.stubEnv('OPENCLAW_BIN', OPENCLAW_BIN)
-      mockExecSync.mockReturnValue(JSON.stringify({
-        indexed: true,
-        lastIndexed: '2026-03-04T08:00:00Z',
-        totalEntries: 128,
-        vectorAvailable: true,
-        embeddingProvider: 'openai',
-      }))
+      mockExecSync.mockReturnValue(JSON.stringify([{
+        agentId: 'main',
+        status: {
+          files: 9,
+          chunks: 128,
+          dirty: false,
+          provider: 'openai',
+          vector: { available: true },
+        },
+      }]))
 
       const status = getMemoryStatus()
       expect(status.indexed).toBe(true)
-      expect(status.lastIndexed).toBe('2026-03-04T08:00:00Z')
       expect(status.totalEntries).toBe(128)
       expect(status.vectorAvailable).toBe(true)
       expect(status.embeddingProvider).toBe('openai')

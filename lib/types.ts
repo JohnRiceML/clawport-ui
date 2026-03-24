@@ -216,6 +216,17 @@ export interface MemoryStatus {
   raw: string
 }
 
+export interface AgentDeepStatus {
+  agentId?: string
+  status?: {
+    files?: number
+    chunks?: number
+    dirty?: boolean
+    provider?: string
+    vector?: { available?: boolean }
+  }
+}
+
 export interface MemoryStats {
   totalFiles: number
   totalSizeBytes: number

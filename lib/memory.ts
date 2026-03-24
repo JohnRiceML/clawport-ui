@@ -1,4 +1,4 @@
-import type { MemoryFileInfo, MemoryConfig, MemoryStatus, MemoryStats } from '@/lib/types'
+import type { AgentDeepStatus, MemoryFileInfo, MemoryConfig, MemoryStatus, MemoryStats } from '@/lib/types'
 import { readFileSync, existsSync, statSync, readdirSync } from 'fs'
 import { join, basename, dirname } from 'path'
 import { execSync } from 'child_process'
@@ -212,26 +212,38 @@ export function getMemoryStatus(): MemoryStatus {
     return defaults
   }
 
+  // Note: execSync with hardcoded args is safe here — no user input in command
   try {
-    const output = execSync(`${bin} memory status --deep`, {
+    const output = execSync(`${bin} memory status --deep --json`, {
       timeout: 15000,
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
     }).trim()
 
-    // Try JSON parse first
     try {
-      const data = JSON.parse(output)
+      const data: unknown = JSON.parse(output)
+      // openclaw returns an array of per-agent status objects
+      const agents: AgentDeepStatus[] = Array.isArray(data) ? data : [data]
+      const primary = agents[0]?.status
+      if (!primary) return { ...defaults, raw: output }
+
+      const totalEntries = agents.reduce(
+        (sum, a) => sum + (a.status?.chunks ?? 0),
+        0,
+      )
+      const allIndexed = agents.every(
+        a => (a.status?.files ?? 0) > 0 && !a.status?.dirty,
+      )
+
       return {
-        indexed: data.indexed ?? false,
-        lastIndexed: data.lastIndexed ?? null,
-        totalEntries: data.totalEntries ?? null,
-        vectorAvailable: data.vectorAvailable ?? null,
-        embeddingProvider: data.embeddingProvider ?? null,
+        indexed: allIndexed,
+        lastIndexed: null,
+        totalEntries,
+        vectorAvailable: primary.vector?.available ?? null,
+        embeddingProvider: primary.provider ?? null,
         raw: output,
       }
     } catch {
-      // Plain text fallback
       return { ...defaults, raw: output }
     }
   } catch {
